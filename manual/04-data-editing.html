@@ -1004,8 +1004,8 @@
   <li><b>可以取消。</b>取消会在两条语句之间停下来并回滚。</li>
   <li><b>提交超时</b>时会提示：<code>提交超时，事务状态未知，请在数据库中手动核对这几行的数据</code>。
     这是少数几个没法自动补救的情况，必须人工确认。</li>
-  <li>如果待提交内容里混进了结构变更语句（本工具自己不会产生，但可能通过粘贴带进来），
-    会<b>直接拒绝</b>，并提示你用 SQL 编辑器执行。</li>
+  <li>暂存区内容只由编辑操作生成，正常不会包含结构变更语句；提交前仍会做一次防御性检查，
+    若发现 INSERT / UPDATE / DELETE 以外的语句，会<b>直接拒绝</b>，并提示你改用 SQL 编辑器执行。</li>
 </ul>
 
 <h3>某条语句影响 0 行怎么办</h3>
@@ -1061,18 +1061,18 @@
 
   <rect class="s-window ln2" x="530" y="40" width="430" height="190" rx="12"/>
   <text class="b c" x="745" y="76">关闭标签</text>
-  <text class="c" x="745" y="112">这个查询标签有未保存的改动。</text>
+  <text class="c" x="745" y="112">脚本有未保存的改动，关闭前保存吗？</text>
   <line class="ln" x1="530" y1="150" x2="960" y2="150"/>
   <rect class="s-field ln2" x="556" y="172" width="80" height="32" rx="6"/>
   <text class="c s" x="596" y="188">取消</text>
   <rect class="s-field ln2" x="660" y="172" width="130" height="32" rx="6"/>
-  <text class="c s" x="725" y="188">放弃并关闭</text>
+  <text class="c s" x="725" y="188">不保存</text>
   <rect class="s-accent" x="804" y="172" width="130" height="32" rx="6"/>
-  <text class="c s" x="869" y="188" fill="#fff">提交并关闭</text>
+  <text class="c s" x="869" y="188" fill="#fff">保存并关闭</text>
 
   <text class="fnt s c" x="500" y="266">按钮措辞必须具体。不要用「确定 / 取消」这种分不清谁是谁的说法。</text>
 </svg>
-<figcaption><b>图 4-9</b>　两个确认弹窗。左边是通用保护，右边是关闭标签时。</figcaption>
+<figcaption><b>图 4-9</b>　两个确认弹窗。左边是表数据的未提交改动保护；右边是关闭关联过磁盘文件的查询标签时（纯草稿不提示）。</figcaption>
 </figure>
 
 <h2>一个必须知道的限制：不检测并发修改</h2>

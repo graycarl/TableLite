@@ -64,7 +64,7 @@
       <li>SQL 编辑器没有自动补全、没有格式化</li>
       <li>查询结果只读，只有表数据视图能改</li>
       <li>不支持 MySQL / MariaDB 之外的数据库</li>
-      <li>没有撤销重做，回退靠「放弃全部改动」</li>
+      <li>数据网格没有撤销重做，回退靠「放弃全部改动」（SQL 编辑器里有撤销 / 重做）</li>
     </ul>
   </div>
 </div>
@@ -297,7 +297,7 @@
 <tr data-hot="3"><td class="num">3</td><td class="wide">变更操作组</td>
   <td><b>放弃</b>丢掉全部未提交修改；<b>预览</b>列出将要执行的 SQL；<b>提交</b>真的写库。按钮上的数字是待提交条数，为 0 时整组变灰。</td><td><kbd>⇧⌘⌫</kbd> <kbd>⇧⌘P</kbd> <kbd>⌘S</kbd></td></tr>
 <tr data-hot="4"><td class="num">4</td><td class="wide">连接颜色带</td>
-  <td>一条 3pt 的细带，用连接配置里的颜色着色。给生产库配红色，一眼就能看出当前在哪个环境。</td><td>—</td></tr>
+  <td>一条 2pt 的细带，用连接配置里的颜色着色。给生产库配红色，一眼就能看出当前在哪个环境。</td><td>—</td></tr>
 <tr data-hot="5"><td class="num">5</td><td class="wide">库切换器与搜索框</td>
   <td>上面是当前连接的库下拉，点开可以换库。下面是对象树搜索框，输入即过滤，会自动展开所有分组。</td><td><kbd>⌘F</kbd> 聚焦搜索</td></tr>
 <tr data-hot="6"><td class="num">6</td><td class="wide">对象树</td>

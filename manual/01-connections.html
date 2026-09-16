@@ -129,19 +129,19 @@
   <text class="mut s" x="72" y="60">保存着但当前没连</text>
 
   <rect class="s-field ln" x="260" y="16" width="220" height="72" rx="9"/>
-  <circle class="lnA" cx="52" cy="52" r="7" stroke-dasharray="10 24"/>
-  <text class="b" x="72" y="40">连接中</text>
-  <text class="mut s" x="72" y="60">正在建隧道或连库</text>
+  <circle class="lnA" cx="292" cy="52" r="7" stroke-dasharray="10 24"/>
+  <text class="b" x="312" y="40">连接中</text>
+  <text class="mut s" x="312" y="60">正在建隧道或连库</text>
 
   <rect class="s-field ln" x="500" y="16" width="220" height="72" rx="9"/>
-  <circle class="s-green" cx="52" cy="52" r="6"/>
-  <text class="b" x="72" y="40">已连接</text>
-  <text class="mut s" x="72" y="60">一切正常</text>
+  <circle class="s-green" cx="532" cy="52" r="6"/>
+  <text class="b" x="552" y="40">已连接</text>
+  <text class="mut s" x="552" y="60">一切正常</text>
 
   <rect class="s-field ln" x="740" y="16" width="220" height="72" rx="9"/>
-  <circle class="s-red" cx="52" cy="52" r="6"/>
-  <text class="b" x="72" y="40">异常</text>
-  <text class="mut s" x="72" y="60">断开或隧道挂了</text>
+  <circle class="s-red" cx="772" cy="52" r="6"/>
+  <text class="b" x="792" y="40">异常</text>
+  <text class="mut s" x="792" y="60">断开或隧道挂了</text>
 </svg>
 <figcaption><b>图 1-2</b>　连接状态的四种显示。异常状态时，内容区会盖一层灰色遮罩并给出「重新连接」按钮。</figcaption>
 </figure>
@@ -340,7 +340,7 @@
 <tr><td>保存到钥匙串</td><td>否</td><td>勾选</td><td>不勾则密码只在本次运行期间有效</td></tr>
 <tr><td>数据库</td><td>否</td><td>空</td><td>留空时连上后默认选中第一个可访问的库</td></tr>
 <tr><td>字符集</td><td>否</td><td>utf8mb4</td><td>影响中文与 emoji 的读写</td></tr>
-<tr><td>使用 SSL</td><td>否</td><td>勾选</td><td>服务器不支持 TLS 时会自动回退成明文</td></tr>
+<tr><td>使用 SSL</td><td>否</td><td>勾选</td><td>服务器使用自签证书时再搭配下一项</td></tr>
 <tr><td>跳过证书校验</td><td>否</td><td>不勾</td><td>仅在服务器使用自签证书时打开</td></tr>
 <tr><td>连接超时</td><td>否</td><td>10 秒</td><td>建立 TCP 连接的最长等待时间</td></tr>
 <tr><td>查询超时</td><td>否</td><td>300 秒</td><td>超时后自动中止查询</td></tr>
