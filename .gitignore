@@ -19,3 +19,6 @@ Configs/Local.xcconfig
 .idea/
 *.swp
 *~
+
+# ---- AI 工具 ----
+.pi/
