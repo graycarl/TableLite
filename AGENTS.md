@@ -24,34 +24,35 @@
 4. 文档里的「必须 / 禁止」是硬约束；「建议」可权衡。
 5. 改动了 `specs/` 里任何**界面表现**的内容（控件、位置、文案、快捷键），**顺手同步 `manual/`**。
    两者不一致时以 `specs/` 为准。
+6. **开工前先定位文档**：接手任务后第一件事是判断它落在哪些 `specs/`、哪些 `manual/` 页面、
+   哪些 `docs/tech-designs/` 文档的范围内，并在动手前把这份清单说出来。收尾时按同一份清单逐条自查：
+   行为有没有违反 `specs/`、`manual/` 有没有和界面脱节、有没有推翻 `docs/tech-designs/` 里的关键决策。
+7. **`specs/` 与 `manual/` 只能由用户拍板修改**：任务过程中**禁止**改需求文档和使用说明书
+   （「顺手改个文案」也算）。发现它们与需求或实现不一致时，停下来把差异和建议报告给用户，
+   获得明确同意后再改。与规则 1 冲突时以本条为准：改 `specs/` 之前先拿授权。
+8. **`docs/tech-designs/` 保持精简，以代码为准**：设计阶段只写还没被代码定下来的部分；
+   对应代码实现完成后，删掉已被代码取代的冗余细节（接口签名、字段清单、算法步骤、伪代码、
+   逐条参数说明）——**代码是唯一事实来源**。但关键决策必须留下：写在对应文档的
+   「关键决策 / 决策记录」小节里（如 `12-build-and-deps.md` §1、`07-data-grid.md` §3.1），
+   并在 [`docs/tech-designs/README.md`](docs/tech-designs/README.md) 的「关键决策索引」里登记；
+   代码注释可以引用这些决策锚点，但决策正文仍在文档里。收敛时只删方案细节，不删决策。
 
-## 关键决策（不要擅自推翻）
+## 关键决策
 
-| 决策 | 结论 | 理由位置 |
-| --- | --- | --- |
-| 数据库访问 | libmysqlclient（Homebrew `mysql-client`）+ 薄 C shim | `docs/tech-designs/12-build-and-deps.md` §1 |
-| 写入方式 | **不用 prepared statement**，生成 SQL 字面量下发 | `docs/tech-designs/03-mysql-layer.md` §1 |
-| 字形转义 | 字符串走 `mysql_real_escape_string`；二进制走 `0x…` 十六进制字面量 | 同上 §4.2 |
-| SSH | 调系统 `/usr/bin/ssh` 做 `-L` 端口转发 | `docs/tech-designs/04-ssh-tunnel.md` §1 |
-| 数据网格 / 文本编辑器 | AppKit（`NSTableView` / `NSTextView`），其余用 SwiftUI | `docs/tech-designs/06-ui-layer.md` §1 |
-| 工程组织 | XcodeGen，`TableLite.xcodeproj` 不进版本控制 | `docs/tech-designs/12-build-and-deps.md` |
-| 第三方依赖 | 零 Swift Package 依赖 | `docs/tech-designs/13-open-questions.md` T10 |
-| 变更暂存 | 每个标签独立；提交包在一个事务里 | `docs/tech-designs/08-pending-changes.md` |
-| 无主键表 | 置为只读 | `specs/04-data-editing.md` §2 |
-| 大数据列 | 默认只取前 4 KB，点开时再取完整值 | `docs/tech-designs/07-data-grid.md` §3.1 |
+关键决策的正文与理由不在本文件，统一放在 `docs/tech-designs/`：每篇文档里的「关键决策 / 决策记录」小节，
+索引见 [`docs/tech-designs/README.md`](docs/tech-designs/README.md) §关键决策索引。
+
+**改动任何一条关键决策前必须先问用户**，不要擅自推翻；有边界的简化仍按硬性规则 3 登记到
+`docs/tech-designs/13-open-questions.md`。
 
 ## 容易踩的坑
 
+只列跨文档、最容易犯的；各文档里已有原文的细节不在这里重复。
+
 1. **`NSTextView` 的智能替换必须全部关掉**（智能引号、智能破折号、文本替换、拼写纠正）。不关的话 SQL 里的 `'` 会变成弯引号，字符串 `--` 会变成长破折号。见 `docs/tech-designs/10-query-editor.md` §2。
-2. **`mysql_fetch_row` 返回的是可能含 `\0` 的字节串**，必须配合 `mysql_fetch_lengths` 取长度，禁止用 `strlen`。
+2. **`mysql_fetch_row` 返回的是可能含 `\0` 的字节串**，必须配合 `mysql_fetch_lengths` 取长度，禁止用 `strlen`；而且缓冲区会被下一次调用复用，一行数据必须在 C 回调返回前复制走。见 `docs/tech-designs/03-mysql-layer.md` §1。
 3. **每个连接的所有 libmysqlclient 调用必须在同一条串行队列上**，连接句柄不是线程安全的。见 `docs/tech-designs/01-architecture.md` §3。
-4. **一行数据必须在 C 回调返回前复制走**，`mysql_fetch_row` 的缓冲会被复用。
-5. **大数据列的两阶段加载是安全保证**：网格里对超长列取的是 `LEFT(col, N)`，如果用户只改了别的列，绝不能把这个截断值写回数据库。见 `docs/tech-designs/08-pending-changes.md` §9。
-6. **`mysql-client` 是 keg-only**，头文件与库路径必须显式给出；`.app` 的 rpath 需要实测（`otool -L`）。见 `docs/tech-designs/12-build-and-deps.md` §3.1。
-7. **退出 App 必须清理 ssh 子进程**，否则会残留。
-8. **筛选条件的 `%` / `_` 必须转义**并显式加 `ESCAPE`。见 `docs/tech-designs/09-filtering.md` §1.4。
-9. **`information_schema.TABLES.TABLE_ROWS` 对 InnoDB 只是估算**，界面必须标注「约」，且绝不在打开表时自动 `COUNT(*)`。
-10. 界面文案统一用中文，SQL 关键字与类型名保持英文；术语表见 `specs/12-feedback.md` §8。
+4. **大数据列的两阶段加载是安全保证**：网格里对超长列取的是 `LEFT(col, N)`，如果用户只改了别的列，绝不能把这个截断值写回数据库。见 `docs/tech-designs/08-pending-changes.md` §9。
 
 ## 命令
 
@@ -71,3 +72,4 @@ make smoke
 - 依赖方向严格向下：UI 层不得直接 `import CMySQLClient`，所有数据库访问经过 `MySQLSession` / `MetaRepository`。
 - 纯逻辑（语句拆分、语法扫描、字面量生成、CSV 编解码、SSH 参数拼装）必须写成可单元测试的纯函数。
 - 单元测试放在 `Tests/TableLiteTests/`，重点覆盖 `docs/tech-designs/` 里各文档「测试要点」小节列出的用例。
+- 界面文案统一用中文，SQL 关键字与类型名保持英文；术语表见 `specs/12-feedback.md` §8。

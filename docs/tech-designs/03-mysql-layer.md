@@ -13,6 +13,7 @@
 2. **读多行数据走 text protocol**（`mysql_store_result` / `mysql_use_result`），值以「原始字节 + 列元数据」的形式交给上层，类型解释由 Swift 侧按列类型决定。这与 `mysql` CLI 的行为一致，避免二进制协议的类型坑。
 3. **C 与 Swift 的边界只传指针数组，不传 JSON**，避免编解码开销与转义 bug。
 4. **一行数据在回调返回前必须被 Swift 复制走**，因为 `mysql_fetch_row` 的缓冲区会被下一次调用复用。
+5. **转义策略固定**：字符串值走 `mysql_real_escape_string`，二进制值走 `0x…` 十六进制字面量（完全不经过转义路径），不写自制的转义函数。细节见 §4.2。
 
 ## 2. C shim API（`Sources/CMySQLClient/include/CMySQLClient.h`）
 

@@ -221,6 +221,9 @@ CommitCoordinator.commit(store, session, isReadOnly):
 
 ## 7. 行定位与可编辑性判定
 
+**关键决策**：无法唯一定位行的表（无主键且无唯一索引）**整表只读**，不做其它兜底。
+用户视角的行为见 [`specs/04-data-editing.md`](../../specs/04-data-editing.md) §2。
+
 打开表时（`MetaRepository` 提供）：
 
 | 条件 | 可编辑性 |
