@@ -227,6 +227,22 @@ xcuserdata/
 - `Configs/Local.xcconfig` 含机器相关路径，不进版本控制
 - 用 git hook 或 `make` 前置检查防止误提交
 
+## 6.1 说明书发布（GitHub Pages）
+
+`manual/` 是纯静态 HTML，用 GitHub Pages 发布，**不引入任何构建步骤**。
+
+- 站点根 = 仓库的 `manual/` 目录，其余目录（`specs/`、`docs/`、源码）不上线
+- 部署方式：Actions 部署（`build_type: workflow`），workflow 为 `.github/workflows/pages.yml`
+- 触发条件：`manual/**` 或 workflow 自身变更推到 `main`，以及手动 `workflow_dispatch`
+- 站点地址：<https://graycarl.github.io/TableLite/>
+
+**为什么不用分支部署**：分支部署只支持仓库根目录或 `/docs` 作为发布目录。
+`manual/` 改成 `docs/` 会和现有的 `docs/tech-designs/` 冲突，把整站搬到根目录又会让
+仓库首页变成说明书，都不合适。
+
+`manual/` 内部只用相对路径引用（`assets/manual.css`、`assets/manual.js`、页面之间的链接），
+因此放在子路径下无需改动。新增页面时**继续只用相对路径**。
+
 ## 7. 本地开发循环
 
 ```sh

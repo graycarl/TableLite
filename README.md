@@ -10,7 +10,7 @@ macOS 原生的 MySQL / MariaDB 客户端。功能和交互参考 [TablePlus](ht
 | --- | --- |
 | 这个工具做什么、不做什么 | [`specs/00-scope.md`](specs/00-scope.md) |
 | 界面长什么样、怎么操作 | [`specs/`](specs/README.md) |
-| 界面到底长什么样（带图说明书） | [`manual/index.html`](manual/index.html) — 浏览器打开 |
+| 界面到底长什么样（带图说明书） | [在线版](https://graycarl.github.io/TableLite/) 或 [`manual/index.html`](manual/index.html) — 浏览器打开 |
 | 代码怎么组织、某块怎么实现 | [`docs/tech-designs/`](docs/tech-designs/README.md) |
 | 先做哪一块、做到什么算完成 | [`docs/roadmap.md`](docs/roadmap.md) |
 | 还没定的事情 | [`docs/tech-designs/13-open-questions.md`](docs/tech-designs/13-open-questions.md) |

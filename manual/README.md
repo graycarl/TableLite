@@ -5,7 +5,9 @@
 
 ## 怎么看
 
-直接双击 `index.html` 用浏览器打开即可。没有构建步骤、没有依赖、不需要起服务器。
+在线看：<https://graycarl.github.io/TableLite/>
+
+或者直接双击 `index.html` 用浏览器打开。没有构建步骤、没有依赖、不需要起服务器。
 
 ```
 open manual/index.html
@@ -32,6 +34,12 @@ open manual/index.html
 | `11-preferences.html` | 七个偏好分类的全部选项 |
 | `12-shortcuts.html` | 快捷键速查表 |
 | `13-feedback.html` | 四种反馈形态、错误面板结构、文案规范 |
+
+## 怎么发布
+
+推送到 `main` 后由 `.github/workflows/pages.yml` 自动部署到 GitHub Pages，
+只把 `manual/` 目录作为站点根，站点地址 <https://graycarl.github.io/TableLite/>。
+也可以在 Actions 页面手动 `Run workflow` 触发。
 
 ## 结构约定
 
