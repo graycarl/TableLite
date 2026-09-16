@@ -102,6 +102,8 @@ final class PendingChangeStore: ObservableObject {
 
     func upsertCell(row: RowIdentity, column: String, value: EditValue,
                     originalValue: MySQLValue?)
+    func hasFieldChange(row: RowIdentity, column: String) -> Bool   // 字段栏与网格的橙色标记
+    func rowState(_ row: RowIdentity) -> RowState                  // .clean / .dirty / .inserted / .deleted
     func insertRow(values: [String: EditValue])
     func deleteRow(row: RowIdentity)
     func revert(row: RowIdentity)                 // 撤销某一行的所有改动
@@ -231,13 +233,17 @@ CommitCoordinator.commit(store, session, isReadOnly):
 | 连接只读 | `.readOnly(reason: "该连接处于只读模式")` |
 
 只读时的 UI：
-- 隐藏 `+ 行` 按钮，禁用删除/编辑
+- 隐藏 `+ 行` 按钮，禁用删除
+- 右侧字段栏照常显示字段与值，但所有编辑器禁用，栏顶写明原因
 - 状态栏显示原因（不是简单变灰，要说明为什么）
-- 双击单元格 → 直接打开 Quick Look（而不是编辑器），这样仍能看到完整内容
+- 双击单元格 → 直接打开 Quick Look（而不是跳到字段编辑器），这样仍能看到完整内容
 
 **关于主键列本身被编辑**：允许（用户可能确实要改主键）。`RowIdentity` 用旧值，`SET` 里放新值。风险是可能违反唯一约束 → 由服务器报错并回滚，这是可接受的。
 
 ## 8. UI 元素
+
+编辑入口只有一处：**右侧字段栏**（见 `14-row-inspector.md`）。字段栏里每改一个值就调用一次
+`PendingChangeStore.upsertCell`，工具栏与状态栏只是它的只读投影。
 
 工具栏左侧的 Action Control（只在数据网格 tab 激活时可用）：
 
@@ -263,8 +269,8 @@ CommitCoordinator.commit(store, session, isReadOnly):
 | 提交前行被外部删除 | `UPDATE`/`DELETE` 影响 0 行 → **视为成功**（幂等）；在 Console Log 记录 `affected 0` |
 | 提交前行被外部修改 | `UPDATE` 会覆盖；这是预期行为。可选增强：在 Preview 里显示「该行可能已被他人修改」——**不做** |
 | 大字段只加载了截断值，用户直接改了别的列 | 该列的 `SET` 不会被包含（只包含用户实际改过的列），所以不会把截断值写回去 —— **这是本设计的关键安全保证** |
-| 用户编辑了大字段的截断值 | 二次加载完整值 → 在其上应用修改 → 若完整值超过阈值则给出警告「该值较大（1.2 MB），提交时会有明显延迟」 |
-| 同一单元格被粘贴覆盖多次 | 以最后一次为准 |
+| 用户编辑了大字段的截断值 | 先二次加载完整值 → 在其上应用修改 → 若完整值超过阈值则给出警告「该值较大（1.2 MB），提交时会有明显延迟」 |
+| 同一字段被粘贴覆盖 / 反复修改 | 以最后一次为准 |
 | 提交时连接已断开 | 尝试一次重连；重连失败则保留 store 并提示 |
 | 事务中服务器崩溃 | 提示「事务状态未知」，建议手动检查数据；不清空 store |
 

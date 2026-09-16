@@ -2,7 +2,7 @@
 
 ## 1. 为什么用 AppKit
 
-SwiftUI 的 `Table` 不支持：单元格内联编辑（自定义编辑器）、冻结列、十万行级的稳定滚动、细粒度列宽持久化、右键菜单按单元格区分。因此数据网格用 `NSTableView`（view-based），通过 `NSViewRepresentable` 嵌入 SwiftUI。
+SwiftUI 的 `Table` 不支持：十万行级的稳定滚动、冻结列、细粒度列宽持久化、右键菜单按单元格区分，以及精确控制「焦点单元格 / 选区」。因此数据网格用 `NSTableView`（view-based），通过 `NSViewRepresentable` 嵌入 SwiftUI。单元格本身**只读渲染**，不承载编辑器；编辑在右侧字段栏里（见 `14-row-inspector.md`）。
 
 `NSTableView` 配置：
 
@@ -74,14 +74,14 @@ LIMIT 300 OFFSET 0
 - 排序一律用**真实列名**（`` `content` ``）而不是截断投影，避免按前缀排序
 - 阈值 `4096` 可通过偏好调（`grid.largeColumnPreviewBytes`）
 
-**二次加载**（打开 Quick Look 或开始编辑该单元格时）：
+**二次加载**（选中该行且字段栏可见、打开 Quick Look、或开始编辑该字段时）：
 
 ```sql
 SELECT `content` FROM `app_dev`.`articles` WHERE `id` = 42
 ```
 
 - 必须能唯一定位行（即有主键/唯一键）；否则该单元格保持截断显示并提示「无法定位行以加载完整值」
-- 二次加载的结果缓存在 `DataGridRow.cellCache[columnIndex]`，直到该 tab 关闭或 `⌘R` 刷新
+- 二次加载的结果缓存在 `DataGridRow.cellCache[columnIndex]`，直到该 tab 关闭或 `⌘R` 刷新；字段栏与 Quick Look 共用这份缓存
 - 若表没有大字段，则不生成任何 `LEFT()` 投影，等价于 `SELECT *` 的显式列版本
 
 ### 3.2 列清单
@@ -117,7 +117,7 @@ WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
 
 ```swift
 final class DataGridCellView: NSTableCellView {
-    let textField: NSTextField      // 只读展示（isEditable = false，用自定义编辑器）
+    let textField: NSTextField      // 只读展示（isEditable = false），编辑在右侧字段栏
     var alignment: NSTextAlignment  // 数字右对齐
     var pendingState: PendingCellState
 }
@@ -133,51 +133,29 @@ final class DataGridCellView: NSTableCellView {
 | 截断 | 文本后追加 `…`，tooltip 显示「原始长度 1.2 MB，按需加载」 |
 | BLOB/二进制 | `«BLOB 12.3 KB»` / `0xDEADBEEF…` |
 | 外键列 | 文本后追加 `↗` 图标；点击 `↗` → 在新 tab 打开被引用的表和行（`WHERE pk = 值`） |
+| 焦点行 | 字段栏正在展示的那一行加一层淡色选中底色 |
 | 主键列 | 表头加粗 + 加一个小钥匙图标 |
 | 错误行（Commit 失败） | 红色底色 + 左侧感叹号，悬停显示服务器错误 |
 
 行号列：固定在最左，宽 60pt，显示 1-based 行号；有 pending 状态时用图标替代数字。
 
-## 5. 编辑
+## 5. 选择、焦点与字段栏
 
-### 5.1 进入编辑
+数据网格是**只读**的：不提供单元格编辑。所有值的修改都在右侧字段栏里做，
+字段栏的实现见 `14-row-inspector.md`。网格这边只负责维护「焦点单元格 / 选区」，
+并把它们同步给字段栏。
 
-- 双击单元格 / 选中后按 `↩`
-- 编辑器按列类型选择（映射规则见 `03-mysql-layer.md` §4.1，需求见 [`specs/03-data-browsing.md`](../../specs/03-data-browsing.md) §4）：
-  - 单行文本 → `NSTextField`（在 cell 内原位）
-  - 多行文本 / JSON → 弹出的浮层 `NSTextView`（带行号，尺寸 600×400）
-  - 日期 → 带 `NSDatePicker` 的浮层
-  - `ENUM` → `NSPopUpButton`
-  - `SET` → 多选浮层
-  - `TINYINT(1)`（开启 `grid.tinyInt1AsBool` 时）→ 三态复选框
-  - BLOB → 只允许「从文件导入」/「Quick Look 查看」/「设为 NULL」，不允许直接文本编辑（防止破坏二进制）
+- 单击单元格 → 更新 `focusedCell`（行身份 + 列下标），字段栏切到该行并高亮对应字段
+- 拖动 / `⇧` 点击 → 更新选中区域；`focusedCell` 取选区里最后落点的单元格
+- 点行号 / `⌘` 点击行号 → 更新 `selection`；`selection.count > 1` 时字段栏不显示字段列表
+- 方向键移动 `focusedCell`，字段栏跟随；字段栏也有焦点时用 `Tab` / `⇧Tab` 在字段间移动
+- 双击单元格（可编辑的表）→ 展开字段栏并把键盘焦点交给对应字段的编辑器
+- 双击单元格（不可编辑的表）→ 打开 Quick Look
+- 网格里的键盘交互保持原样：`↑↓←→`、`⌘←/→`、`⌘↑/↓`、`⌘C`、`Space`
 
-### 5.2 编辑提交
-
-```
-编辑器 endEditing
-  → 若值未变化 → 无操作
-  → 校验（数字列、日期格式）
-      失败 → 抖动 + tooltip 提示，保持编辑状态
-  → DataGridViewModel.applyEdit(rowIdentity, columnIndex, rawInput)
-       · 大字段：若该单元格尚未加载完整值且这是「编辑原值」而非「整体替换」
-         → 先执行二次加载（见 §3.1），再应用修改
-       · 写入 PendingChangeStore
-       · 行标记为 dirty，重绘该行
-  → 不重新查询服务器
-```
-
-### 5.3 键盘导航
-
-- 编辑中 `Tab` / `⇧Tab`：提交当前单元格并移到右/左一个可编辑单元格
-- 编辑中 `Esc`：放弃当前单元格的编辑（恢复原值）
-- 编辑中 `↩`：提交；`⇧↩`：在当前单元格内换行（多行编辑器）
-
-### 5.4 粘贴
-
-- 单元格上 `⌘V`：若剪贴板文本含 `\t` 或换行，按二维表格粘贴（从当前单元格开始向右/向下铺开），逐格写入暂存
-- 若粘贴的目标列数量超出剩余列数，截断并提示
-- 粘贴的每一格都要走与手工编辑相同的校验路径
+实现约定：选区变化后立即把 `focusedCell` 回写给 `TableTabViewModel`，
+不要等到下一轮 runloop，否则字段栏会晚一帧。字段栏的编辑结果反过来只影响单元格的
+「已修改」底色与行号标记，不回写选区。
 
 ## 6. 排序
 
@@ -276,6 +254,7 @@ final class TableTabViewModel: ObservableObject {
 
     let pending: PendingChangeStore
     let editability: Editability                     // .editable(pk:) / .readOnly(reason:)
+    let inspector: RowInspectorViewModel             // 右侧字段栏（见 14-row-inspector.md）
 }
 
 struct DataGridRow: Identifiable {
@@ -292,10 +271,10 @@ struct DataGridRow: Identifiable {
 | --- | --- |
 | 打开一张 100 万行的表（300 行/页） | < 500 ms |
 | 滚动帧率（300 行） | 稳定 60 fps |
-| 单元格编辑到界面更新 | < 16 ms |
+| 字段栏编辑到界面更新 | < 16 ms |
 | 1000 行/页的内存占用 | < 20 MB（不含大字段） |
 | 撤销/重做 | **不做**（网格内不实现 undo；提交前可用 Discard 整体回退） |
 
 ---
 
-> 相关：变更暂存见 `08-pending-changes.md`，过滤见 `09-filtering.md`，只读模式的需求见 [`specs/09-readonly-mode.md`](../../specs/09-readonly-mode.md)。
+> 相关：变更暂存见 `08-pending-changes.md`，右侧字段栏见 `14-row-inspector.md`，过滤见 `09-filtering.md`，只读模式的需求见 [`specs/09-readonly-mode.md`](../../specs/09-readonly-mode.md)。

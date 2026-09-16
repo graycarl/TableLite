@@ -177,8 +177,8 @@ TableLite/
 ### 4.2 编辑并提交
 
 ```
-双击单元格 → 内联编辑器
-  → 提交编辑：DataGridViewModel.applyEdit(rowID, column, newValue)
+双击单元格 → 展开右侧字段栏并聚焦对应字段
+  → 字段编辑器提交（失焦 / ↩）：TableTabViewModel.applyFieldEdit(rowID, column, newValue)
       · 若改的是主键列，记 oldPK / newPK
       · 写入 PendingChangeStore
       · 标脏该行（重绘，不重新查询）

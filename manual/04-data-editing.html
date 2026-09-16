@@ -35,7 +35,8 @@
 
 <h1><span class="chapter">第 04 章</span>编辑数据</h1>
 <p class="lede">
-  这一章是整个工具里最需要小心的部分。核心只有一句话：
+  这一章是整个工具里最需要小心的部分。核心是两句话：
+  <b>数据网格是只读的，所有编辑都在右侧字段栏里做</b>；
   <b>你在界面上做的任何修改都不会立刻写进数据库。</b>
   改动先进暂存区，你确认后再一次性提交。
 </p>
@@ -43,8 +44,13 @@
 <h2>为什么要有暂存区</h2>
 
 <p>
-  如果每改一个格子就发一条 <code>UPDATE</code>，那你没有任何反悔的机会——
+  如果每改一个字段就发一条 <code>UPDATE</code>，那你没有任何反悔的机会——
   手滑改了生产库的一列数据，唯一的补救办法是去翻备份。
+</p>
+
+<p>
+  另一条同样重要的规矩：<b>数据网格只读</b>。网格只用来浏览和选择，改值一律在右侧的<b>字段栏</b>里做。
+  这样「看」和「改」是两件分开的事，拖选、滚动、双击都不会误改到数据。
 </p>
 
 <p>把改动先攒起来，能带来三件好处：</p>
@@ -84,210 +90,533 @@
   <ul>
     <li>「插入行」按钮直接<b>隐藏</b>，不是变灰</li>
     <li>「删除行」禁用</li>
+    <li>右侧字段栏<b>仍然显示</b>这一行的字段和值，但所有编辑器禁用，栏顶写明原因</li>
     <li>双击单元格改成打开快速查看（内容还是能看全的）</li>
     <li>状态栏把原因写清楚，而不是留一堆灰按钮让你猜</li>
   </ul>
 </div>
 
-<h2>改一个单元格</h2>
+<h2>在右侧字段栏里改字段</h2>
 
-<h3>先进入编辑状态</h3>
+<p>
+  <b>数据网格是只读的</b>：不能在格子里改值，也没有「双击进入编辑」这回事。
+  所有字段值的修改都在右侧的<b>字段栏</b>里做——它是表数据视图里唯一的编辑入口。
+</p>
 
-<p>双击单元格，或者选中后按 <kbd>↩</kbd>。编辑器会根据这一列的类型自动选一个合适的：</p>
+<h3>字段栏长什么样</h3>
+
+<p>
+  选中一行后，右侧的字段栏把这一行的<b>所有列</b>按表定义的顺序纵向列出来，一行一个字段。
+</p>
 
 <figure>
-<svg viewBox="0 0 1000 580" role="img" aria-label="各种列类型对应的编辑器">
-  <title>各种列类型的编辑器</title>
+<svg viewBox="0 0 1000 540" role="img" aria-label="右侧字段栏的结构">
+  <title>右侧字段栏的结构</title>
 
-  <!-- A 普通文本 -->
-  <rect class="s-window ln" x="20" y="20" width="300" height="260" rx="9"/>
-  <text class="b s" x="38" y="44">普通文本 · 单元格内联</text>
-  <line class="ln" x1="20" y1="58" x2="320" y2="58"/>
+  <!-- 标签页窗口 -->
+  <rect class="s-window ln" x="20" y="20" width="960" height="440" rx="10"/>
 
-  <rect class="s-chrome2 ln" x="38" y="74" width="264" height="24"/>
-  <text class="mut s" x="48" y="86">id</text>
-  <text class="mut s" x="108" y="86">name</text>
-  <text class="mut s" x="188" y="86">email</text>
+  <!-- 工具栏 -->
+  <rect class="s-chrome" x="20" y="20" width="960" height="34" rx="10"/>
+  <rect class="s-chrome" x="20" y="40" width="960" height="14"/>
+  <line class="ln" x1="20" y1="54" x2="980" y2="54"/>
+  <rect class="s-field ln2" x="36" y="27" width="96" height="20" rx="6"/>
+  <text class="s c" x="84" y="37">users</text>
+  <text class="fnt s" x="146" y="37">行 2 · 已选 1 行 · 没有未提交的改动</text>
+  <text class="fnt s r" x="912" y="37">放弃　预览　提交修改</text>
+  <rect class="s-soft" x="940" y="26" width="28" height="22" rx="6"/>
+  <rect class="lnA" x="940" y="26" width="28" height="22" rx="6"/>
+  <text class="acc c" x="954" y="37">▤</text>
+
+  <!-- 左侧：只读的数据网格 -->
+  <rect class="s-sunken" x="20" y="54" width="580" height="406"/>
+  <rect class="s-chrome2 ln" x="20" y="54" width="580" height="28"/>
+  <rect class="s-sel" x="20" y="112" width="580" height="30"/>
+  <text class="fnt s c" x="38" y="68">#</text>
+  <text class="b" x="66" y="68">🔑 id</text>
+  <text class="b" x="140" y="68">name</text>
+  <text class="b" x="260" y="68">email</text>
+  <text class="b" x="420" y="68">content</text>
   <g class="ln">
-    <line x1="38" y1="122" x2="302" y2="122"/>
-    <line x1="38" y1="146" x2="302" y2="146"/>
-    <line x1="98" y1="74" x2="98" y2="170"/>
-    <line x1="178" y1="74" x2="178" y2="170"/>
+    <line x1="56" y1="54" x2="56" y2="172"/>
+    <line x1="130" y1="54" x2="130" y2="172"/>
+    <line x1="250" y1="54" x2="250" y2="172"/>
+    <line x1="410" y1="54" x2="410" y2="172"/>
+    <line x1="20" y1="82" x2="600" y2="82"/>
+    <line x1="20" y1="112" x2="600" y2="112"/>
+    <line x1="20" y1="142" x2="600" y2="142"/>
+    <line x1="20" y1="172" x2="600" y2="172"/>
   </g>
-  <text class="s" x="48" y="110">1</text>
-  <text class="s" x="108" y="110">张三</text>
-  <text class="s" x="188" y="110">zs@example.com</text>
+  <text class="fnt s c" x="38" y="97">1</text>
+  <text x="66" y="97">1</text>
+  <text x="140" y="97">张三</text>
+  <text class="mut" x="260" y="97">zs@example.com</text>
+  <text class="mut" x="420" y="97">这是一篇很长的文…</text>
+  <text class="fnt s c" x="38" y="127">2</text>
+  <text x="66" y="127">2</text>
+  <text x="140" y="127">李四</text>
+  <text class="mut" x="260" y="127">ls@example.com</text>
+  <text class="mut" x="420" y="127">«BLOB 12.3 KB»</text>
+  <text class="fnt s c" x="38" y="157">3</text>
+  <text x="66" y="157">3</text>
+  <text x="140" y="157">王五</text>
+  <text class="fnt" x="260" y="157">NULL</text>
+  <text class="fnt" x="420" y="157">NULL</text>
 
-  <rect class="s-edit lnO sw2" x="98" y="122" width="80" height="24"/>
-  <text class="s" x="108" y="134">李四</text>
-  <line class="lnO sw2" x1="140" y1="126" x2="140" y2="142"/>
+  <!-- 网格只读的说明 -->
+  <line class="lnD" x1="20" y1="200" x2="600" y2="200"/>
+  <text class="warn s" x="64" y="230">🔒 网格只读：不能在格子里改值，</text>
+  <text class="warn s" x="64" y="252">也不能把多行文本铺开成二维表格粘进来。</text>
+  <text class="fnt s" x="64" y="286">双击单元格 = 跳到字段栏里对应的字段</text>
 
-  <text class="s" x="48" y="134">2</text>
-  <text class="s" x="188" y="134">ls@example.com</text>
-  <text class="s" x="48" y="158">3</text>
-  <text class="s" x="108" y="158">王五</text>
-  <text class="s" x="188" y="158">ww@example.com</text>
+  <!-- 右侧：字段栏 -->
+  <rect class="s-field" x="600" y="54" width="380" height="406"/>
+  <line class="ln2" x1="600" y1="54" x2="600" y2="460"/>
+  <rect class="s-chrome2" x="601" y="300" width="5" height="40" rx="2"/>
 
-  <text class="fnt s" x="38" y="200">↩ 提交并退出</text>
-  <text class="fnt s" x="38" y="220">Tab / ⇧Tab 提交并移到下一个 / 上一个可编辑单元格</text>
-  <text class="fnt s" x="38" y="240">Esc 放弃这次编辑，恢复原值</text>
+  <!-- 栏顶搜索框 -->
+  <rect class="s-field ln2" x="616" y="66" width="240" height="30" rx="7"/>
+  <text class="mut s" x="628" y="81">🔍</text>
+  <text class="fnt s" x="652" y="81">搜索字段</text>
+  <text class="fnt s r" x="964" y="81">18 个字段</text>
+  <line class="ln" x1="600" y1="104" x2="980" y2="104"/>
 
-  <!-- B 长文本 -->
-  <rect class="s-window ln" x="350" y="20" width="300" height="260" rx="9"/>
-  <text class="b s" x="368" y="44">长文本 / JSON · 弹出窗口</text>
-  <line class="ln" x1="350" y1="58" x2="650" y2="58"/>
+  <!-- 字段行 1 -->
+  <text class="b" x="616" y="122">🔑 id</text>
+  <text class="mono mut s" x="700" y="122">int unsigned</text>
+  <rect class="s-field ln2" x="616" y="130" width="300" height="28" rx="6"/>
+  <text class="s" x="628" y="144">42</text>
+  <rect class="s-field ln2" x="928" y="130" width="32" height="28" rx="6"/>
+  <text class="c s" x="944" y="144">∅</text>
 
-  <rect class="s-window ln2" x="368" y="72" width="264" height="140" rx="7"/>
-  <rect class="s-sunken" x="368" y="72" width="30" height="140" rx="7"/>
-  <rect class="s-sunken" x="392" y="72" width="6" height="140"/>
-  <text class="fnt mono s r" x="390" y="92">1</text>
-  <text class="fnt mono s r" x="390" y="112">2</text>
-  <text class="fnt mono s r" x="390" y="132">3</text>
-  <text class="fnt mono s r" x="390" y="152">4</text>
-  <text class="mono s" x="404" y="92">{</text>
-  <text class="mono s" x="404" y="112">　&quot;title&quot;: &quot;标题&quot;,</text>
-  <text class="mono s" x="404" y="132">　&quot;body&quot;: &quot;正文…&quot;</text>
-  <text class="mono s" x="404" y="152">}</text>
-  <line class="lnO sw2" x1="404" y1="156" x2="404" y2="172"/>
+  <!-- 字段行 2：正在编辑 -->
+  <text class="b" x="616" y="184">name</text>
+  <text class="mono mut s" x="700" y="184">varchar(64)</text>
+  <rect class="s-field lnA sw2" x="616" y="192" width="300" height="28" rx="6"/>
+  <text class="s" x="628" y="206">李四</text>
+  <rect class="s-field ln2" x="928" y="192" width="32" height="28" rx="6"/>
+  <text class="c s" x="944" y="206">∅</text>
 
-  <rect class="s-field ln2" x="466" y="220" width="76" height="26" rx="6"/>
-  <text class="c s" x="504" y="233">取消</text>
-  <rect class="s-accent" x="550" y="220" width="82" height="26" rx="6"/>
-  <text class="c s" x="591" y="233" fill="#fff">确定</text>
+  <!-- 字段行 3 -->
+  <text class="b" x="616" y="246">email</text>
+  <text class="mono mut s" x="700" y="246">varchar(255)</text>
+  <rect class="s-field ln2" x="616" y="254" width="300" height="28" rx="6"/>
+  <text class="s" x="628" y="268">ls@example.com</text>
+  <rect class="s-field ln2" x="928" y="254" width="32" height="28" rx="6"/>
+  <text class="c s" x="944" y="268">∅</text>
 
-  <text class="fnt s" x="368" y="264">带行号的大编辑窗口 · ⇧↩ 换行</text>
+  <!-- 字段行 4：多行编辑器 + 已修改 -->
+  <text class="b" x="616" y="308">content</text>
+  <text class="mono mut s" x="700" y="308">longtext</text>
+  <rect class="s-edit" x="616" y="316" width="300" height="48" rx="6"/>
+  <rect class="lnO" x="616" y="316" width="300" height="48" rx="6"/>
+  <path class="lnO sw2" d="M620 318 l9 0 l-9 9 z"/>
+  <text class="s" x="628" y="330">这是一篇很长的文章，</text>
+  <text class="s" x="628" y="350">里面还有换行。</text>
+  <text class="acc s r" x="906" y="350">展开</text>
+  <rect class="s-field ln2" x="928" y="316" width="32" height="28" rx="6"/>
+  <text class="c s" x="944" y="330">∅</text>
 
-  <!-- C 日期 -->
-  <rect class="s-window ln" x="680" y="20" width="300" height="260" rx="9"/>
-  <text class="b s" x="698" y="44">日期 / 时间 · 选择器 + 手输</text>
-  <line class="ln" x1="680" y1="58" x2="980" y2="58"/>
+  <!-- 字段行 5 -->
+  <text class="b" x="616" y="392">status</text>
+  <text class="mono mut s" x="700" y="392">enum('draft','published')</text>
+  <rect class="s-field ln2" x="616" y="400" width="300" height="28" rx="6"/>
+  <text class="s" x="628" y="414">draft</text>
+  <text class="mut s r" x="906" y="414">▾</text>
+  <rect class="s-field ln2" x="928" y="400" width="32" height="28" rx="6"/>
+  <text class="c s" x="944" y="414">∅</text>
 
-  <rect class="s-field ln2" x="698" y="74" width="180" height="28" rx="6"/>
-  <text class="s" x="710" y="88">2025-01-01 10:00:00</text>
-
-  <rect class="s-window ln2" x="698" y="110" width="180" height="140" rx="7"/>
-  <text class="c s b" x="788" y="128">2025 年 1 月</text>
-  <text class="mut s" x="710" y="128">‹</text>
-  <text class="mut s" x="860" y="128">›</text>
-  <g class="fnt s c">
-    <text x="716" y="148">日</text><text x="742" y="148">一</text><text x="768" y="148">二</text>
-    <text x="794" y="148">三</text><text x="820" y="148">四</text><text x="846" y="148">五</text>
-    <text x="868" y="148">六</text>
-  </g>
-  <g class="s c">
-    <text x="716" y="168">29</text><text x="742" y="168">30</text><text x="768" y="168">31</text>
-  </g>
-  <circle class="s-accent" cx="794" cy="168" r="11"/>
-  <text class="c" x="794" y="168" fill="#fff" style="font-size:11px">1</text>
-  <g class="s c">
-    <text x="820" y="168">2</text><text x="846" y="168">3</text><text x="868" y="168">4</text>
-    <text x="716" y="190">5</text><text x="742" y="190">6</text><text x="768" y="190">7</text>
-    <text x="794" y="190">8</text><text x="820" y="190">9</text><text x="846" y="190">10</text>
-    <text x="868" y="190">11</text>
-    <text x="716" y="212">12</text><text x="742" y="212">13</text><text x="768" y="212">14</text>
-    <text x="794" y="212">15</text><text x="820" y="212">16</text><text x="846" y="212">17</text>
-    <text x="868" y="212">18</text>
-    <text x="716" y="234">19</text><text x="742" y="234">20</text><text x="768" y="234">21</text>
-    <text x="794" y="234">22</text><text x="820" y="234">23</text><text x="846" y="234">24</text>
-    <text x="868" y="234">25</text>
-  </g>
-
-  <text class="fnt s" x="698" y="264">时间部分可以继续手输</text>
-
-  <!-- D ENUM -->
-  <rect class="s-window ln" x="20" y="300" width="300" height="260" rx="9"/>
-  <text class="b s" x="38" y="324">ENUM · 下拉选择</text>
-  <line class="ln" x1="20" y1="338" x2="320" y2="338"/>
-
-  <rect class="s-field ln2" x="38" y="354" width="180" height="28" rx="6"/>
-  <text class="s" x="50" y="368">draft</text>
-  <text class="mut s" x="200" y="368">▾</text>
-
-  <rect class="s-window ln2" x="38" y="386" width="180" height="112" rx="7"/>
-  <text class="acc" x="54" y="406">draft</text>
-  <text class="acc" x="200" y="406">✓</text>
-  <text class="s" x="54" y="432">published</text>
-  <text class="s" x="54" y="458">archived</text>
-  <text class="s" x="54" y="484">deleted</text>
-
-  <text class="fnt s" x="240" y="420">限定了取值</text>
-  <text class="fnt s" x="240" y="440">不需要手输</text>
-  <text class="fnt s" x="240" y="460">也不会拼错</text>
-
-  <!-- E SET -->
-  <rect class="s-window ln" x="350" y="300" width="300" height="260" rx="9"/>
-  <text class="b s" x="368" y="324">SET · 多选</text>
-  <line class="ln" x1="350" y1="338" x2="650" y2="338"/>
-
-  <rect class="s-field ln2" x="368" y="354" width="180" height="28" rx="6"/>
-  <text class="s" x="380" y="368">read,write</text>
-
-  <rect class="s-window ln2" x="368" y="386" width="180" height="112" rx="7"/>
-  <rect class="s-accent" x="382" y="398" width="15" height="15" rx="4"/>
-  <path d="M385 405 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
-  <text class="s" x="406" y="406">read</text>
-  <rect class="s-accent" x="382" y="424" width="15" height="15" rx="4"/>
-  <path d="M385 431 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
-  <text class="s" x="406" y="432">write</text>
-  <rect class="s-field ln2" x="382" y="450" width="15" height="15" rx="4"/>
-  <text class="s" x="406" y="458">delete</text>
-  <rect class="s-field ln2" x="382" y="476" width="15" height="15" rx="4"/>
-  <text class="s" x="406" y="484">admin</text>
-
-  <text class="fnt s" x="560" y="420">多个值用逗号</text>
-  <text class="fnt s" x="560" y="440">拼在一起写入</text>
-
-  <!-- F BLOB -->
-  <rect class="s-window ln" x="680" y="300" width="300" height="260" rx="9"/>
-  <text class="b s" x="698" y="324">BLOB / 二进制 · 不直接改文本</text>
-  <line class="ln" x1="680" y1="338" x2="980" y2="338"/>
-
-  <rect class="s-sunken ln" x="698" y="354" width="264" height="56" rx="7"/>
-  <text class="c s" x="830" y="382">«BLOB 12.3 KB»</text>
-
-  <rect class="s-field ln2" x="698" y="426" width="82" height="28" rx="6"/>
-  <text class="c s" x="739" y="440">查看</text>
-  <rect class="s-field ln2" x="788" y="426" width="110" height="28" rx="6"/>
-  <text class="c s" x="843" y="440">从文件导入…</text>
-  <rect class="s-field ln2" x="906" y="426" width="82" height="28" rx="6"/>
-  <text class="c s" x="947" y="440">设为 NULL</text>
-
-  <text class="fnt s" x="698" y="480">二进制没法安全地当文本编辑，</text>
-  <text class="fnt s" x="698" y="500">所以只提供这三个操作。</text>
-  <text class="fnt s" x="698" y="528">往格子里粘贴十六进制文本也会被拒绝。</text>
+  <!-- 热点 -->
+  <g class="hot" data-hot="1"><circle cx="954" cy="54" r="11"/><text x="954" y="54">1</text></g>
+  <g class="hot" data-hot="2"><circle cx="42" cy="230" r="11"/><text x="42" y="230">2</text></g>
+  <g class="hot" data-hot="3"><circle cx="880" cy="81" r="11"/><text x="880" y="81">3</text></g>
+  <path class="leader" d="M597 122 L614 122"/>
+  <g class="hot" data-hot="4"><circle cx="584" cy="122" r="11"/><text x="584" y="122">4</text></g>
+  <path class="leader" d="M597 268 L614 268"/>
+  <g class="hot" data-hot="5"><circle cx="584" cy="268" r="11"/><text x="584" y="268">5</text></g>
+  <g class="hot" data-hot="6"><circle cx="972" cy="414" r="11"/><text x="972" y="414">6</text></g>
+  <path class="leader" d="M595 320 L601 320"/>
+  <g class="hot" data-hot="7"><circle cx="584" cy="320" r="11"/><text x="584" y="320">7</text></g>
 </svg>
-<figcaption><b>图 4-1</b>　六种列类型对应的编辑器。每种编辑器都走同一套校验和提交规则。</figcaption>
+<figcaption><b>图 4-1</b>　右侧字段栏。左边是只读的数据网格，右边是这一行所有字段的编辑器。</figcaption>
 </figure>
 
-<h3>提交和放弃这次编辑</h3>
-
-<table>
-<thead><tr><th>按键</th><th>结果</th></tr></thead>
+<table class="controls">
+<thead><tr><th>#</th><th>元素</th><th>含义</th></tr></thead>
 <tbody>
-<tr><td><kbd>↩</kbd></td><td>提交并退出编辑状态</td></tr>
-<tr><td><kbd>Tab</kbd></td><td>提交并移到右边一个可编辑单元格</td></tr>
-<tr><td><kbd>⇧Tab</kbd></td><td>提交并移到左边一个</td></tr>
-<tr><td><kbd>Esc</kbd></td><td>放弃这次编辑，恢复原值</td></tr>
-<tr><td><kbd>⇧↩</kbd></td><td>在多行编辑器里换行（不会提交）</td></tr>
+<tr data-hot="1"><td class="num">1</td><td class="wide">工具栏最右的 ▤</td>
+  <td>显示 / 隐藏右侧字段栏。<b>默认显示</b>，没有快捷键；也可以走菜单「视图 → 显示 / 隐藏右侧字段栏」。</td></tr>
+<tr data-hot="2"><td class="num">2</td><td class="wide">只读的数据网格</td>
+  <td>网格只负责浏览和选择：不能在格子里改值，也不能把多行文本铺开成二维表格粘进来。在网格里双击一个单元格，会自动跳到字段栏里对应的字段并聚焦；表不可编辑时则改为打开快速查看。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">搜索字段</td>
+  <td>按列名过滤字段。右侧显示命中的数量，例如 <code>显示 3 / 18</code>；没有过滤时显示字段总数。</td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">列名 + 类型</td>
+  <td>字段按表定义的顺序排列，<b>不受</b>网格的列显隐与列顺序影响。主键列的列名前带 🔑 并且加粗。类型是完整类型名（<code>varchar(255)</code>、<code>int unsigned</code>、<code>decimal(10,2)</code>），<b>只读</b>，不做类型转换。</td></tr>
+<tr data-hot="5"><td class="num">5</td><td class="wide">值编辑器</td>
+  <td>点进去就能改这个字段。编辑器按列类型自动选，不用你挑（见下面两张图）。</td></tr>
+<tr data-hot="6"><td class="num">6</td><td class="wide">∅ 按钮</td>
+  <td>点一下把这个字段设为 <code>NULL</code>，再点一下恢复原来的值。值本来就是 <code>NULL</code> 时按钮呈按下状态。</td></tr>
+<tr data-hot="7"><td class="num">7</td><td class="wide">拖拽把手</td>
+  <td>拖它调整字段栏的宽度，范围 <b>260–560pt</b>（默认 320pt），按表记住。</td></tr>
 </tbody>
 </table>
 
-<div class="callout warn">
-  <span class="tag">校验失败会拦住你</span>
-  <p>
-    数字列只接受合法数字（含负号和小数点），日期时间列会校验格式。
-    校验不过时输入框会抖一下并给出提示，<b>编辑状态不退出</b>，你可以直接改。
-  </p>
-</div>
+<ul>
+  <li>字段栏里显示的是<b>完整值</b>：超过 4 KB 的列在选中行后会自动去服务器取一次。
+    如果这一行的大字段加起来超过 8 MB，就先不取，字段旁出现「加载完整内容…」，点一下才取。</li>
+  <li>没有选中行时显示 <code>选中一行以查看和编辑它的字段</code>；选中多行时显示 <code>已选中 12 行 · 请只选一行</code>，不列字段。</li>
+  <li>在网格里双击一个单元格，字段栏会跳到它所在的行、并把对应的字段聚焦好，你直接就能改。</li>
+  <li>只有表数据标签里才有字段栏。查询结果、表结构、对象定义这些标签不显示。</li>
+</ul>
 
-<h3>改完之后界面会告诉你什么</h3>
+<h3>编辑器按列类型自动选</h3>
+
+<p>点字段里的值就进入编辑，编辑器由这一列的类型决定。</p>
+
+<figure>
+<svg viewBox="0 0 1000 560" role="img" aria-label="文本类字段的编辑器">
+  <title>文本类字段的编辑器</title>
+
+  <!-- A 普通文本 -->
+  <rect class="s-window ln" x="20" y="20" width="470" height="250" rx="9"/>
+  <rect class="s-chrome" x="20" y="20" width="470" height="30" rx="9"/>
+  <line class="ln" x1="20" y1="50" x2="490" y2="50"/>
+  <text class="b s" x="38" y="35">普通文本</text>
+  <text class="fnt s r" x="472" y="35">varchar / char / text</text>
+  <text class="b" x="38" y="66">name</text>
+  <text class="mono mut s" x="110" y="66">varchar(64)</text>
+  <rect class="s-field ln2" x="38" y="86" width="392" height="30" rx="6"/>
+  <text class="s" x="50" y="101">李四</text>
+  <line class="lnA sw2" x1="78" y1="92" x2="78" y2="110"/>
+  <rect class="s-field ln2" x="442" y="86" width="30" height="30" rx="6"/>
+  <text class="c s" x="457" y="101">∅</text>
+  <text class="fnt s" x="38" y="146">单行输入框，点进去就能改。</text>
+  <text class="fnt s" x="38" y="168">↩ 或失去焦点写入暂存区，Esc 放弃。</text>
+  <text class="fnt s" x="38" y="190">Tab / ⇧Tab 提交并移到下一个 / 上一个字段。</text>
+  <g class="hot" data-hot="8"><circle cx="38" cy="101" r="11"/><text x="38" y="101">8</text></g>
+
+  <!-- B 长文本 / JSON -->
+  <rect class="s-window ln" x="510" y="20" width="470" height="250" rx="9"/>
+  <rect class="s-chrome" x="510" y="20" width="470" height="30" rx="9"/>
+  <line class="ln" x1="510" y1="50" x2="980" y2="50"/>
+  <text class="b s" x="528" y="35">长文本 / JSON</text>
+  <text class="fnt s r" x="962" y="35">longtext / json</text>
+  <text class="b" x="528" y="66">content</text>
+  <text class="mono mut s" x="612" y="66">longtext NULL</text>
+  <rect class="s-field ln2" x="528" y="86" width="392" height="76" rx="6"/>
+  <text class="mono s" x="540" y="102">{</text>
+  <text class="mono s" x="540" y="122">　&quot;title&quot;: &quot;标题&quot;,</text>
+  <text class="mono s" x="540" y="142">　&quot;body&quot;: &quot;正文…&quot;</text>
+  <rect class="s-field ln2" x="836" y="136" width="74" height="22" rx="6"/>
+  <text class="c s" x="873" y="147">展开</text>
+  <rect class="s-field ln2" x="932" y="86" width="30" height="30" rx="6"/>
+  <text class="c s" x="947" y="101">∅</text>
+  <text class="fnt s" x="528" y="192">⇧↩ 换行，⌘↩ 提交；Esc 放弃。</text>
+  <text class="fnt s" x="528" y="214">点「展开」进入大编辑窗口：带行号与查找。</text>
+  <g class="hot" data-hot="9"><circle cx="528" cy="118" r="11"/><text x="528" y="118">9</text></g>
+  <path class="leader" d="M827 147 L836 147"/>
+  <g class="hot" data-hot="10"><circle cx="814" cy="147" r="11"/><text x="814" y="147">10</text></g>
+
+  <!-- C 数字 -->
+  <rect class="s-window ln" x="20" y="290" width="470" height="250" rx="9"/>
+  <rect class="s-chrome" x="20" y="290" width="470" height="30" rx="9"/>
+  <line class="ln" x1="20" y1="320" x2="490" y2="320"/>
+  <text class="b s" x="38" y="305">数字</text>
+  <text class="fnt s r" x="472" y="305">int / decimal / float</text>
+  <text class="b" x="38" y="336">price</text>
+  <text class="mono mut s" x="110" y="336">decimal(10,2) NULL</text>
+  <rect class="s-field ln2" x="38" y="356" width="392" height="30" rx="6"/>
+  <text class="mono r" x="418" y="371">128.00</text>
+  <rect class="s-field ln2" x="442" y="356" width="30" height="30" rx="6"/>
+  <text class="c s" x="457" y="371">∅</text>
+  <text class="fnt s" x="38" y="416">单行输入框，数字靠右对齐，方便比大小。</text>
+  <text class="fnt s" x="38" y="438">只接受合法数字（含负号和小数点）。</text>
+  <text class="fnt s" x="38" y="460">校验不过时输入框抖动，编辑状态不退出。</text>
+  <g class="hot" data-hot="11"><circle cx="38" cy="371" r="11"/><text x="38" y="371">11</text></g>
+
+  <!-- D 日期 / 时间 -->
+  <rect class="s-window ln" x="510" y="290" width="470" height="250" rx="9"/>
+  <rect class="s-chrome" x="510" y="290" width="470" height="30" rx="9"/>
+  <line class="ln" x1="510" y1="320" x2="980" y2="320"/>
+  <text class="b s" x="528" y="305">日期 / 时间</text>
+  <text class="fnt s r" x="962" y="305">date / datetime / timestamp</text>
+  <text class="b" x="528" y="336">created_at</text>
+  <text class="mono mut s" x="632" y="336">datetime NULL</text>
+  <rect class="s-field ln2" x="528" y="356" width="392" height="30" rx="6"/>
+  <text class="s" x="540" y="371">2025-01-01 10:00:00</text>
+  <text class="mut s r" x="906" y="371">📅</text>
+  <rect class="s-field ln2" x="932" y="356" width="30" height="30" rx="6"/>
+  <text class="c s" x="947" y="371">∅</text>
+
+  <!-- 日期选择器 -->
+  <rect class="s-window ln2" x="528" y="392" width="220" height="124" rx="7"/>
+  <text class="mut s" x="542" y="408">‹</text>
+  <text class="b s c" x="638" y="408">2025 年 1 月</text>
+  <text class="mut s r" x="734" y="408">›</text>
+  <g class="fnt s c">
+    <text x="550" y="428">日</text><text x="578" y="428">一</text><text x="606" y="428">二</text>
+    <text x="634" y="428">三</text><text x="662" y="428">四</text><text x="690" y="428">五</text>
+    <text x="718" y="428">六</text>
+  </g>
+  <g class="s c">
+    <text x="550" y="452">29</text><text x="578" y="452">30</text><text x="606" y="452">31</text>
+    <text x="662" y="452">2</text><text x="690" y="452">3</text><text x="718" y="452">4</text>
+    <text x="550" y="474">5</text><text x="578" y="474">6</text><text x="606" y="474">7</text>
+    <text x="634" y="474">8</text><text x="662" y="474">9</text><text x="690" y="474">10</text>
+    <text x="718" y="474">11</text>
+    <text x="550" y="496">12</text><text x="578" y="496">13</text><text x="606" y="496">14</text>
+    <text x="634" y="496">15</text><text x="662" y="496">16</text><text x="690" y="496">17</text>
+    <text x="718" y="496">18</text>
+  </g>
+  <circle class="s-accent" cx="634" cy="452" r="11"/>
+  <text class="c s" x="634" y="452" fill="#fff">1</text>
+  <text class="fnt s" x="764" y="420">选完日期后，时间部分</text>
+  <text class="fnt s" x="764" y="442">可以继续手输。</text>
+  <text class="fnt s" x="764" y="474">时间戳 / datetime 一律</text>
+  <text class="fnt s" x="764" y="496">按文本解析，避免时区歧义。</text>
+  <g class="hot" data-hot="12"><circle cx="528" cy="371" r="11"/><text x="528" y="371">12</text></g>
+</svg>
+<figcaption><b>图 4-2</b>　文本 / 数字 / 日期的值编辑器。每张卡片就是字段栏里的一个字段行。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>列类型</th><th>用什么改</th></tr></thead>
+<tbody>
+<tr data-hot="8"><td class="num">8</td><td class="wide">普通文本</td>
+  <td>单行输入框。</td></tr>
+<tr data-hot="9"><td class="num">9</td><td class="wide">长文本 / JSON</td>
+  <td>多行输入框，可以换行。按 <kbd>⇧↩</kbd> 换行不会提交，<kbd>⌘↩</kbd> 才提交。</td></tr>
+<tr data-hot="10"><td class="num">10</td><td class="wide">「展开」</td>
+  <td>把多行编辑器放大成一个独立的大窗口，同样带行号与查找，长内容在这里改更舒服。</td></tr>
+<tr data-hot="11"><td class="num">11</td><td class="wide">数字</td>
+  <td>单行输入框，右对齐。只接受合法数字（含负号和小数点）。</td></tr>
+<tr data-hot="12"><td class="num">12</td><td class="wide">日期 / 时间</td>
+  <td>日期选择器 + 手输。时间部分也可以直接打进去；时间戳这类值一律按文本解析，避免时区看错。</td></tr>
+</tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 1000 560" role="img" aria-label="选项类字段的编辑器">
+  <title>选项类字段的编辑器</title>
+
+  <!-- A ENUM -->
+  <rect class="s-window ln" x="20" y="20" width="470" height="250" rx="9"/>
+  <rect class="s-chrome" x="20" y="20" width="470" height="30" rx="9"/>
+  <line class="ln" x1="20" y1="50" x2="490" y2="50"/>
+  <text class="b s" x="38" y="35">ENUM</text>
+  <text class="fnt s r" x="472" y="35">取值固定的一组</text>
+  <text class="b" x="38" y="66">status</text>
+  <text class="mono mut s" x="120" y="66">enum('draft','published')</text>
+  <rect class="s-field ln2" x="38" y="86" width="392" height="30" rx="6"/>
+  <text class="s" x="50" y="101">published</text>
+  <text class="mut r" x="418" y="101">▾</text>
+  <rect class="s-field ln2" x="442" y="86" width="30" height="30" rx="6"/>
+  <text class="c s" x="457" y="101">∅</text>
+  <rect class="s-window ln2" x="38" y="126" width="200" height="102" rx="7"/>
+  <rect class="s-soft" x="44" y="150" width="188" height="26" rx="6"/>
+  <text class="s" x="54" y="137">draft</text>
+  <text class="acc" x="54" y="163">published</text>
+  <text class="acc r" x="222" y="163">✓</text>
+  <text class="s" x="54" y="189">archived</text>
+  <text class="s" x="54" y="215">deleted</text>
+  <text class="fnt s" x="260" y="150">限定了取值，</text>
+  <text class="fnt s" x="260" y="172">不需要手输，</text>
+  <text class="fnt s" x="260" y="194">也不会拼错。</text>
+  <g class="hot" data-hot="13"><circle cx="38" cy="101" r="11"/><text x="38" y="101">13</text></g>
+
+  <!-- B SET -->
+  <rect class="s-window ln" x="510" y="20" width="470" height="250" rx="9"/>
+  <rect class="s-chrome" x="510" y="20" width="470" height="30" rx="9"/>
+  <line class="ln" x1="510" y1="50" x2="980" y2="50"/>
+  <text class="b s" x="528" y="35">SET</text>
+  <text class="fnt s r" x="962" y="35">可以同时取多个值</text>
+  <text class="b" x="528" y="66">perms</text>
+  <text class="mono mut s" x="600" y="66">set('read','write','delete')</text>
+  <rect class="s-field ln2" x="528" y="86" width="392" height="30" rx="6"/>
+  <text class="s" x="540" y="101">read,write</text>
+  <rect class="s-field ln2" x="932" y="86" width="30" height="30" rx="6"/>
+  <text class="c s" x="947" y="101">∅</text>
+  <rect class="s-window ln2" x="528" y="126" width="200" height="112" rx="7"/>
+  <rect class="s-accent" x="540" y="136" width="15" height="15" rx="4"/>
+  <path d="M543 143 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="s" x="564" y="144">read</text>
+  <rect class="s-accent" x="540" y="162" width="15" height="15" rx="4"/>
+  <path d="M543 169 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="s" x="564" y="170">write</text>
+  <rect class="s-field ln2" x="540" y="188" width="15" height="15" rx="4"/>
+  <text class="s" x="564" y="196">delete</text>
+  <rect class="s-field ln2" x="540" y="214" width="15" height="15" rx="4"/>
+  <text class="s" x="564" y="222">admin</text>
+  <text class="fnt s" x="750" y="150">勾中的值用逗号</text>
+  <text class="fnt s" x="750" y="172">拼在一起写入。</text>
+  <text class="fnt s" x="750" y="204">值必须来自列定义。</text>
+  <g class="hot" data-hot="14"><circle cx="528" cy="101" r="11"/><text x="528" y="101">14</text></g>
+
+  <!-- C 布尔 -->
+  <rect class="s-window ln" x="20" y="290" width="470" height="250" rx="9"/>
+  <rect class="s-chrome" x="20" y="290" width="470" height="30" rx="9"/>
+  <line class="ln" x1="20" y1="320" x2="490" y2="320"/>
+  <text class="b s" x="38" y="305">布尔</text>
+  <text class="fnt s r" x="472" y="305">偏好开启时才这样</text>
+  <text class="b" x="38" y="336">active</text>
+  <text class="mono mut s" x="120" y="336">tinyint(1)</text>
+  <rect class="s-field ln2" x="38" y="356" width="392" height="30" rx="6"/>
+  <rect class="s-accent" x="50" y="363" width="16" height="16" rx="4"/>
+  <path d="M53 371 l4 5 l7 -9" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="s" x="78" y="371">开启（1）</text>
+  <rect class="s-field ln2" x="442" y="356" width="30" height="30" rx="6"/>
+  <text class="c s" x="457" y="371">∅</text>
+  <text class="fnt s" x="38" y="416">偏好里打开「把 tinyint(1) 显示为复选框」之后，</text>
+  <text class="fnt s" x="38" y="438">这一列在这里就是一个复选框。</text>
+  <text class="fnt s" x="38" y="460">没打开时按普通数字处理，和上面一样手输。</text>
+  <g class="hot" data-hot="15"><circle cx="38" cy="371" r="11"/><text x="38" y="371">15</text></g>
+
+  <!-- D BLOB -->
+  <rect class="s-window ln" x="510" y="290" width="470" height="250" rx="9"/>
+  <rect class="s-chrome" x="510" y="290" width="470" height="30" rx="9"/>
+  <line class="ln" x1="510" y1="320" x2="980" y2="320"/>
+  <text class="b s" x="528" y="305">BLOB / 二进制</text>
+  <text class="fnt s r" x="962" y="305">不能当文本编辑</text>
+  <text class="b" x="528" y="336">photo</text>
+  <text class="mono mut s" x="600" y="336">mediumblob NULL</text>
+  <rect class="s-sunken ln" x="528" y="346" width="434" height="34" rx="6"/>
+  <text class="c s" x="745" y="363">«BLOB 12.3 KB»</text>
+  <rect class="s-field ln2" x="528" y="392" width="76" height="30" rx="6"/>
+  <text class="c s" x="566" y="407">查看</text>
+  <rect class="s-field ln2" x="616" y="392" width="132" height="30" rx="6"/>
+  <text class="c s" x="682" y="407">从文件导入…</text>
+  <rect class="s-field ln2" x="760" y="392" width="110" height="30" rx="6"/>
+  <text class="c s" x="815" y="407">设为 NULL</text>
+  <text class="fnt s" x="528" y="462">二进制没法安全地当文本改，所以只给这三个操作。</text>
+  <text class="fnt s" x="528" y="484">大字段还没取完整值时，点「查看」才去服务器取。</text>
+  <g class="hot" data-hot="16"><circle cx="566" cy="432" r="11"/><text x="566" y="432">16</text></g>
+  <g class="hot" data-hot="17"><circle cx="682" cy="432" r="11"/><text x="682" y="432">17</text></g>
+  <g class="hot" data-hot="18"><circle cx="815" cy="432" r="11"/><text x="815" y="432">18</text></g>
+</svg>
+<figcaption><b>图 4-3</b>　ENUM、SET、布尔、BLOB 的值编辑器。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>列类型</th><th>用什么改</th></tr></thead>
+<tbody>
+<tr data-hot="13"><td class="num">13</td><td class="wide">ENUM</td>
+  <td>下拉选择。取值来自列定义，不需要手输，也不会拼错。</td></tr>
+<tr data-hot="14"><td class="num">14</td><td class="wide">SET</td>
+  <td>多选。勾中的值用逗号拼在一起写入；值必须来自列定义。</td></tr>
+<tr data-hot="15"><td class="num">15</td><td class="wide">布尔（<code>tinyint(1)</code>）</td>
+  <td>偏好里打开「把 <code>tinyint(1)</code> 显示为复选框」之后，这一列就是一个复选框；没打开时按普通数字手输。</td></tr>
+<tr data-hot="16"><td class="num">16</td><td class="wide">查看</td>
+  <td>打开快速查看。大字段还没取完整值时，点它才去服务器取。</td></tr>
+<tr data-hot="17"><td class="num">17</td><td class="wide">从文件导入…</td>
+  <td>把文件内容作为这个字段的新值（二进制原样读入）。</td></tr>
+<tr data-hot="18"><td class="num">18</td><td class="wide">设为 NULL</td>
+  <td>BLOB 的 ∅。二进制不能当文本改，只能整个设为 <code>NULL</code>；再点一次恢复原值。</td></tr>
+</tbody>
+</table>
+
+<h3>提交这次编辑</h3>
+
+<table>
+<thead><tr><th>按键 / 动作</th><th>结果</th></tr></thead>
+<tbody>
+<tr><td>失去焦点，或 <kbd>↩</kbd></td><td>把这个值写进<b>暂存区</b>（不会立刻落库）</td></tr>
+<tr><td><kbd>Tab</kbd> / <kbd>⇧Tab</kbd></td><td>提交并移到下一个 / 上一个字段</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>放弃这次编辑，恢复原值</td></tr>
+<tr><td><kbd>⇧↩</kbd></td><td>多行编辑器里换行，不提交</td></tr>
+<tr><td><kbd>⌘↩</kbd></td><td>多行编辑器里提交</td></tr>
+<tr><td><kbd>⌘V</kbd></td><td>把剪贴板里的纯文本贴成<b>这一个</b>字段的值（见下面「粘贴」）</td></tr>
+</tbody>
+</table>
+
+<h3>把字段设为 NULL</h3>
+
+<figure>
+<svg viewBox="0 0 1000 220" role="img" aria-label="把字段设为 NULL 的三步">
+  <title>设为 NULL</title>
+
+  <!-- ① 原值 -->
+  <text class="b s" x="20" y="30">① 原来有值</text>
+  <text class="b" x="20" y="68">email</text>
+  <text class="mono mut s" x="90" y="68">varchar(255)</text>
+  <rect class="s-field ln2" x="20" y="86" width="190" height="30" rx="6"/>
+  <text class="s" x="32" y="101">zs@example.com</text>
+  <rect class="s-field ln2" x="218" y="86" width="32" height="30" rx="6"/>
+  <text class="c s" x="234" y="101">∅</text>
+  <text class="fnt s" x="20" y="158">∅ 没有按下。</text>
+  <text class="fnt s" x="20" y="180">值还是服务器上的原值。</text>
+
+  <path class="ln2" d="M280 101 L365 101"/>
+  <path class="ln2" d="M357 96 L365 101 L357 106"/>
+
+  <!-- ② NULL -->
+  <text class="b s" x="375" y="30">② 点一下 ∅</text>
+  <text class="b" x="375" y="68">email</text>
+  <text class="mono mut s" x="445" y="68">varchar(255)</text>
+  <rect class="s-field ln2" x="375" y="86" width="190" height="30" rx="6"/>
+  <text class="fnt" x="387" y="101">NULL</text>
+  <rect class="s-soft" x="573" y="86" width="32" height="30" rx="6"/>
+  <rect class="lnA" x="573" y="86" width="32" height="30" rx="6"/>
+  <text class="acc c s" x="589" y="101">∅</text>
+  <text class="fnt s" x="375" y="158">值变成 NULL，按钮呈按下状态。</text>
+  <text class="fnt s" x="375" y="180">NULL 和空字符串不同：空字符串是一格空白。</text>
+
+  <path class="ln2" d="M635 101 L720 101"/>
+  <path class="ln2" d="M712 96 L720 101 L712 106"/>
+
+  <!-- ③ 恢复 -->
+  <text class="b s" x="730" y="30">③ 再点一下 ∅</text>
+  <text class="b" x="730" y="68">email</text>
+  <text class="mono mut s" x="800" y="68">varchar(255)</text>
+  <rect class="s-field ln2" x="730" y="86" width="190" height="30" rx="6"/>
+  <text class="s" x="742" y="101">zs@example.com</text>
+  <rect class="s-field ln2" x="928" y="86" width="32" height="30" rx="6"/>
+  <text class="c s" x="944" y="101">∅</text>
+  <text class="fnt s" x="730" y="158">恢复到刚才那个值。</text>
+  <text class="fnt s" x="730" y="180">没有记录时，恢复成空文本。</text>
+
+  <g class="hot" data-hot="19"><circle cx="589" cy="130" r="11"/><text x="589" y="130">19</text></g>
+  <g class="hot" data-hot="20"><circle cx="944" cy="130" r="11"/><text x="944" y="130">20</text></g>
+  <g class="hot" data-hot="21"><circle cx="387" cy="130" r="11"/><text x="387" y="130">21</text></g>
+</svg>
+<figcaption><b>图 4-4</b>　每个字段右侧的 ∅ 按钮：点一下设为 <code>NULL</code>，再点一下恢复原来的值。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>元素</th><th>含义</th></tr></thead>
+<tbody>
+<tr data-hot="19"><td class="num">19</td><td class="wide">∅（设为 NULL）</td>
+  <td>点一下把这个字段的值设成 <code>NULL</code>。这一步同样只进暂存区，提交时才落库。</td></tr>
+<tr data-hot="20"><td class="num">20</td><td class="wide">∅（再点一次）</td>
+  <td>恢复到刚才那个值；没有记录时恢复成空文本。从 <code>NULL</code> 恢复不需要重新去服务器取值。</td></tr>
+<tr data-hot="21"><td class="num">21</td><td class="wide">NULL 与空字符串</td>
+  <td><code>NULL</code> 显示成灰色的 <code>NULL</code>，空字符串显示成一格空白。<b>它们是两个不同的值</b>，别当成一回事。</td></tr>
+</tbody>
+</table>
+
+<h3>校验</h3>
 
 <ul>
-  <li>改过的单元格变成<b>橙色底色</b>，左上角出现小三角标记</li>
-  <li>改过的行，<b>行号列</b>也会出现标记</li>
-  <li>这些标记一直保留到提交或放弃</li>
-  <li>如果你把某一格改回原来的值，那个格子的标记会消失；如果一行里所有改动都被改回了，这一行恢复成干净的</li>
+  <li>数字列只接受合法数字（含负号和小数点）。</li>
+  <li>日期 / 时间列校验格式，解析不出来就报错。</li>
+  <li><code>SET</code> 的值必须来自列定义。</li>
+  <li>校验不通过时输入框<b>抖动</b>并给出提示，<b>保持编辑状态不退出</b>，值也不会写进暂存区——你可以直接改到对。</li>
 </ul>
+
+<h3>外观反馈：改完之后会看到什么</h3>
+
+<ul>
+  <li>字段栏里改过的字段变成<b>橙色底色</b>，左上角出现小三角标记。</li>
+  <li>网格里对应的单元格也变橙色，修改过的行在行号列出现标记。</li>
+  <li>这些标记一直保留到提交或放弃。</li>
+  <li>同一行里改了多个字段，提交时会<b>合并成一条 <code>UPDATE</code></b>，不会一行发一次。</li>
+</ul>
+
+<h3>改回原值</h3>
+
+<p>
+  把某个字段改回原来的值，这个字段的修改标记会自动消失；
+  如果一行里所有改动都被改回去了，这一行就重新变成「干净」的。
+</p>
 
 <h2>插入、复制、删除行</h2>
 
@@ -376,43 +705,163 @@
   <text class="b s" x="20" y="352">删除的行</text>
   <text class="s" x="110" y="352">整行加删除线并变淡，但还没真正删除。删除前会显示将要执行的条件，例如 WHERE id = 42。</text>
   <text class="b s" x="20" y="382">已删除的行</text>
-  <text class="s" x="110" y="382">不能再编辑。想改的话先右键 → 撤销该行的修改。</text>
+  <text class="s" x="110" y="382">不能再编辑。想改的话先在字段栏里点「撤销删除」。</text>
 </svg>
-<figcaption><b>图 4-2</b>　网格里三种行状态的样子，以及行号列上的对应标记。</figcaption>
+<figcaption><b>图 4-5</b>　网格里三种行状态的样子，以及行号列上的对应标记。</figcaption>
 </figure>
 
 <h3>插入行</h3>
 
 <ul>
-  <li>点状态栏的 <code>+ 行</code>，或者按 <kbd>⌘I</kbd></li>
-  <li>网格底部出现一条<b>绿色虚线行</b>，光标停在第一个可编辑列</li>
-  <li>只填需要填的列，留空的交给数据库默认值；自增主键留空即可</li>
-  <li>没提交之前按 <kbd>Esc</kbd> 可以取消这一行</li>
+  <li>点状态栏的 <code>+ 行</code>，或者按 <kbd>⌘I</kbd>。</li>
+  <li>网格底部出现一条<b>绿色虚线行</b>，同时<b>右侧字段栏切到「新增行」模式</b>：字段全部为空，光标停在第一个可编辑字段上。</li>
+  <li>按 <kbd>Tab</kbd> 往下依次填。只填需要填的列，留空的列交给数据库默认值。</li>
+  <li>自增主键留空即可，提交后由数据库生成。</li>
+  <li>没提交之前按 <kbd>Esc</kbd> 可以取消这一行。</li>
 </ul>
 
 <h3>复制行</h3>
 
 <ul>
-  <li>选中若干行，按 <kbd>⌘D</kbd>，或右键 → <code>复制行</code></li>
-  <li>复制出来的行作为<b>新增行</b>插进来，自增主键会被清空，其余列保留原值</li>
-  <li>复制出的行立刻进入暂存状态</li>
+  <li>选中若干行，按 <kbd>⌘D</kbd>，或右键 → <code>复制行</code>。</li>
+  <li>复制出来的行作为<b>新增行</b>插进来，自增主键会被清空，其余列保留原值。</li>
+  <li>复制出的行立刻进入暂存状态，<b>字段栏切到这一行</b>，可以直接接着改。</li>
 </ul>
 
 <h3>删除行</h3>
 
 <ul>
-  <li>选中行按 <kbd>⌫</kbd>，或右键 → <code>删除行</code></li>
-  <li>行立刻变淡加删除线，<b>但还没真正删除</b></li>
-  <li>删除前会显示将要执行的条件，例如 <code>WHERE id = 42</code>，让你确认删的是哪一行</li>
-  <li>已标记删除的行不能再编辑</li>
+  <li>选中行按 <kbd>⌫</kbd>，或右键 → <code>删除行</code>。</li>
+  <li>行立刻变淡加删除线，<b>但还没真正删除</b>。</li>
+  <li>删除前会显示将要执行的条件，例如 <code>WHERE id = 42</code>，让你确认删的是哪一行。</li>
+  <li>已标记删除的行不能在字段栏里编辑：字段全部变灰、只读，栏顶显示 <code>这一行已标记删除</code> 与「撤销删除」。想改要先撤销删除。</li>
 </ul>
+
+<figure>
+<svg viewBox="0 0 1000 340" role="img" aria-label="字段栏在新增行、已标记删除、不可编辑时的样子">
+  <title>字段栏的三种特殊状态</title>
+
+  <!-- A 新增行 -->
+  <rect class="s-window ln" x="20" y="20" width="310" height="280" rx="9"/>
+  <rect class="s-green" x="20" y="20" width="310" height="34" rx="9" opacity="0.18"/>
+  <rect class="s-green" x="20" y="40" width="310" height="14" opacity="0.18"/>
+  <line class="ln" x1="20" y1="54" x2="330" y2="54"/>
+  <text class="b s" x="56" y="37">新增行</text>
+  <text class="fnt s r" x="314" y="37">Esc 取消这一行</text>
+  <text class="b" x="36" y="80">id</text>
+  <text class="mono mut s" x="96" y="80">int unsigned</text>
+  <rect class="s-field ln2" x="36" y="88" width="246" height="26" rx="6"/>
+  <text class="fnt s" x="46" y="101">留空，由数据库生成</text>
+  <rect class="s-field ln2" x="290" y="88" width="32" height="26" rx="6"/>
+  <text class="c s" x="306" y="101">∅</text>
+  <text class="b" x="36" y="140">name</text>
+  <text class="mono mut s" x="96" y="140">varchar(64)</text>
+  <rect class="s-field ln2" x="36" y="148" width="246" height="26" rx="6"/>
+  <text class="s" x="46" y="161">赵六</text>
+  <rect class="s-field ln2" x="290" y="148" width="32" height="26" rx="6"/>
+  <text class="c s" x="306" y="161">∅</text>
+  <text class="b" x="36" y="200">email</text>
+  <text class="mono mut s" x="96" y="200">varchar(255)</text>
+  <rect class="s-field ln2" x="36" y="208" width="246" height="26" rx="6"/>
+  <text class="s" x="46" y="221">zl@example.com</text>
+  <rect class="s-field ln2" x="290" y="208" width="32" height="26" rx="6"/>
+  <text class="c s" x="306" y="221">∅</text>
+  <text class="fnt s" x="36" y="262">光标停在第一个可编辑字段上，</text>
+  <text class="fnt s" x="36" y="282">Tab 往下依次填。</text>
+  <g class="hot" data-hot="22"><circle cx="38" cy="37" r="11"/><text x="38" y="37">22</text></g>
+
+  <!-- B 已标记删除 -->
+  <rect class="s-window ln" x="345" y="20" width="310" height="280" rx="9"/>
+  <rect class="s-red" x="345" y="20" width="310" height="34" rx="9" opacity="0.14"/>
+  <rect class="s-red" x="345" y="40" width="310" height="14" opacity="0.14"/>
+  <line class="ln" x1="345" y1="54" x2="655" y2="54"/>
+  <text class="err s" x="361" y="37">这一行已标记删除</text>
+  <rect class="s-field ln2" x="563" y="26" width="84" height="22" rx="6"/>
+  <text class="c s" x="605" y="37">撤销删除</text>
+  <text class="b" x="361" y="80">id</text>
+  <text class="mono mut s" x="421" y="80">int unsigned</text>
+  <rect class="s-sunken ln" x="361" y="88" width="246" height="26" rx="6" opacity="0.5"/>
+  <text class="fnt s" x="371" y="101">42</text>
+  <rect class="s-sunken ln" x="615" y="88" width="32" height="26" rx="6" opacity="0.5"/>
+  <text class="fnt c s" x="631" y="101">∅</text>
+  <text class="b" x="361" y="140">name</text>
+  <text class="mono mut s" x="421" y="140">varchar(64)</text>
+  <rect class="s-sunken ln" x="361" y="148" width="246" height="26" rx="6" opacity="0.5"/>
+  <text class="fnt s" x="371" y="161">王五</text>
+  <rect class="s-sunken ln" x="615" y="148" width="32" height="26" rx="6" opacity="0.5"/>
+  <text class="fnt c s" x="631" y="161">∅</text>
+  <text class="b" x="361" y="200">email</text>
+  <text class="mono mut s" x="421" y="200">varchar(255)</text>
+  <rect class="s-sunken ln" x="361" y="208" width="246" height="26" rx="6" opacity="0.5"/>
+  <text class="fnt s" x="371" y="221">ww@example.com</text>
+  <rect class="s-sunken ln" x="615" y="208" width="32" height="26" rx="6" opacity="0.5"/>
+  <text class="fnt c s" x="631" y="221">∅</text>
+  <text class="fnt s" x="361" y="262">字段全部只读并变灰。</text>
+  <text class="fnt s" x="361" y="282">想改要先点「撤销删除」。</text>
+  <g class="hot" data-hot="23"><circle cx="640" cy="37" r="11"/><text x="640" y="37">23</text></g>
+
+  <!-- C 不可编辑 -->
+  <rect class="s-window ln" x="670" y="20" width="310" height="280" rx="9"/>
+  <rect class="s-sunken" x="670" y="20" width="310" height="34" rx="9"/>
+  <rect class="s-sunken" x="670" y="40" width="310" height="14"/>
+  <line class="ln" x1="670" y1="54" x2="980" y2="54"/>
+  <text class="err s" x="706" y="37">该表没有主键或唯一键，无法安全定位行</text>
+  <text class="b" x="686" y="80">id</text>
+  <text class="mono mut s" x="746" y="80">int unsigned</text>
+  <rect class="s-sunken ln" x="686" y="88" width="246" height="26" rx="6" opacity="0.55"/>
+  <text class="s" x="696" y="101">42</text>
+  <rect class="s-sunken ln" x="940" y="88" width="32" height="26" rx="6" opacity="0.55"/>
+  <text class="fnt c s" x="956" y="101">∅</text>
+  <text class="b" x="686" y="140">name</text>
+  <text class="mono mut s" x="746" y="140">varchar(64)</text>
+  <rect class="s-sunken ln" x="686" y="148" width="246" height="26" rx="6" opacity="0.55"/>
+  <text class="s" x="696" y="161">王五</text>
+  <rect class="s-sunken ln" x="940" y="148" width="32" height="26" rx="6" opacity="0.55"/>
+  <text class="fnt c s" x="956" y="161">∅</text>
+  <text class="b" x="686" y="200">email</text>
+  <text class="mono mut s" x="746" y="200">varchar(255)</text>
+  <rect class="s-sunken ln" x="686" y="208" width="246" height="26" rx="6" opacity="0.55"/>
+  <text class="s" x="696" y="221">ww@example.com</text>
+  <rect class="s-sunken ln" x="940" y="208" width="32" height="26" rx="6" opacity="0.55"/>
+  <text class="fnt c s" x="956" y="221">∅</text>
+  <text class="fnt s" x="686" y="262">字段和值照常显示，</text>
+  <text class="fnt s" x="686" y="282">但编辑器全部禁用。</text>
+  <g class="hot" data-hot="24"><circle cx="688" cy="37" r="11"/><text x="688" y="37">24</text></g>
+</svg>
+<figcaption><b>图 4-6</b>　字段栏在三种特殊情况下的样子：新增行、已标记删除、表不可编辑。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>情况</th><th>字段栏里是什么样</th></tr></thead>
+<tbody>
+<tr data-hot="22"><td class="num">22</td><td class="wide">新增行</td>
+  <td>栏顶标注「新增行」，字段全部为空，光标在第一个可编辑字段上。留空的列交给数据库默认值，自增主键留空即可。</td></tr>
+<tr data-hot="23"><td class="num">23</td><td class="wide">已标记删除</td>
+  <td>栏顶显示 <code>这一行已标记删除</code> 和「撤销删除」按钮；字段全部变灰、只读。想改要先撤销删除。</td></tr>
+<tr data-hot="24"><td class="num">24</td><td class="wide">不可编辑</td>
+  <td>栏顶<b>写明原因</b>（比如 <code>该表没有主键或唯一键，无法安全定位行</code>）；字段和值照常显示，但所有编辑器禁用。双击单元格改为打开快速查看。</td></tr>
+</tbody>
+</table>
 
 <h3>粘贴</h3>
 
 <p>
-  在单元格上按 <kbd>⌘V</kbd>，如果剪贴板里是带制表符或换行的多行文本（比如从 Excel 复制的），
-  会从当前单元格开始按二维表格铺开。每一格都走和手工编辑一样的校验；目标列不够时会截断并提示。
+  字段栏里也支持粘贴，但<b>只贴一个字段</b>：把光标放进某个字段的编辑器，按 <kbd>⌘V</kbd>，
+  剪贴板里的纯文本就成为这一个字段的值，然后走和手工输入一样的校验。
 </p>
+
+<p>
+  网格上<b>不再</b>支持把带制表符 / 换行的多行文本铺开成二维表格——网格是只读的。
+  需要批量改数据时，去 SQL 编辑器里写 <code>UPDATE</code>。
+</p>
+
+<div class="callout">
+  <span class="tag">为什么只留单字段粘贴</span>
+  <p>
+    二维铺开粘贴要求网格可编辑，而我们把网格整个设成了只读：这样拖选、滚动、双击都不会误改数据。
+    批量改动走 SQL 编辑器更可控，也能在提交前看清语句。这是刻意的简化，不是漏掉的。
+  </p>
+</div>
 
 <h2>暂存区的规则</h2>
 
@@ -478,7 +927,7 @@
   <rect class="s-accent" x="858" y="352" width="90" height="30" rx="6"/>
   <text class="c s" x="903" y="367" fill="#fff">提交</text>
 </svg>
-<figcaption><b>图 4-3</b>　预览面板。语句按「先插入、再修改、最后删除」排序。</figcaption>
+<figcaption><b>图 4-7</b>　预览面板。语句按「先插入、再修改、最后删除」排序。</figcaption>
 </figure>
 
 <div class="callout tip">
@@ -538,7 +987,7 @@
   <rect class="s-accent" x="628" y="332" width="144" height="30" rx="6"/>
   <text class="c s" x="700" y="347" fill="#fff">关闭并修正</text>
 </svg>
-<figcaption><b>图 4-4</b>　提交失败面板。三条必须说清楚的信息：错在哪、原文是什么、数据现在是什么状态。</figcaption>
+<figcaption><b>图 4-8</b>　提交失败面板。三条必须说清楚的信息：错在哪、原文是什么、数据现在是什么状态。</figcaption>
 </figure>
 
 <div class="callout danger">
@@ -623,7 +1072,7 @@
 
   <text class="fnt s c" x="500" y="266">按钮措辞必须具体。不要用「确定 / 取消」这种分不清谁是谁的说法。</text>
 </svg>
-<figcaption><b>图 4-5</b>　两个确认弹窗。左边是通用保护，右边是关闭标签时。</figcaption>
+<figcaption><b>图 4-9</b>　两个确认弹窗。左边是通用保护，右边是关闭标签时。</figcaption>
 </figure>
 
 <h2>一个必须知道的限制：不检测并发修改</h2>

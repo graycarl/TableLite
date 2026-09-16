@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | 语言 | Swift 6（严格并发） | 与 macOS 原生开发一致 |
 | 主框架 | SwiftUI | 表单、布局、菜单开发效率高 |
-| 数据网格 / 文本编辑器 | AppKit（`NSTableView` / `NSTextView`） | SwiftUI 无法满足内联编辑、冻结列、大表滚动、精确文本控制 |
+| 数据网格 / 文本编辑器 | AppKit（`NSTableView` / `NSTextView`） | SwiftUI 不能满足大表滚动、冻结列、精确焦点控制与文本控制；右侧字段栏反过来用 SwiftUI（见 `14-row-inspector.md` §1） |
 | 数据库访问 | **libmysqlclient**（Homebrew `mysql-client`）+ 薄 C shim | 协议行为与官方 `mysql` 客户端一致：多结果集、多语句、全部认证插件、`mysql_use_result` 流式。纯 Swift 实现（MySQLNIO）在多结果集、可 prepare 语句范围、认证插件覆盖上都有缺口 |
 | SSH 隧道 | 系统 `/usr/bin/ssh` 子进程 + `-L` 端口转发 | `~/.ssh/config`、`ProxyJump`、ssh-agent、known_hosts 全部免费获得，无需自己实现 |
 | 工程组织 | **XcodeGen**（`project.yml` 生成 `.xcodeproj`） | 声明式文本可审阅、易 diff、无 pbxproj 冲突；纯 SwiftPM 做不了「C shim + .app bundle」 |

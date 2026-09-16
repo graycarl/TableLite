@@ -51,7 +51,7 @@
     <h4>它擅长的事</h4>
     <ul>
       <li>打开一张表，分页翻、排序、筛选着看</li>
-      <li>直接改单元格、增删行，改完先预览再一次性提交</li>
+      <li>选中一行后在右侧字段栏里改字段、增删行，改完先预览再一次性提交</li>
       <li>写 SQL 跑脚本，多个语句的结果分开看</li>
       <li>通过 SSH 跳板机连内网数据库</li>
       <li>导出 CSV / JSON / SQL，从 CSV 导入数据</li>
@@ -81,7 +81,8 @@
 <h2>主窗口长什么样</h2>
 
 <p>
-  整个程序只有一个窗口。窗口分成上方工具栏、左侧栏、中间标签区、底部状态栏四块。
+  整个程序只有一个窗口，从上到下是<b>工具栏</b>（下沿有一条连接颜色带）、<b>主体区</b>、<b>状态栏</b>。
+  主体区横向分三块：<b>左侧栏</b>（连接、库、对象树）、<b>标签内容区</b>、<b>右侧字段栏</b>（表数据标签专有）。
   下图的数字对应后面表格里的说明。
 </p>
 
@@ -180,48 +181,83 @@
     <text class="mut" x="470" y="100">orders</text>
     <text class="fnt" x="536" y="100">＋</text>
 
-    <!-- 内容区：数据网格 -->
-    <rect class="s-chrome2" x="250" y="115" width="742" height="26"/>
-    <line class="ln" x1="250" y1="141" x2="992" y2="141"/>
-    <text class="mut s r" x="272" y="129">#</text>
+    <!-- 内容区：数据网格（只读） -->
+    <rect class="s-chrome2" x="250" y="115" width="506" height="26"/>
+    <line class="ln" x1="250" y1="141" x2="756" y2="141"/>
+    <text class="mut s r" x="266" y="129">#</text>
     <text class="b" x="286" y="129">🔑 id</text>
     <text class="b" x="352" y="129">name</text>
     <text class="b" x="452" y="129">email</text>
-    <text class="b" x="580" y="129">content</text>
-    <text class="b" x="800" y="129">created_at</text>
+    <text class="b" x="608" y="129">created_at</text>
 
     <g class="ln">
-      <line x1="250" y1="167" x2="992" y2="167"/>
-      <line x1="250" y1="193" x2="992" y2="193"/>
-      <line x1="250" y1="219" x2="992" y2="219"/>
+      <line x1="250" y1="167" x2="756" y2="167"/>
+      <line x1="250" y1="193" x2="756" y2="193"/>
+      <line x1="250" y1="219" x2="756" y2="219"/>
       <line x1="278" y1="115" x2="278" y2="245"/>
       <line x1="340" y1="115" x2="340" y2="245"/>
       <line x1="440" y1="115" x2="440" y2="245"/>
-      <line x1="568" y1="115" x2="568" y2="245"/>
-      <line x1="788" y1="115" x2="788" y2="245"/>
+      <line x1="600" y1="115" x2="600" y2="245"/>
     </g>
-    <rect class="s-alt" x="278" y="167" width="714" height="26"/>
+    <rect class="s-alt" x="278" y="167" width="478" height="26"/>
 
     <text class="fnt s" x="264" y="154">1</text>
     <text x="286" y="154">1</text>
     <text x="352" y="154">张三</text>
     <text class="mut" x="452" y="154">zs@example.c…</text>
-    <text class="mut" x="580" y="154">这是一篇很长的文…</text>
-    <text class="mut" x="800" y="154">2025-01-01</text>
+    <text class="mut" x="608" y="154">2025-01-01</text>
 
     <text class="fnt s" x="264" y="180">2</text>
     <text x="286" y="180">2</text>
     <text x="352" y="180">李四</text>
     <text class="mut" x="452" y="180">ls@example.c…</text>
-    <text class="mut" x="580" y="180">«BLOB 12.3 KB»</text>
-    <text class="mut" x="800" y="180">2025-01-02</text>
+    <text class="mut" x="608" y="180">2025-01-02</text>
 
     <text class="fnt s" x="264" y="206">3</text>
     <text x="286" y="206">3</text>
     <text x="352" y="206">王五</text>
     <text class="fnt" x="452" y="206">NULL</text>
-    <text class="fnt" x="580" y="206">NULL</text>
-    <text class="mut" x="800" y="206">2025-01-03</text>
+    <text class="mut" x="608" y="206">2025-01-03</text>
+
+    <text class="fnt s" x="264" y="286">数据网格（只读）</text>
+
+    <!-- 右侧字段栏 -->
+    <rect class="s-sunken" x="756" y="115" width="236" height="433"/>
+    <line class="ln" x1="756" y1="115" x2="756" y2="548"/>
+    <rect class="s-field ln2" x="766" y="126" width="216" height="26" rx="6"/>
+    <text class="fnt s" x="778" y="144">🔍 搜索字段…</text>
+    <text class="fnt s" x="884" y="168">18 个字段</text>
+
+    <text class="b s" x="766" y="192">🔑 id</text>
+    <text class="mut s" x="816" y="192">int</text>
+    <rect class="s-window ln2" x="766" y="198" width="186" height="24" rx="5"/>
+    <text class="s" x="776" y="214">42</text>
+    <text class="fnt s" x="966" y="214">∅</text>
+
+    <text class="b s" x="766" y="244">name</text>
+    <text class="mut s" x="816" y="244">varchar(255)</text>
+    <rect class="s-window ln2" x="766" y="250" width="186" height="24" rx="5"/>
+    <text class="s" x="776" y="266">张三</text>
+    <text class="fnt s" x="966" y="266">∅</text>
+
+    <text class="b s" x="766" y="296">email</text>
+    <text class="mut s" x="816" y="296">varchar(255)</text>
+    <rect class="s-edit" x="766" y="302" width="186" height="24" rx="5" opacity="0.7"/>
+    <rect class="s-window ln2" x="766" y="302" width="186" height="24" rx="5" fill="none"/>
+    <text class="s" x="776" y="318">zs@example.com</text>
+    <text class="fnt s" x="966" y="318">∅</text>
+
+    <text class="b s" x="766" y="348">content</text>
+    <text class="mut s" x="826" y="348">longtext</text>
+    <rect class="s-window ln2" x="766" y="354" width="186" height="24" rx="5"/>
+    <text class="s" x="776" y="370">这是一篇很长的…</text>
+    <text class="fnt s" x="966" y="370">∅</text>
+
+    <text class="b s" x="766" y="400">created_at</text>
+    <text class="mut s" x="852" y="400">timestamp</text>
+    <rect class="s-window ln2" x="766" y="406" width="186" height="24" rx="5"/>
+    <text class="s" x="776" y="422">2025-01-01 10:00</text>
+    <text class="fnt s" x="966" y="422">∅</text>
 
     <!-- 状态栏 -->
     <rect class="s-chrome" x="250" y="548" width="742" height="34"/>
@@ -241,8 +277,9 @@
     <g class="hot" data-hot="6"><circle cx="238" cy="212" r="11"/><text x="238" y="212">6</text></g>
     <g class="hot" data-hot="7"><circle cx="22" cy="522" r="11"/><text x="22" y="522">7</text></g>
     <g class="hot" data-hot="8"><circle cx="374" cy="86" r="11"/><text x="374" y="86">8</text></g>
-    <g class="hot" data-hot="9"><circle cx="978" cy="330" r="11"/><text x="978" y="330">9</text></g>
-    <g class="hot" data-hot="10"><circle cx="978" cy="565" r="11"/><text x="978" y="565">10</text></g>
+    <g class="hot" data-hot="9"><circle cx="700" cy="300" r="11"/><text x="700" y="300">9</text></g>
+    <g class="hot" data-hot="10"><circle cx="700" cy="565" r="11"/><text x="700" y="565">10</text></g>
+    <g class="hot" data-hot="11"><circle cx="980" cy="480" r="11"/><text x="980" y="480">11</text></g>
   </g>
 </svg>
 <figcaption><b>图 0-1</b>　主窗口整体布局。数字编号对应下面的控件说明表。</figcaption>
@@ -269,17 +306,19 @@
   <td>左侧栏底部两个入口。<b>查询历史</b>记录你在编辑器里跑过的语句；<b>Console Log</b> 记录所有发给服务器的语句，包括客户端自动发的元数据查询。</td><td><kbd>⇧⌘C</kbd></td></tr>
 <tr data-hot="8"><td class="num">8</td><td class="wide">标签栏</td>
   <td>当前连接打开的所有东西：表数据、表结构、查询、历史、日志。标题右边的橙点表示这个标签有未提交的改动。中键点击关闭标签。</td><td><kbd>⌘W</kbd> <kbd>⌘[</kbd> <kbd>⌘]</kbd> <kbd>⌘1</kbd>…<kbd>⌘9</kbd></td></tr>
-<tr data-hot="9"><td class="num">9</td><td class="wide">标签内容区</td>
-  <td>占窗口最大的部分。表数据视图里是可编辑的网格，查询标签里是编辑器加结果区，结构标签里是只读的列表。</td><td>—</td></tr>
+<tr data-hot="9"><td class="num">9</td><td class="wide">标签内容区（数据网格）</td>
+  <td>占窗口最大的部分。表数据标签里是<b>只读</b>的数据网格：能选、能排序、能复制，但不能在格子里改值。查询标签里是编辑器加只读结果区，结构标签里是只读的列表。</td><td>—</td></tr>
 <tr data-hot="10"><td class="num">10</td><td class="wide">状态栏</td>
   <td>左半是连接状态和当前标签的关键信息（行数、页数、耗时）；右半是随标签变化的操作按钮，比如 <b>筛选</b>、<b>列</b>、<b>导出…</b>。</td><td>—</td></tr>
+<tr data-hot="11"><td class="num">11</td><td class="wide">右侧字段栏</td>
+  <td>表数据标签专有：选中一行后，这里列出它的<b>全部字段</b>（列名、类型、值），也是<b>唯一</b>能改数据的地方。顶部有「搜索字段」框。默认显示，用工具栏最右的 <b>▤</b> 或「视图 → 显示/隐藏右侧字段栏」开关，没有快捷键。</td><td>—</td></tr>
 </tbody>
 </table>
 
 <h2>怎么读这份说明书</h2>
 
 <ol class="steps">
-  <li><b>先看第 2 章「界面结构」</b>，把四块区域的职责弄清楚，后面所有章节都在这套框架里。</li>
+  <li><b>先看第 2 章「界面结构」</b>，把窗口各分区的职责弄清楚，后面所有章节都在这套框架里。</li>
   <li><b>图上带数字的圆点</b>和下面的表格一一对应。鼠标移到表格某一行，图上的圆点会变成橙色，方便定位。</li>
   <li><b>橙色的提示框</b>是需要特别注意的行为，<b>红色的提示框</b>是不可撤销的操作。</li>
   <li>末尾的第 12、13 章是速查表：快捷键总表和提示文案规范，可以当参考手册随时翻。</li>
@@ -295,7 +334,7 @@
 <tr><td>新建一个连接，或者配 SSH 跳板机</td><td><a href="01-connections.html">01 · 连接</a>、<a href="10-ssh-tunnel.html">10 · SSH 隧道</a></td></tr>
 <tr><td>搞清楚窗口里每块区域是干什么的</td><td><a href="02-workspace.html">02 · 界面结构</a></td></tr>
 <tr><td>打开一张表翻数据、排序、看大字段</td><td><a href="03-data-browsing.html">03 · 浏览表数据</a></td></tr>
-<tr><td>改数据、加行、删行，然后提交</td><td><a href="04-data-editing.html">04 · 编辑数据</a></td></tr>
+<tr><td>改数据、加行、删行，然后提交（编辑在右侧字段栏里做）</td><td><a href="04-data-editing.html">04 · 编辑数据</a></td></tr>
 <tr><td>只看符合条件的行，或者隐藏某些列</td><td><a href="05-filtering.html">05 · 过滤器</a></td></tr>
 <tr><td>写 SQL、跑多条语句、查历史记录</td><td><a href="06-query-editor.html">06 · 查询编辑器</a></td></tr>
 <tr><td>看一张表的列、索引、外键、建表语句</td><td><a href="07-schema-view.html">07 · 表结构视图</a></td></tr>

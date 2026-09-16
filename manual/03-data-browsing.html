@@ -36,7 +36,8 @@
 <h1><span class="chapter">第 03 章</span>浏览表数据</h1>
 <p class="lede">
   从对象树点一张表，就打开了它的数据视图。这一章讲表格长什么样、
-  怎么翻页、怎么排序、各种奇怪的内容（NULL、BLOB、超长文本、图片）分别怎么显示。
+  右边那条「字段栏」怎么用、怎么翻页、怎么排序，各种奇怪的内容
+  （NULL、BLOB、超长文本、图片）分别怎么显示。
 </p>
 
 <h2>数据网格</h2>
@@ -181,6 +182,14 @@
 </tbody>
 </table>
 
+<div class="callout">
+  <span class="tag">网格只读</span>
+  <p>
+    数据网格本身<b>只读</b>，不能在格子里直接改值。双击单元格会跳到右侧字段栏里对应的字段并聚焦；
+    表或连接不可编辑时，双击改为打开快速查看。
+  </p>
+</div>
+
 <h3>各种内容分别怎么显示</h3>
 
 <table>
@@ -207,13 +216,265 @@
   <span class="tag">超长内容的延迟加载</span>
   <p>
     超过 <b>4 KB</b> 的文本和二进制列，打开表时只取前 4 KB。状态栏会告诉你实际有多大
-    （比如 <code>内容 1.2 MB</code>）。点「快速查看」或双击编辑时才会去服务器取完整值，中间会有一小段 loading。
+    （比如 <code>内容 1.2 MB</code>）。<b>选中该行</b>（字段栏要展示完整值）、点「快速查看」或开始编辑某个字段时，
+    才会去服务器取这一行的完整值，中间会有一小段 loading。
   </p>
   <p>
     <b>如果表没有主键或唯一键</b>，就没办法准确定位到这一行，这些单元格会一直保持截断状态，
     并提示 <code>无法定位行以加载完整内容</code>。
   </p>
 </div>
+
+<h2>右侧字段栏</h2>
+
+<p>
+  选中一行后，右边会出现一条「字段栏」，把这行的<b>所有列</b>按表定义的顺序纵向列出来。
+  它是表数据视图里<b>唯一</b>能改数据的地方：网格负责看，字段栏负责改。
+</p>
+
+<figure>
+<svg viewBox="0 0 1000 580" role="img" aria-label="右侧字段栏的线框图">
+  <title>右侧字段栏</title>
+
+  <!-- 窗口 -->
+  <rect class="s-window ln2" x="20" y="20" width="960" height="520" rx="10"/>
+  <rect class="s-chrome ln" x="20" y="20" width="960" height="30" rx="10"/>
+  <text class="s" x="36" y="35">users</text>
+  <line class="ln" x1="20" y1="50" x2="980" y2="50"/>
+
+  <!-- 左侧数据网格 -->
+  <rect class="s-chrome2 ln" x="20" y="50" width="590" height="30"/>
+  <text class="fnt s r" x="50" y="65">#</text>
+  <text class="b" x="66" y="65">🔑 id</text>
+  <text class="b" x="136" y="65">name</text>
+  <text class="b" x="226" y="65">email</text>
+  <text class="b" x="330" y="65">content</text>
+  <text class="b" x="440" y="65">photo</text>
+  <text class="b" x="548" y="65">created_at</text>
+
+  <rect class="s-sunken" x="20" y="80" width="38" height="390"/>
+  <g class="ln">
+    <line x1="58" y1="80" x2="58" y2="470"/>
+    <line x1="128" y1="80" x2="128" y2="470"/>
+    <line x1="218" y1="80" x2="218" y2="470"/>
+    <line x1="320" y1="80" x2="320" y2="470"/>
+    <line x1="430" y1="80" x2="430" y2="470"/>
+    <line x1="540" y1="80" x2="540" y2="470"/>
+    <line x1="20" y1="110" x2="610" y2="110"/>
+    <line x1="20" y1="140" x2="610" y2="140"/>
+    <line x1="20" y1="170" x2="610" y2="170"/>
+    <line x1="20" y1="200" x2="610" y2="200"/>
+    <line x1="20" y1="230" x2="610" y2="230"/>
+    <line x1="20" y1="260" x2="610" y2="260"/>
+    <line x1="20" y1="290" x2="610" y2="290"/>
+    <line x1="20" y1="320" x2="610" y2="320"/>
+    <line x1="20" y1="350" x2="610" y2="350"/>
+    <line x1="20" y1="380" x2="610" y2="380"/>
+    <line x1="20" y1="410" x2="610" y2="410"/>
+    <line x1="20" y1="440" x2="610" y2="440"/>
+    <line x1="20" y1="470" x2="610" y2="470"/>
+  </g>
+  <rect class="s-alt" x="58" y="110" width="552" height="30"/>
+  <rect class="s-alt" x="58" y="170" width="552" height="30"/>
+  <rect class="s-sel" x="58" y="80" width="552" height="30"/>
+  <rect class="s-edit" x="320" y="80" width="110" height="30" opacity="0.8"/>
+  <path class="lnO sw2" d="M324 82 l9 0 l-9 9 z"/>
+  <rect class="s-orange" x="48" y="82" width="8" height="8" rx="4"/>
+
+  <text class="fnt s c" x="46" y="95">1</text>
+  <text x="66" y="95">1</text>
+  <text x="136" y="95">张三</text>
+  <text class="mut" x="226" y="95">zs@example.com</text>
+  <text class="mut" x="330" y="95">这是一篇很长的…</text>
+  <text class="mut s" x="440" y="95">«图片 45.2 KB»</text>
+  <text class="mut s" x="548" y="95">2025-01-01</text>
+
+  <text class="fnt s c" x="46" y="125">2</text>
+  <text x="66" y="125">2</text>
+  <text x="136" y="125">李四</text>
+  <text class="mut" x="226" y="125">ls@example.com</text>
+  <text class="mut s" x="330" y="125">«BLOB 12.3 KB»</text>
+  <text class="mut s" x="440" y="125">—</text>
+  <text class="mut s" x="548" y="125">2025-01-02</text>
+
+  <text class="fnt s c" x="46" y="155">3</text>
+  <text x="66" y="155">3</text>
+  <text x="136" y="155">王五</text>
+  <text class="fnt" x="226" y="155">NULL</text>
+  <text class="fnt" x="330" y="155">NULL</text>
+  <text class="fnt" x="440" y="155">NULL</text>
+  <text class="mut s" x="548" y="155">2025-01-03</text>
+
+  <text class="fnt s c" x="46" y="185">4</text>
+  <text x="66" y="185">4</text>
+  <text x="136" y="185">赵六</text>
+  <text x="226" y="185">zl@example.com</text>
+  <text class="mono mut s" x="330" y="185">0xDEADBEEF</text>
+  <text class="mut s" x="440" y="185">«BLOB 4 B»</text>
+  <text class="mut s" x="548" y="185">2025-01-04</text>
+
+  <text class="fnt s" x="36" y="500">网格只读 · 双击单元格跳到右侧字段栏对应字段</text>
+
+  <!-- 分隔线 -->
+  <line class="ln" x1="610" y1="50" x2="610" y2="540"/>
+
+  <!-- 右侧字段栏 -->
+  <rect class="s-chrome ln" x="610" y="50" width="370" height="46"/>
+  <rect class="s-field ln2" x="626" y="62" width="200" height="26" rx="6"/>
+  <text class="mut s" x="638" y="75">搜索字段</text>
+  <text class="fnt s r" x="964" y="75">18 个字段</text>
+  <line class="ln" x1="610" y1="96" x2="980" y2="96"/>
+
+  <!-- 字段 1：🔑 id -->
+  <text class="b" x="626" y="112">🔑 id</text>
+  <text class="fnt s r" x="964" y="112">int unsigned</text>
+  <rect class="s-field ln2" x="626" y="122" width="290" height="26" rx="6"/>
+  <text class="s" x="638" y="135">1</text>
+  <rect class="s-field ln2" x="924" y="122" width="40" height="26" rx="6"/>
+  <text class="c s" x="944" y="135">∅</text>
+  <line class="ln" x1="610" y1="156" x2="980" y2="156"/>
+
+  <!-- 字段 2：name -->
+  <text x="626" y="172">name</text>
+  <text class="fnt s r" x="964" y="172">varchar(255)</text>
+  <rect class="s-field ln2" x="626" y="182" width="290" height="26" rx="6"/>
+  <text class="s" x="638" y="195">张三</text>
+  <rect class="s-field ln2" x="924" y="182" width="40" height="26" rx="6"/>
+  <text class="c s" x="944" y="195">∅</text>
+  <line class="ln" x1="610" y1="216" x2="980" y2="216"/>
+
+  <!-- 字段 3：email -->
+  <text x="626" y="232">email</text>
+  <text class="fnt s r" x="964" y="232">varchar(320)</text>
+  <rect class="s-field ln2" x="626" y="242" width="290" height="26" rx="6"/>
+  <text class="s" x="638" y="255">zs@example.com</text>
+  <rect class="s-field ln2" x="924" y="242" width="40" height="26" rx="6"/>
+  <text class="c s" x="944" y="255">∅</text>
+  <line class="ln" x1="610" y1="276" x2="980" y2="276"/>
+
+  <!-- 字段 4：content（已修改 + 大字段） -->
+  <text x="626" y="292">content</text>
+  <text class="fnt s r" x="964" y="292">longtext</text>
+  <rect class="s-edit ln2" x="626" y="302" width="290" height="26" rx="6"/>
+  <path class="lnO sw2" d="M630 304 l9 0 l-9 9 z"/>
+  <text class="s" x="638" y="315">这是一篇很长的文…</text>
+  <rect class="s-field ln2" x="924" y="302" width="40" height="26" rx="6"/>
+  <text class="c s" x="944" y="315">∅</text>
+  <rect class="s-field ln2" x="626" y="334" width="150" height="24" rx="6"/>
+  <text class="c s" x="701" y="346">加载完整内容…</text>
+  <text class="fnt s" x="786" y="346">该行大字段合计 12.4 MB</text>
+  <line class="ln" x1="610" y1="372" x2="980" y2="372"/>
+
+  <!-- 字段 5：photo -->
+  <text x="626" y="388">photo</text>
+  <text class="fnt s r" x="964" y="388">blob</text>
+  <rect class="s-field ln2" x="626" y="398" width="290" height="26" rx="6"/>
+  <text class="mut s" x="638" y="411">«BLOB 12.3 KB»</text>
+  <rect class="s-field ln2" x="924" y="398" width="40" height="26" rx="6"/>
+  <text class="c s" x="944" y="411">∅</text>
+  <line class="ln" x1="610" y1="432" x2="980" y2="432"/>
+
+  <!-- 字段 6：created_at -->
+  <text x="626" y="448">created_at</text>
+  <text class="fnt s r" x="964" y="448">datetime</text>
+  <rect class="s-field ln2" x="626" y="458" width="290" height="26" rx="6"/>
+  <text class="mut s" x="638" y="471">2025-01-01 10:00:00</text>
+  <rect class="s-field ln2" x="924" y="458" width="40" height="26" rx="6"/>
+  <text class="c s" x="944" y="471">∅</text>
+  <line class="ln" x1="610" y1="492" x2="980" y2="492"/>
+
+  <text class="fnt s" x="626" y="510">字段按表定义列顺序排列，不受网格列显隐影响</text>
+  <text class="fnt s" x="626" y="528">宽度可拖拽（260–560pt），按表记住</text>
+
+  <!-- 热点 -->
+  <g class="hot" data-hot="1"><circle cx="624" cy="60" r="11"/><text x="624" y="60">1</text></g>
+  <g class="hot" data-hot="2"><circle cx="938" cy="58" r="11"/><text x="938" y="58">2</text></g>
+  <g class="hot" data-hot="3"><circle cx="624" cy="112" r="11"/><text x="624" y="112">3</text></g>
+  <g class="hot" data-hot="4"><circle cx="624" cy="135" r="11"/><text x="624" y="135">4</text></g>
+  <g class="hot" data-hot="5"><circle cx="972" cy="135" r="11"/><text x="972" y="135">5</text></g>
+  <g class="hot" data-hot="6"><circle cx="896" cy="292" r="11"/><text x="896" y="292">6</text></g>
+  <path class="leader" d="M885 292 L648 302"/>
+  <g class="hot" data-hot="7"><circle cx="624" cy="346" r="11"/><text x="624" y="346">7</text></g>
+  <g class="hot" data-hot="8"><circle cx="24" cy="95" r="11"/><text x="24" y="95">8</text></g>
+  <g class="hot" data-hot="9"><circle cx="610" cy="500" r="11"/><text x="610" y="500">9</text></g>
+</svg>
+<figcaption><b>图 3-2</b>　右侧字段栏。网格负责看，字段栏负责改；改过的字段橙色带小三角，网格里同步标记。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>元素</th><th>含义</th></tr></thead>
+<tbody>
+<tr data-hot="1"><td class="num">1</td><td class="wide">搜索字段</td>
+  <td>按列名过滤字段。输入时只显示命中的字段。</td></tr>
+<tr data-hot="2"><td class="num">2</td><td class="wide">字段计数</td>
+  <td>没有过滤时显示总数，例如 <code>18 个字段</code>；过滤后显示 <code>显示 3 / 18</code>。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">列名 + 类型</td>
+  <td>列名按表定义的顺序排列。主键列带 <code>🔑</code> 并加粗；类型用灰色小字写在右侧，例如 <code>varchar(255)</code>，只读。</td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">值编辑框</td>
+  <td>字段栏里唯一能改数据的地方。点进去就能编辑；失焦或按 <kbd>↩</kbd> 写入暂存区，<kbd>Esc</kbd> 放弃。</td></tr>
+<tr data-hot="5"><td class="num">5</td><td class="wide">∅ 设为 NULL</td>
+  <td>在 <code>NULL</code> 与上一个非 NULL 值之间切换。字段本来就是 <code>NULL</code> 时按钮呈按下状态。</td></tr>
+<tr data-hot="6"><td class="num">6</td><td class="wide">已修改标记</td>
+  <td>改过的字段橙色底色 + 左上角小三角；网格里对应的单元格与行号列同时出现相同标记，直到提交或放弃。</td></tr>
+<tr data-hot="7"><td class="num">7</td><td class="wide">加载完整内容…</td>
+  <td>这一行的大字段合计超过 8 MB 时不自动取，点它才去服务器取完整值。</td></tr>
+<tr data-hot="8"><td class="num">8</td><td class="wide">焦点行</td>
+  <td>字段栏始终跟随网格的焦点行：点哪个单元格，字段栏就显示它所在的那一行。</td></tr>
+<tr data-hot="9"><td class="num">9</td><td class="wide">拖拽边界</td>
+  <td>字段栏宽度可拖拽（260–560pt，默认 320pt），按表记住。用工具栏最右的 <code>▤</code> 按钮或菜单「视图 → 显示 / 隐藏右侧字段栏」开关。</td></tr>
+</tbody>
+</table>
+
+<h3>显示规则</h3>
+
+<ul>
+  <li>字段按<b>表定义的列顺序</b>排列，<b>不受网格列显隐与列顺序影响</b>：被列过滤器隐藏的列，在这里照样显示。</li>
+  <li>列名旁边是完整类型（<code>varchar(255)</code>、<code>int unsigned</code>、<code>decimal(10,2)</code>），类型<b>只读</b>，不做类型转换。</li>
+  <li>主键字段的列名前带 <code>🔑</code>，列名加粗。</li>
+  <li>值按上一节的规则呈现（<code>NULL</code>、<code>«BLOB 12.3 KB»</code>、图片、JSON 等）。</li>
+  <li>顶部搜索框按列名过滤；过滤时计数显示成 <code>显示 3 / 18</code>。</li>
+</ul>
+
+<h3>编辑</h3>
+
+<ul>
+  <li>每个字段的值就是一个编辑器，点进去就能改；编辑器按列类型自动选择（见<a href="04-data-editing.html">第 4 章</a> §3）。</li>
+  <li><b>失焦或按 <kbd>↩</kbd></b> 把值写进暂存区，<b>不会立刻落库</b>；<kbd>Esc</kbd> 放弃本次输入，恢复原值。</li>
+  <li><kbd>Tab</kbd> / <kbd>⇧Tab</kbd> 在字段之间移动。</li>
+  <li>校验失败时输入框抖动并保持编辑状态，值不写入暂存区。</li>
+  <li>改动过的字段橙色底色 + 左上角小三角；网格里对应的单元格与行号列同时出现相同标记。</li>
+  <li>同一行改了多个字段，提交时合为一条 <code>UPDATE</code>。</li>
+  <li>每个字段右侧的 <code>∅</code> 按钮，点一下在 <code>NULL</code> 与上一个非 NULL 值之间切换。</li>
+</ul>
+
+<h3>大字段</h3>
+
+<ul>
+  <li><b>选中一行时</b>，字段栏要把值展示完整：超过 4 KB 的列会在选中行后自动去服务器取这一行的完整值（短暂 loading）。</li>
+  <li>如果这一行的大字段合计超过 <b>8 MB</b>，就不自动取，改为在字段旁显示「加载完整内容…」按钮，点一下才取。</li>
+  <li>表没有主键或唯一键时无法定位行，大字段保持截断，并提示 <code>无法定位行以加载完整内容</code>。</li>
+</ul>
+
+<h3>各种情况下的表现</h3>
+
+<table>
+<thead><tr><th>情况</th><th>字段栏里显示什么</th></tr></thead>
+<tbody>
+<tr><td>没有选中行</td><td><code>选中一行以查看和编辑它的字段</code></td></tr>
+<tr><td>选中多行</td><td><code>已选中 12 行 · 请只选一行</code>（不显示字段列表）</td></tr>
+<tr><td>选中的行已标记删除</td><td>字段全部只读，顶部显示 <code>这一行已标记删除</code> 与「撤销删除」</td></tr>
+<tr><td>选中的是新增行</td><td>字段全部为空，可以直接填；顶部标注 <code>新增行</code></td></tr>
+<tr><td>表或连接不可编辑</td><td>字段正常显示但编辑器禁用，顶部写明原因（<code>视图不可编辑</code>、<code>该连接处于只读模式</code> 等）</td></tr>
+</tbody>
+</table>
+
+<h3>开关与宽度</h3>
+
+<ul>
+  <li>默认显示。用工具栏最右的 <code>▤</code> 按钮，或菜单「视图 → 显示 / 隐藏右侧字段栏」切换；没有快捷键。</li>
+  <li>宽度可拖拽（260–560pt，默认 320pt），按表记住。</li>
+  <li>字段栏只在表数据标签里出现；查询结果、表结构、对象定义标签没有它。</li>
+</ul>
 
 <h2>分页</h2>
 
@@ -265,7 +526,7 @@
   <g class="hot" data-hot="4"><circle cx="980" cy="53" r="11"/><text x="980" y="53">4</text></g>
   <g class="hot" data-hot="5"><circle cx="960" cy="150" r="11"/><text x="960" y="150">5</text></g>
 </svg>
-<figcaption><b>图 3-2</b>　分页控件。行数是估算的，所以前面写「约」。</figcaption>
+<figcaption><b>图 3-3</b>　分页控件。行数是估算的，所以前面写「约」。</figcaption>
 </figure>
 
 <table class="controls">
@@ -324,7 +585,7 @@
   <text class="fnt s" x="30" y="126">取消全部排序后，回到默认顺序——按主键排。没有主键的表按什么顺序不保证。</text>
   <text class="fnt s" x="30" y="150">换一种排序方式会回到第 1 页并重新加载数据。</text>
 </svg>
-<figcaption><b>图 3-3</b>　排序的三种状态，以及按住 <kbd>⇧</kbd> 追加多列排序。</figcaption>
+<figcaption><b>图 3-4</b>　排序的三种状态，以及按住 <kbd>⇧</kbd> 追加多列排序。</figcaption>
 </figure>
 
 <table>
@@ -430,7 +691,7 @@
   <rect class="s-field ln2" x="508" y="562" width="130" height="30" rx="6"/>
   <text class="c s" x="573" y="577">导出为文件…</text>
 </svg>
-<figcaption><b>图 3-4</b>　快速查看的四种呈现方式。按 <kbd>Esc</kbd> 关闭。</figcaption>
+<figcaption><b>图 3-5</b>　快速查看的四种呈现方式。按 <kbd>Esc</kbd> 关闭。</figcaption>
 </figure>
 
 <table>
@@ -497,7 +758,7 @@
   <text class="mut mono s" x="620" y="366">二进制写成 0x… 十六进制</text>
   <text class="mut mono s" x="620" y="384">NULL 写成 NULL</text>
 </svg>
-<figcaption><b>图 3-5</b>　右键的「复制为」子菜单。下面两种格式是实际输出的样子。</figcaption>
+<figcaption><b>图 3-6</b>　右键的「复制为」子菜单。下面两种格式是实际输出的样子。</figcaption>
 </figure>
 
 <table>
@@ -522,10 +783,10 @@
 <table>
 <thead><tr><th>操作</th><th>效果</th></tr></thead>
 <tbody>
-<tr><td>单击单元格</td><td>选中这个格子</td></tr>
+<tr><td>单击单元格</td><td>选中这个格子；右侧字段栏始终跟随「焦点行」，切到它所在的那一行</td></tr>
 <tr><td>拖动 / <kbd>⇧</kbd> + 点击</td><td>选中一个矩形区域</td></tr>
 <tr><td>点行号</td><td>选中整行</td></tr>
-<tr><td><kbd>⌘</kbd> + 点行号</td><td>多选不连续的行</td></tr>
+<tr><td><kbd>⌘</kbd> + 点行号</td><td>多选不连续的行；此时字段栏不显示字段列表，提示 <code>请只选一行</code></td></tr>
 <tr><td><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></td><td>移动选中的单元格</td></tr>
 <tr><td><kbd>⌘←</kbd> / <kbd>⌘→</kbd></td><td>跳到首列 / 末列</td></tr>
 <tr><td><kbd>⌘↑</kbd> / <kbd>⌘↓</kbd></td><td>跳到当前页的首行 / 末行</td></tr>
@@ -553,8 +814,9 @@
     此时数据<b>仍然可以浏览</b>，但表格进入只读状态：
   </p>
   <ul>
-    <li>不能编辑单元格、不能插入、不能删除</li>
-    <li>双击单元格改为打开快速查看（而不是进入编辑）</li>
+    <li>不能在网格里改值，也不能插入、不能删除</li>
+    <li>右侧字段栏也变成只读——只能看，不能改</li>
+    <li>双击单元格改为打开快速查看，而不是跳到右侧字段栏去编辑</li>
     <li>超长内容一直保持截断（因为无法定位行去取完整值）</li>
     <li>状态栏写明原因：<code>该表没有主键或唯一键，分页顺序不保证，且不可编辑</code></li>
   </ul>
@@ -576,7 +838,7 @@
 <tr><td>打开一张 100 万行的表（默认分页）</td><td>500 毫秒内显示首屏</td></tr>
 <tr><td>滚动</td><td>稳定流畅</td></tr>
 <tr><td>切换分页</td><td>1 秒内（受服务器与网络影响）</td></tr>
-<tr><td>单元格编辑到界面反馈</td><td>立刻，无等待</td></tr>
+<tr><td>字段栏里编辑到界面反馈</td><td>立刻，无等待</td></tr>
 </tbody>
 </table>
 

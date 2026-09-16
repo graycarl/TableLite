@@ -17,6 +17,7 @@
 | [11-schema-and-import-export.md](11-schema-and-import-export.md) | 元数据读取、CSV 编解码、导出的流式实现 |
 | [12-build-and-deps.md](12-build-and-deps.md) | XcodeGen、Homebrew 依赖、链接与 rpath、构建脚本 |
 | [13-open-questions.md](13-open-questions.md) | 已知限制、刻意简化、待定事项 |
+| [14-row-inspector.md](14-row-inspector.md) | 右侧字段栏：状态与数据流、字段编辑器映射、提交路径、大字段按需加载 |
 
 ## 与需求文档的对应
 
@@ -24,8 +25,8 @@
 | --- | --- |
 | [specs/01-connections.md](../../specs/01-connections.md) | 02、04、05 |
 | [specs/02-workspace.md](../../specs/02-workspace.md) | 06 |
-| [specs/03-data-browsing.md](../../specs/03-data-browsing.md) | 07、11 |
-| [specs/04-data-editing.md](../../specs/04-data-editing.md) | 08 |
+| [specs/03-data-browsing.md](../../specs/03-data-browsing.md) | 07、11、14 |
+| [specs/04-data-editing.md](../../specs/04-data-editing.md) | 08、14 |
 | [specs/05-filtering.md](../../specs/05-filtering.md) | 09 |
 | [specs/06-query-editor.md](../../specs/06-query-editor.md) | 10 |
 | [specs/07-schema-view.md](../../specs/07-schema-view.md) | 11 |

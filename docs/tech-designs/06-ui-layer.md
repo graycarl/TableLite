@@ -7,10 +7,11 @@
 | 窗口、菜单、工具栏 | SwiftUI（`WindowGroup` + `Commands`） | 声明式足够，且与 SwiftUI 状态协同简单 |
 | 连接列表、连接表单 | SwiftUI | 纯表单 |
 | 主界面布局（分栏） | SwiftUI（`HSplitView` 或自绘） | 结构简单 |
+| 右侧字段栏 | SwiftUI | 表单式布列 + 原生控件；只有长文本大窗口复用 AppKit `NSTextView` |
 | 对象树 | SwiftUI `List`（`.sidebar` 样式） | 有内建的选择、折叠、搜索体验 |
 | 标签栏 | SwiftUI 自绘 | SwiftUI 没有符合需求的标签栏组件 |
 | 状态栏 | SwiftUI | |
-| **数据网格** | **AppKit `NSTableView`**（`NSViewRepresentable`） | 见 `07-data-grid.md` §1 |
+| **数据网格** | **AppKit `NSTableView`**（`NSViewRepresentable`） | 见 `07-data-grid.md` §1；单元格只读，不承载编辑器 |
 | **SQL 编辑器** | **AppKit `NSTextView`**（`NSViewRepresentable`） | 需要精确控制文本属性、行号、智能替换开关 |
 | 快速查看面板 | AppKit `NSPanel` + SwiftUI 内容 | 需要独立浮动窗口与自由调整大小 |
 | 过滤器面板 | SwiftUI | |
@@ -136,6 +137,10 @@ final class TableTabViewModel: TabViewModel, ObservableObject {
     @Published var isLoading = false
     @Published var loadError: MySQLError?
 
+    // 右侧字段栏：网格的「焦点单元格 / 选区」是它的数据源（见 14-row-inspector.md）
+    @Published var inspectorVisible: Bool = prefs.showInspector
+    let inspector: RowInspectorViewModel
+
     // 元数据
     @Published var tableMeta: TableMetadata?     // 列定义 / 主键 / 唯一索引 / 大字段标记
     private(set) var editability: Editability
@@ -155,10 +160,14 @@ final class TableTabViewModel: TabViewModel, ObservableObject {
 | `Coordinator` | 实现 `NSTableViewDataSource` / `Delegate`，持有 `NSTableView`；把用户操作转成回调；把数据变化映射成 `reloadData` / `reloadRow` |
 | `NSView` 子类 | 纯渲染与交互 |
 
+网格与字段栏之间的桥接最简单：字段栏不在 AppKit 里。网格只把 `focusedCell` / `selection`
+回写给 `TableTabViewModel`，字段栏是它的 SwiftUI 投影（见 `14-row-inspector.md` §2）。
+
 **性能约定**：不要用 `updateNSView` 触发全量 `reloadData`。数据变化走增量路径：
 
 - 页码 / 排序 / 过滤变化 → 全量 `reloadData`
-- 单行编辑 → `reloadRow(indexes:)`
+- 单字段编辑（字段栏里改值）→ 只重绘该行的相关单元格
+- 整行状态变化（新增 / 删除 / 撤销）→ `reloadRow(indexes:)`
 - 单元格值变化 → 只更新对应的 `NSTableCellView`
 
 行身份用 `NSTableViewDiffableDataSource` 的 item identifier = `RowIdentity`，保证刷新后选中状态与滚动位置可恢复。
