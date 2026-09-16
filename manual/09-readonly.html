@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09 · 只读模式 — TableLite 使用说明书</title>
+<link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <!-- 下面这段是无脚本时的兜底导航；有脚本时会被 manual.js 重新生成并标出当前页 -->
+  <div class="brand"><b>TableLite</b><span>使用说明书</span></div>
+  <div class="sub">macOS 原生 MySQL / MariaDB 客户端</div>
+  <ol>
+      <li><a href="index.html"><span class="n">·</span><span>说明书首页</span></a></li>
+      <li><a href="01-connections.html"><span class="n">01</span><span>连接</span></a></li>
+      <li><a href="02-workspace.html"><span class="n">02</span><span>界面结构</span></a></li>
+      <li><a href="03-data-browsing.html"><span class="n">03</span><span>浏览表数据</span></a></li>
+      <li><a href="04-data-editing.html"><span class="n">04</span><span>编辑数据</span></a></li>
+      <li><a href="05-filtering.html"><span class="n">05</span><span>过滤器</span></a></li>
+      <li><a href="06-query-editor.html"><span class="n">06</span><span>查询编辑器</span></a></li>
+      <li><a href="07-schema-view.html"><span class="n">07</span><span>表结构视图</span></a></li>
+      <li><a href="08-import-export.html"><span class="n">08</span><span>导入与导出</span></a></li>
+      <li><a href="09-readonly.html"><span class="n">09</span><span>只读模式</span></a></li>
+      <li><a href="10-ssh-tunnel.html"><span class="n">10</span><span>SSH 隧道</span></a></li>
+      <li><a href="11-preferences.html"><span class="n">11</span><span>偏好设置</span></a></li>
+      <li><a href="12-shortcuts.html"><span class="n">12</span><span>快捷键总表</span></a></li>
+      <li><a href="13-feedback.html"><span class="n">13</span><span>提示与错误</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1><span class="chapter">第 09 章</span>只读模式</h1>
+<p class="lede">
+  只读模式是「按连接」的一个开关。打开以后，这个连接上的所有写操作都被禁用，
+  编辑能力整个关掉。它用来解决一个具体的问题：<b>别手滑改坏生产库</b>。
+</p>
+
+<h2>为什么需要它</h2>
+
+<p>
+  TablePlus 那类工具有一个更重的保护机制：每次写操作都要求重新输入数据库密码。
+  那个方案确实有效，但每次改个数据都要输密码，用起来很烦。
+</p>
+
+<p>
+  TableLite 用一个更轻的替代：把生产连接的编辑能力<b>整个关掉</b>。
+  想看数据就看，想跑 <code>SELECT</code> 就跑，但改不了。
+  真要改的时候，去连接菜单里把开关关掉——这一步足够让你意识到自己在做什么。
+</p>
+
+<div class="callout danger">
+  <span class="tag">它不是权限控制</span>
+  <p>
+    只读模式只做<b>语句级别的拦截</b>，是给「不会故意搞破坏的自己」用的护栏，
+    不是安全边界。真正的安全边界应该由数据库账号权限保证——
+    给这个连接配一个只有 <code>SELECT</code> 权限的账号，那才是拦得住人的做法。
+  </p>
+</div>
+
+<h2>在哪里开关</h2>
+
+<table>
+<thead><tr><th>位置</th><th>操作</th></tr></thead>
+<tbody>
+<tr><td>连接配置表单 → 基本信息</td><td>勾上「只读」</td></tr>
+<tr><td>打开连接后</td><td>菜单「连接 → 只读模式」，随时可以切换，<b>不用重连</b></td></tr>
+</tbody>
+</table>
+
+<p>这个状态保存在连接配置里，下次打开这个连接仍然生效。</p>
+
+<h2>只读的视觉标识</h2>
+
+<p>只读连接在界面上有<b>五处</b>标识，随便瞟一眼都能看出来。这是刻意的重复——
+防的就是「我以为自己在测试库上」。</p>
+
+<figure>
+<svg viewBox="0 0 1000 552" role="img" aria-label="只读连接在界面各处的标识">
+  <title>只读模式的视觉标识</title>
+
+  <!-- 1 连接列表 -->
+  <text class="fnt s" x="20" y="26">① 连接列表</text>
+  <rect class="s-field ln" x="20" y="36" width="460" height="56" rx="8"/>
+  <circle class="s-red" cx="44" cy="64" r="5.5"/>
+  <text x="62" y="58">🔒</text>
+  <text class="b" x="84" y="58">生产</text>
+  <text class="mut s" x="62" y="78">app@10.0.2.5:3306/app_prod · 只读</text>
+
+  <!-- 2 连接切换器 -->
+  <text class="fnt s" x="520" y="26">② 连接切换器</text>
+  <rect class="s-chrome ln" x="520" y="36" width="460" height="56" rx="8"/>
+  <rect class="s-field ln2" x="536" y="48" width="200" height="32" rx="7"/>
+  <circle class="s-red" cx="552" cy="64" r="5"/>
+  <text x="566" y="64">🔒 生产</text>
+  <text class="mut s" x="714" y="64">▾</text>
+
+  <!-- 3 颜色带 -->
+  <text class="fnt s" x="20" y="126">③ 工具栏颜色带</text>
+  <rect class="s-chrome ln" x="20" y="136" width="460" height="44" rx="8"/>
+  <rect class="s-red" x="20" y="172" width="460" height="8"/>
+  <text class="fnt s" x="36" y="158">用连接配置里选的颜色着色，生产库建议设红色</text>
+
+  <!-- 4 标题栏 -->
+  <text class="fnt s" x="520" y="126">④ 窗口标题栏</text>
+  <rect class="s-chrome ln" x="520" y="136" width="460" height="44" rx="8"/>
+  <circle cx="538" cy="158" r="5.5" fill="#ff5f57"/>
+  <circle cx="556" cy="158" r="5.5" fill="#febc2e"/>
+  <circle cx="574" cy="158" r="5.5" fill="#28c840"/>
+  <text class="c" x="750" y="159">生产（只读）— app_prod</text>
+
+  <!-- 5 状态栏 -->
+  <text class="fnt s" x="20" y="216">⑤ 状态栏</text>
+  <rect class="s-chrome ln" x="20" y="226" width="960" height="40" rx="8"/>
+  <circle class="s-red" cx="42" cy="246" r="4.5"/>
+  <text class="s" x="56" y="246">生产 · app_prod · MySQL 8.0.36 · utf8mb4</text>
+  <rect class="s-red" x="368" y="234" width="66" height="24" rx="6" opacity="0.18"/>
+  <text class="err b s" x="380" y="246">· 只读</text>
+  <text class="fnt s" x="460" y="246">← 用醒目颜色标出来</text>
+
+  <!-- 进入时提示 -->
+  <text class="fnt s" x="20" y="300">进入只读连接时会短暂显示一条状态栏提示：</text>
+  <rect class="s-chrome ln" x="20" y="312" width="960" height="40" rx="8"/>
+  <text class="warn s" x="42" y="332">该连接处于只读模式，所有写操作已被禁用。</text>
+
+  <!-- 禁用的按钮 -->
+  <text class="fnt s" x="20" y="386">工具栏的变更操作组整体禁用，悬停时说明原因：</text>
+  <rect class="s-chrome ln" x="20" y="398" width="960" height="52" rx="8"/>
+  <rect class="s-field ln2" x="620" y="410" width="78" height="30" rx="7" opacity="0.45"/>
+  <text class="c mut s" x="659" y="425">放弃</text>
+  <rect class="s-field ln2" x="706" y="410" width="78" height="30" rx="7" opacity="0.45"/>
+  <text class="c mut s" x="745" y="425">预览</text>
+  <rect class="s-field ln2" x="792" y="410" width="150" height="30" rx="7" opacity="0.45"/>
+  <text class="c s" x="867" y="425" fill="#fff">提交修改</text>
+  <text class="fnt s" x="600" y="460">↑ 悬停禁用按钮时的提示：该连接处于只读模式，无法提交修改</text>
+
+  <text class="fnt s" x="20" y="494">SQL 编辑器工具栏在只读模式下常驻一行提示：</text>
+  <rect class="s-chrome ln" x="20" y="506" width="960" height="34" rx="8"/>
+  <text class="warn s" x="42" y="523">只读模式：仅允许 SELECT / SHOW / EXPLAIN / DESC</text>
+</svg>
+<figcaption><b>图 9-1</b>　只读连接的五个标识位置，以及被禁用的变更操作组。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>位置</th><th>表现</th></tr></thead>
+<tbody>
+<tr><td>连接列表</td><td>名称前显示锁图标 🔒，摘要末尾追加 <code>· 只读</code></td></tr>
+<tr><td>连接切换器</td><td>名称前显示锁图标 🔒</td></tr>
+<tr><td>工具栏颜色带</td><td>用连接颜色着色（生产建议设红色）</td></tr>
+<tr><td>状态栏</td><td>连接信息末尾追加 <code>· 只读</code>，用醒目颜色</td></tr>
+<tr><td>标题栏</td><td>显示 <code>连接名（只读）</code></td></tr>
+</tbody>
+</table>
+
+<h2>被禁止的操作</h2>
+
+<h3>表数据视图</h3>
+
+<ul>
+  <li>不能编辑单元格</li>
+  <li>不能插入、复制、删除行</li>
+  <li>「提交」按钮禁用，悬停提示 <code>该连接处于只读模式，无法提交修改</code></li>
+  <li>「放弃」按钮<b>仍然可用</b>——如果你之前积累过改动，还是得能丢掉它们</li>
+  <li>双击单元格改成打开快速查看</li>
+</ul>
+
+<h3>对象树</h3>
+
+<ul>
+  <li><code>截断表</code>、<code>删除表</code> 直接禁用（这两项本来就不进暂存区）</li>
+</ul>
+
+<h3>导入</h3>
+
+<ul>
+  <li>CSV 导入功能禁用</li>
+  <li>「导入到新表」也禁用</li>
+</ul>
+
+<h3>表结构视图</h3>
+
+<p>不受影响——它本来就是只读的。</p>
+
+<h2>SQL 编辑器里的拦截</h2>
+
+<p>执行前会检查每条语句的类型，只允许这四类：</p>
+
+<table>
+<thead><tr><th>允许</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>SELECT</code></td><td></td></tr>
+<tr><td><code>SHOW</code></td><td></td></tr>
+<tr><td><code>EXPLAIN</code> / <code>DESCRIBE</code> / <code>DESC</code></td><td></td></tr>
+<tr><td><code>WITH</code> 开头的查询</td><td>前提是最终是查询而不是写操作</td></tr>
+</tbody>
+</table>
+
+<table>
+<thead><tr><th>拒绝</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>INSERT</code> / <code>UPDATE</code> / <code>DELETE</code> / <code>REPLACE</code></td><td></td></tr>
+<tr><td><code>CREATE</code> / <code>ALTER</code> / <code>DROP</code> / <code>TRUNCATE</code> / <code>RENAME</code></td><td></td></tr>
+<tr><td><code>GRANT</code> / <code>REVOKE</code></td><td></td></tr>
+<tr><td><code>LOAD DATA</code></td><td>会往表里灌数据</td></tr>
+<tr><td><code>CALL</code></td><td>存储过程内部可能写数据，无法预知，所以一律拒绝</td></tr>
+<tr><td><code>SET</code></td><td>可能改变会话状态，影响后续语句的语义</td></tr>
+<tr><td><code>LOCK</code> / <code>UNLOCK</code></td><td></td></tr>
+</tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 1000 300" role="img" aria-label="只读拦截弹窗">
+  <title>只读模式拦截提示</title>
+
+  <rect class="s-window ln2" x="200" y="30" width="600" height="230" rx="12"/>
+  <text class="b warn" x="232" y="66">只读模式</text>
+  <line class="ln" x1="200" y1="84" x2="800" y2="84"/>
+
+  <text x="232" y="112">语句 3 被拒绝执行：</text>
+  <rect class="s-sunken lnO" x="232" y="126" width="536" height="34" rx="6"/>
+  <text class="mono s" x="246" y="143">UPDATE users SET name = 'x' WHERE id = 1;</text>
+
+  <text x="232" y="186">当前连接处于只读模式，只能执行查询语句。</text>
+  <text class="mut" x="232" y="210">如需修改，请在连接菜单中关闭只读模式。</text>
+
+  <line class="ln" x1="200" y1="228" x2="800" y2="228"/>
+  <rect class="s-field ln2" x="686" y="238" width="90" height="30" rx="6"/>
+  <text class="c s" x="731" y="253">关闭</text>
+</svg>
+<figcaption><b>图 9-2</b>　只读拦截提示。脚本里被挡下的语句会有一个标红的「只读拦截」结果标签。</figcaption>
+</figure>
+
+<h3>混合脚本怎么处理</h3>
+
+<ul>
+  <li>安全的语句正常执行，各有自己的结果标签。</li>
+  <li>被拒绝的语句在结果标签里标红，标签文字是 <code>只读拦截</code>。</li>
+  <li>被拒绝的语句<b>不会</b>中断后续安全语句的执行——所以一个迁移脚本里的 <code>SELECT</code> 部分仍然能看到结果。</li>
+</ul>
+
+<h2>关闭只读模式</h2>
+
+<p>菜单「连接 → 只读模式」取消勾选。取消后立即生效，不需要重连。
+但因为这是「解除保护」的动作，会给一次轻确认，防止手滑：</p>
+
+<figure>
+<svg viewBox="0 0 1000 240" role="img" aria-label="关闭只读模式的确认弹窗">
+  <title>关闭只读模式确认</title>
+  <rect class="s-window ln2" x="280" y="40" width="440" height="160" rx="12"/>
+  <text class="b c" x="500" y="76">确定要关闭「生产」的只读模式吗？</text>
+  <text class="c" x="500" y="112">关闭后可以修改数据、执行写操作。</text>
+  <text class="fnt s c" x="500" y="136">这个连接指向的是生产数据库。</text>
+  <line class="ln" x1="280" y1="160" x2="720" y2="160"/>
+  <rect class="s-field ln2" x="320" y="172" width="90" height="30" rx="6"/>
+  <text class="c s" x="365" y="187">取消</text>
+  <rect class="s-red" x="590" y="172" width="110" height="30" rx="6"/>
+  <text class="c s" x="645" y="187" fill="#fff">关闭只读</text>
+</svg>
+<figcaption><b>图 9-3</b>　关闭只读模式的确认弹窗。</figcaption>
+</figure>
+
+<h2>提示文案汇总</h2>
+
+<table>
+<thead><tr><th>场景</th><th>文案</th></tr></thead>
+<tbody>
+<tr><td>进入只读连接</td><td><code>该连接处于只读模式，所有写操作已被禁用。</code></td></tr>
+<tr><td>悬停被禁用的提交按钮</td><td><code>该连接处于只读模式，无法提交修改</code></td></tr>
+<tr><td>SQL 编辑器工具栏常驻</td><td><code>只读模式：仅允许 SELECT / SHOW / EXPLAIN / DESC</code></td></tr>
+<tr><td>语句被拦下</td><td><code>当前连接处于只读模式，只能执行查询语句。如需修改，请在连接菜单中关闭只读模式。</code></td></tr>
+<tr><td>表数据视图不可编辑的原因</td><td>状态栏显示 <code>该连接处于只读模式</code></td></tr>
+</tbody>
+</table>
+
+<h2>已知限制</h2>
+
+<div class="callout danger">
+  <span class="tag">两道没拦住的口子</span>
+  <ul>
+    <li>
+      <b>存储过程 / 函数内部的行为无法拦截。</b>
+      一个 <code>SELECT my_func()</code> 里如果偷偷写了数据，只读模式看不出来。
+      这就是为什么 <code>CALL</code> 会被一律拒绝——能拦的只有语句本身。
+    </li>
+    <li>
+      <b>它不是权限控制。</b>
+      真要防住误操作甚至是误用，去数据库上给这个连接配一个只有只读权限的账号。
+      两个一起用最稳：账号层面拦得住，界面层面拦得早。
+    </li>
+  </ul>
+</div>
+
+<div class="pager"></div>
+
+</main>
+</div>
+<script src="assets/manual.js"></script>
+</body>
+</html>

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11 · 偏好设置 — TableLite 使用说明书</title>
+<link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <!-- 下面这段是无脚本时的兜底导航；有脚本时会被 manual.js 重新生成并标出当前页 -->
+  <div class="brand"><b>TableLite</b><span>使用说明书</span></div>
+  <div class="sub">macOS 原生 MySQL / MariaDB 客户端</div>
+  <ol>
+      <li><a href="index.html"><span class="n">·</span><span>说明书首页</span></a></li>
+      <li><a href="01-connections.html"><span class="n">01</span><span>连接</span></a></li>
+      <li><a href="02-workspace.html"><span class="n">02</span><span>界面结构</span></a></li>
+      <li><a href="03-data-browsing.html"><span class="n">03</span><span>浏览表数据</span></a></li>
+      <li><a href="04-data-editing.html"><span class="n">04</span><span>编辑数据</span></a></li>
+      <li><a href="05-filtering.html"><span class="n">05</span><span>过滤器</span></a></li>
+      <li><a href="06-query-editor.html"><span class="n">06</span><span>查询编辑器</span></a></li>
+      <li><a href="07-schema-view.html"><span class="n">07</span><span>表结构视图</span></a></li>
+      <li><a href="08-import-export.html"><span class="n">08</span><span>导入与导出</span></a></li>
+      <li><a href="09-readonly.html"><span class="n">09</span><span>只读模式</span></a></li>
+      <li><a href="10-ssh-tunnel.html"><span class="n">10</span><span>SSH 隧道</span></a></li>
+      <li><a href="11-preferences.html"><span class="n">11</span><span>偏好设置</span></a></li>
+      <li><a href="12-shortcuts.html"><span class="n">12</span><span>快捷键总表</span></a></li>
+      <li><a href="13-feedback.html"><span class="n">13</span><span>提示与错误</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1><span class="chapter">第 11 章</span>偏好设置</h1>
+<p class="lede">
+  按 <kbd>⌘,</kbd> 打开。只有确实会被用到的选项，全部是「改了立刻生效」的即时设置，
+  没有「应用」按钮。
+</p>
+
+<h2>窗口长什么样</h2>
+
+<figure>
+<svg viewBox="0 0 1000 560" role="img" aria-label="偏好设置窗口">
+  <title>偏好设置窗口</title>
+
+  <rect class="s-window ln2" x="40" y="16" width="920" height="528" rx="12"/>
+  <rect class="s-chrome" x="40" y="16" width="920" height="34" rx="12"/>
+  <circle cx="62" cy="33" r="5.5" fill="#ff5f57"/>
+  <circle cx="80" cy="33" r="5.5" fill="#febc2e"/>
+  <circle cx="98" cy="33" r="5.5" fill="#28c840"/>
+  <text class="c b" x="500" y="34">偏好设置</text>
+
+  <!-- 左分类 -->
+  <rect class="s-sunken" x="40" y="50" width="200" height="494"/>
+  <line class="ln" x1="240" y1="50" x2="240" y2="544"/>
+  <rect class="s-soft" x="52" y="66" width="176" height="30" rx="7"/>
+  <text class="acc" x="70" y="81">通用</text>
+  <text x="70" y="121">连接</text>
+  <text x="70" y="161">表数据</text>
+  <text x="70" y="201">SQL 编辑器</text>
+  <text x="70" y="241">CSV 与导出</text>
+  <text x="70" y="281">界面</text>
+  <text x="70" y="321">Console Log</text>
+
+  <!-- 右侧：通用 -->
+  <text class="b" x="272" y="80">通用</text>
+  <line class="ln" x1="272" y1="96" x2="936" y2="96"/>
+
+  <rect class="s-accent" x="272" y="116" width="16" height="16" rx="4"/>
+  <path d="M275 123 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="298" y="125">恢复上次打开的标签</text>
+  <text class="fnt s" x="272" y="146">重启 App 后恢复上次的连接与标签；只恢复骨架，不自动重连</text>
+
+  <line class="lnD" x1="272" y1="164" x2="936" y2="164"/>
+
+  <rect class="s-accent" x="272" y="178" width="16" height="16" rx="4"/>
+  <path d="M275 185 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="298" y="187">恢复上次的脚本内容</text>
+  <text class="fnt s" x="272" y="208">查询标签重新打开时恢复上次的编辑内容</text>
+
+  <line class="lnD" x1="272" y1="226" x2="936" y2="226"/>
+
+  <rect class="s-accent" x="272" y="240" width="16" height="16" rx="4"/>
+  <path d="M275 247 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="298" y="249">空闲自动断开连接</text>
+  <text class="fnt s" x="272" y="270">空闲 5 分钟且没有标签引用时自动断开</text>
+
+  <line class="lnD" x1="272" y1="288" x2="936" y2="288"/>
+
+  <rect class="s-field ln2" x="272" y="302" width="16" height="16" rx="4"/>
+  <text class="fnt" x="298" y="311">报告崩溃</text>
+  <text class="fnt s" x="380" y="311">（不做崩溃上报，此项目前不出现）</text>
+
+  <!-- 说明区 -->
+  <rect class="s-sunken ln" x="272" y="380" width="664" height="140" rx="9"/>
+  <text class="b s" x="292" y="404">关于这些开关</text>
+  <text class="s" x="292" y="432">每一项改完立刻生效，不用点「应用」。</text>
+  <text class="s" x="292" y="458">偏好存在系统的 UserDefaults 里，配置文件在</text>
+  <text class="mono s" x="292" y="482">~/Library/Preferences/com.graycarl.tablelite.plist</text>
+  <text class="fnt s" x="292" y="506">想恢复默认值，把那个文件删掉即可。</text>
+
+  <!-- 热点 -->
+  <g class="hot" data-hot="1"><circle cx="48" cy="66" r="11"/><text x="48" y="66">1</text></g>
+  <g class="hot" data-hot="2"><circle cx="260" cy="116" r="11"/><text x="260" y="116">2</text></g>
+  <g class="hot" data-hot="3"><circle cx="950" cy="80" r="11"/><text x="950" y="80">3</text></g>
+</svg>
+<figcaption><b>图 11-1</b>　偏好设置窗口。左边七个分类，右边是选项。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>元素</th><th>说明</th></tr></thead>
+<tbody>
+<tr data-hot="1"><td class="num">1</td><td class="wide">分类列表</td>
+  <td>通用 / 连接 / 表数据 / SQL 编辑器 / CSV 与导出 / 界面 / Console Log。当前分类高亮。</td></tr>
+<tr data-hot="2"><td class="num">2</td><td class="wide">开关与输入框</td>
+  <td>所有选项即时生效。灰字是对这个选项的一句话解释。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">分类标题</td>
+  <td>和左侧选中的分类对应。</td></tr>
+</tbody>
+</table>
+
+<h2>通用</h2>
+
+<table>
+<thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>恢复上次打开的标签</td><td>开</td><td>重启 App 后恢复上次的连接与标签；只恢复骨架，<b>不自动重连</b></td></tr>
+<tr><td>恢复上次的脚本内容</td><td>开</td><td>查询标签重新打开时恢复上次的编辑内容</td></tr>
+<tr><td>空闲自动断开连接</td><td>开</td><td>空闲 5 分钟且没有标签引用时自动断开</td></tr>
+<tr><td>报告崩溃</td><td>关</td><td>不做崩溃上报，此项目前不出现</td></tr>
+</tbody>
+</table>
+
+<h2>连接</h2>
+
+<table>
+<thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>默认查询超时</td><td>300 秒</td><td>新建连接时的默认值</td></tr>
+<tr><td>默认保持连接活跃</td><td>开</td><td>新建连接时的默认值</td></tr>
+<tr><td>心跳间隔</td><td>30 秒</td><td></td></tr>
+<tr><td>同时保持的连接数上限</td><td>8</td><td>超过后会提示先断开一个</td></tr>
+</tbody>
+</table>
+
+<h2>表数据</h2>
+
+<figure>
+<svg viewBox="0 0 1000 480" role="img" aria-label="表数据偏好页">
+  <title>表数据偏好</title>
+
+  <text class="b" x="20" y="30">表数据</text>
+  <line class="ln" x1="20" y1="46" x2="980" y2="46"/>
+
+  <text x="20" y="74">每页行数</text>
+  <rect class="s-field ln2" x="280" y="60" width="110" height="28" rx="6"/>
+  <text x="292" y="74">300</text>
+  <text class="mut s" x="376" y="74">▾</text>
+  <text class="fnt s" x="420" y="74">可选 100 / 300 / 1000 / 5000</text>
+
+  <rect class="s-accent" x="20" y="92" width="16" height="16" rx="4"/>
+  <path d="M23 99 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="46" y="101">交替行底色</text>
+  <text class="fnt s" x="200" y="101">关闭后所有行同色</text>
+
+  <rect class="s-accent" x="20" y="122" width="16" height="16" rx="4"/>
+  <path d="M23 129 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="46" y="131">自动隐藏滚动条</text>
+
+  <text x="20" y="164">超长内容截断阈值</text>
+  <rect class="s-field ln2" x="280" y="150" width="90" height="28" rx="6"/>
+  <text x="292" y="164">4096</text>
+  <text class="mut" x="378" y="164">字节</text>
+  <text class="fnt s" x="440" y="164">超过该长度的文本 / 二进制列会延迟加载</text>
+
+  <text x="20" y="204">NULL 的显示文本</text>
+  <rect class="s-field ln2" x="280" y="190" width="140" height="28" rx="6"/>
+  <text class="mono" x="292" y="204">NULL</text>
+  <text class="fnt s" x="440" y="204">可改为 (null)、(空)、&lt;空&gt; 等</text>
+
+  <rect class="s-field ln2" x="20" y="222" width="16" height="16" rx="4"/>
+  <text x="46" y="231">把 tinyint(1) 显示为复选框</text>
+  <text class="fnt s" x="280" y="231">打开后该类型以三态复选框呈现</text>
+
+  <line class="lnD" x1="20" y1="250" x2="980" y2="250"/>
+
+  <rect class="s-accent" x="20" y="266" width="16" height="16" rx="4"/>
+  <path d="M23 273 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="46" y="275">记住每张表的列宽与列显隐</text>
+
+  <rect class="s-accent" x="20" y="300" width="16" height="16" rx="4"/>
+  <path d="M23 307 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="46" y="309">记住每张表的过滤条件</text>
+  <text class="fnt s" x="280" y="309">下次打开这张表时恢复上次的过滤条件</text>
+
+  <line class="lnD" x1="20" y1="336" x2="980" y2="336"/>
+
+  <text class="b s" x="20" y="362">样式示例</text>
+  <rect class="s-window ln" x="20" y="376" width="460" height="88" rx="7"/>
+  <rect class="s-chrome2" x="20" y="376" width="460" height="24"/>
+  <text class="mut s" x="34" y="388">id</text>
+  <text class="mut s" x="110" y="388">name</text>
+  <text class="mut s" x="230" y="388">active</text>
+  <text class="s" x="34" y="412">1</text><text class="s" x="110" y="412">张三</text>
+  <rect class="s-accent" x="230" y="404" width="15" height="15" rx="4"/>
+  <path d="M233 411 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <rect class="s-alt" x="20" y="424" width="460" height="24"/>
+  <text class="s" x="34" y="436">2</text><text class="s" x="110" y="436">李四</text>
+  <text class="s" x="34" y="460">3</text><text class="s" x="110" y="460">王五</text>
+  <text class="fnt s" x="230" y="460">NULL</text>
+
+  <text class="fnt s" x="520" y="400">交替行底色 + 复选框显示 tinyint(1) 的效果。</text>
+  <text class="fnt s" x="520" y="424">「NULL 的显示文本」只影响显示，</text>
+  <text class="fnt s" x="520" y="448">不影响任何读写行为。</text>
+</svg>
+<figcaption><b>图 11-2</b>　表数据偏好页。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>每页行数</td><td>300</td><td>可选 100 / 300 / 1000 / 5000</td></tr>
+<tr><td>交替行底色</td><td>开</td><td>关闭后所有行同色</td></tr>
+<tr><td>自动隐藏滚动条</td><td>开</td><td></td></tr>
+<tr><td>超长内容截断阈值</td><td>4096 字节</td><td>超过该长度的文本 / 二进制列会延迟加载</td></tr>
+<tr><td><code>NULL</code> 的显示文本</td><td><code>NULL</code></td><td>可改为 <code>(null)</code>、<code>&lt;空&gt;</code> 等</td></tr>
+<tr><td>把 <code>tinyint(1)</code> 显示为复选框</td><td>关</td><td>打开后该类型以三态复选框呈现</td></tr>
+<tr><td>记住每张表的列宽与列显隐</td><td>开</td><td></td></tr>
+<tr><td>记住每张表的过滤条件</td><td>开</td><td></td></tr>
+</tbody>
+</table>
+
+<h2>SQL 编辑器</h2>
+
+<figure>
+<svg viewBox="0 0 1000 460" role="img" aria-label="SQL 编辑器偏好页">
+  <title>SQL 编辑器偏好</title>
+
+  <text class="b" x="20" y="30">SQL 编辑器</text>
+  <line class="ln" x1="20" y1="46" x2="980" y2="46"/>
+
+  <text x="20" y="74">字体</text>
+  <rect class="s-field ln2" x="240" y="60" width="220" height="28" rx="6"/>
+  <text x="252" y="74">SF Mono</text>
+  <text class="mut s" x="436" y="74">▾</text>
+  <text class="fnt s" x="480" y="74">只能选系统里已安装的等宽字体</text>
+
+  <text x="20" y="112">字号</text>
+  <rect class="s-field ln2" x="240" y="98" width="80" height="28" rx="6"/>
+  <text x="252" y="112">13</text>
+  <text class="fnt s" x="340" y="112">也可以用 ⌘= / ⌘- 临时调整</text>
+
+  <text x="20" y="150">缩进宽度</text>
+  <rect class="s-field ln2" x="240" y="136" width="80" height="28" rx="6"/>
+  <text x="252" y="150">4</text>
+  <text class="mut" x="328" y="150">空格</text>
+
+  <text x="20" y="188">默认执行行为</text>
+  <rect class="s-field ln2" x="240" y="174" width="200" height="28" rx="6"/>
+  <text x="252" y="188">执行当前语句</text>
+  <text class="mut s" x="424" y="188">▾</text>
+  <text class="fnt s" x="470" y="188">可改为「执行全部」</text>
+
+  <line class="lnD" x1="20" y1="212" x2="980" y2="212"/>
+
+  <rect class="s-accent" x="20" y="228" width="16" height="16" rx="4"/>
+  <path d="M23 235 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="46" y="237">遇到错误时停止</text>
+  <text class="fnt s" x="240" y="237">关掉后会继续执行后续语句，一次看到所有错误（适合跑迁移脚本）</text>
+
+  <rect class="s-accent" x="20" y="266" width="16" height="16" rx="4"/>
+  <path d="M23 273 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="46" y="275">高亮当前语句</text>
+
+  <rect class="s-accent" x="20" y="300" width="16" height="16" rx="4"/>
+  <path d="M23 307 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="46" y="309">显示行号</text>
+
+  <rect class="s-accent" x="20" y="334" width="16" height="16" rx="4"/>
+  <path d="M23 341 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="46" y="343">自动保存脚本草稿</text>
+
+  <!-- 预览 -->
+  <rect class="s-window ln" x="540" y="60" width="440" height="330" rx="8"/>
+  <rect class="s-sunken" x="540" y="60" width="40" height="330" rx="8"/>
+  <rect class="s-sunken" x="572" y="60" width="8" height="330"/>
+  <text class="fnt mono s r" x="570" y="86">1</text>
+  <text class="fnt mono s r" x="570" y="112">2</text>
+  <text class="fnt mono s r" x="570" y="138">3</text>
+  <text class="fnt mono s r" x="570" y="164">4</text>
+  <rect class="s-alt" x="580" y="74" width="400" height="78"/>
+  <text class="mono s" x="596" y="86"><tspan class="kw">SELECT</tspan> <tspan class="bqi">`id`</tspan> <tspan class="op2">,</tspan> <tspan class="bqi">`name`</tspan></text>
+  <text class="mono s" x="596" y="112"><tspan class="kw">FROM</tspan> <tspan class="bqi">`users`</tspan></text>
+  <text class="mono s" x="596" y="138"><tspan class="kw">WHERE</tspan> <tspan class="bqi">`age`</tspan> <tspan class="op2">&gt;</tspan> <tspan class="nm">18</tspan><tspan class="op2">;</tspan></text>
+  <text class="mono s" x="596" y="190"><tspan class="cmt">-- 字号、行号、当前语句高亮</tspan></text>
+  <text class="mono s" x="596" y="216"><tspan class="cmt">-- 都会立刻反映在这个预览里</tspan></text>
+  <text class="fnt s" x="596" y="360">（这里只是示意图，实际编辑器在查询标签里）</text>
+</svg>
+<figcaption><b>图 11-3</b>　SQL 编辑器偏好页。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>字体</td><td>系统等宽字体</td><td>可选系统已安装的等宽字体</td></tr>
+<tr><td>字号</td><td>13</td><td>也可用 <kbd>⌘=</kbd> / <kbd>⌘-</kbd> 临时调整</td></tr>
+<tr><td>缩进宽度</td><td>4 空格</td><td></td></tr>
+<tr><td>默认执行行为</td><td>执行当前语句</td><td>可改为「执行全部」</td></tr>
+<tr><td>遇到错误时停止</td><td>开</td><td>关闭后会继续执行后续语句，一次看到所有错误</td></tr>
+<tr><td>高亮当前语句</td><td>开</td><td></td></tr>
+<tr><td>显示行号</td><td>开</td><td></td></tr>
+<tr><td>自动保存脚本草稿</td><td>开</td><td></td></tr>
+</tbody>
+</table>
+
+<h2>CSV 与导出</h2>
+
+<table>
+<thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>默认分隔符</td><td>逗号</td><td>逗号 / 制表符 / 分号</td></tr>
+<tr><td>默认换行符</td><td>LF</td><td>LF / CRLF</td></tr>
+<tr><td>导出时包含表头</td><td>开</td><td></td></tr>
+<tr><td>导出文本编码</td><td>UTF-8</td><td>UTF-8 / UTF-8 BOM（用 Excel 打开时选带 BOM 的）</td></tr>
+<tr><td><code>NULL</code> 的导出形式</td><td>空字符串</td><td>空字符串 / <code>NULL</code> 字面量</td></tr>
+<tr><td>JSON 导出美化</td><td>开</td><td></td></tr>
+<tr><td>SQL 导出每条的插入行数</td><td>1</td><td>加大可以显著缩小文件体积</td></tr>
+</tbody>
+</table>
+
+<div class="callout tip">
+  <span class="tag">用 Excel 打开 CSV 乱码怎么办</span>
+  <p>
+    把「导出文本编码」改成 <b>UTF-8 BOM</b>。Excel 默认不带 BOM 的 UTF-8 会按本地编码解释，
+    中文就变乱码了。
+  </p>
+</div>
+
+<h2>界面</h2>
+
+<table>
+<thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>显示系统数据库</td><td>关</td><td>打开后对象树里显示 <code>information_schema</code>、<code>performance_schema</code>、<code>mysql</code>、<code>sys</code></td></tr>
+<tr><td>左侧栏宽度</td><td>记忆</td><td>拖动后自动记住</td></tr>
+<tr><td>编辑器 / 结果区分割比例</td><td>记忆</td><td>拖动后自动记住</td></tr>
+<tr><td>界面语言</td><td>中文</td><td>当前仅中文</td></tr>
+</tbody>
+</table>
+
+<h2>Console Log</h2>
+
+<table>
+<thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>保留条数</td><td>5000</td><td>内存中保留的最近条数</td></tr>
+<tr><td>写入日志文件</td><td>关</td><td>打开后写入本地日志，按天轮转保留 7 天</td></tr>
+<tr><td>打开时自动滚到底部</td><td>开</td><td></td></tr>
+</tbody>
+</table>
+
+<h2>明确不做</h2>
+
+<div class="callout danger">
+  <span class="tag">偏好里不会出现这些东西</span>
+  <ul>
+    <li>主题自定义——浅色 / 深色跟随系统</li>
+    <li>语法配色自定义</li>
+    <li>快捷键自定义（Keymap）</li>
+    <li>多套配置文件的切换</li>
+  </ul>
+  <p>理由很简单：这是一个自用工具，多一套配置就多一套要维护和测试的东西。</p>
+</div>
+
+<div class="pager"></div>
+
+</main>
+</div>
+<script src="assets/manual.js"></script>
+</body>
+</html>

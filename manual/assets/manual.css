@@ -1,0 +1,464 @@
+/* ==========================================================================
+   TableLite 使用说明书 —— 共用样式
+   所有线框图都是内联 SVG，通过这里的 class 上色，因此能自动跟随浅色/深色。
+   ========================================================================== */
+
+:root {
+  /* 页面 */
+  --bg:        #f2f2f4;
+  --panel:     #ffffff;
+  --panel-2:   #f7f7f9;
+  --chrome:    #ededf0;
+  --chrome-2:  #e2e2e7;
+  --border:    #d6d6db;
+  --border-2:  #b9b9c2;
+  --text:      #1d1d1f;
+  --muted:     #6e6e73;
+  --faint:     #9a9aa2;
+
+  /* 语义色 */
+  --accent:      #0a7cff;
+  --accent-soft: #e2efff;
+  --green:       #2eb44c;
+  --orange:      #ef8f0a;
+  --red:         #ef342a;
+  --yellow:      #e5b800;
+  --purple:      #8a5cf5;
+
+  /* 网格 */
+  --row-alt:   #fafafb;
+  --sel:       #d7e8ff;
+  --cell-edit: #ffeed2;
+
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+          "PingFang SC", "Hiragino Sans GB", Arial, sans-serif;
+
+  --radius: 10px;
+  --nav-w: 268px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:        #17171a;
+    --panel:     #242428;
+    --panel-2:   #2a2a2f;
+    --chrome:    #2c2c31;
+    --chrome-2:  #35353b;
+    --border:    #3c3c44;
+    --border-2:  #52525c;
+    --text:      #e9e9ec;
+    --muted:     #9d9da6;
+    --faint:     #74747e;
+
+    --accent:      #3d9bff;
+    --accent-soft: #17324f;
+    --green:       #3ecf5e;
+    --orange:      #ffa726;
+    --red:         #ff5b52;
+    --yellow:      #f0c419;
+    --purple:      #a984ff;
+
+    --row-alt:   #28282d;
+    --sel:       #1d3b5e;
+    --cell-edit: #4a3618;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------------------------------------------------------- 布局 -- */
+
+.layout {
+  display: grid;
+  grid-template-columns: var(--nav-w) minmax(0, 1fr);
+  align-items: start;
+}
+
+nav.toc {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 28px 18px 40px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+nav.toc .brand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 8px 4px;
+}
+nav.toc .brand b { font-size: 18px; letter-spacing: -0.02em; }
+nav.toc .brand span { font-size: 12px; color: var(--muted); }
+nav.toc .sub {
+  margin: 0 8px 20px;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+nav.toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+nav.toc li { margin: 1px 0; }
+nav.toc a {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13.5px;
+}
+nav.toc a:hover { background: var(--panel-2); }
+nav.toc a .n {
+  flex: none;
+  min-width: 20px;
+  color: var(--faint);
+  font: 500 11.5px/1 var(--mono);
+  padding-top: 2px;
+}
+
+nav.toc a[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+nav.toc a[aria-current="page"] .n { color: var(--accent); }
+
+main {
+  max-width: 1120px;
+  padding: 44px 56px 140px;
+}
+
+/* -------------------------------------------------------------- 文字排版 -- */
+
+h1 {
+  font-size: 30px;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+h1 .chapter {
+  display: block;
+  font: 600 12px/1 var(--mono);
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+.lede {
+  font-size: 16px;
+  color: var(--muted);
+  margin: 0 0 34px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+h2 {
+  font-size: 21px;
+  letter-spacing: -0.01em;
+  margin: 52px 0 14px;
+  padding-top: 8px;
+}
+h2:first-of-type { margin-top: 8px; }
+h3 { font-size: 16.5px; margin: 30px 0 10px; }
+h4 { font-size: 14.5px; margin: 22px 0 8px; color: var(--muted); }
+
+p { margin: 12px 0; }
+ul, ol { padding-left: 22px; margin: 12px 0; }
+li { margin: 5px 0; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code, kbd, .mono { font-family: var(--mono); font-size: 0.88em; }
+code {
+  background: var(--chrome);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 6px 2px;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--border-2);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-family: var(--sans);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 42px 0;
+}
+
+/* ---------------------------------------------------------------- 表格 -- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+}
+th {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  background: var(--panel-2);
+  border-top: 1px solid var(--border);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 1px solid var(--border); }
+td.num { width: 34px; font: 600 12px var(--mono); color: var(--accent); }
+td.wide { min-width: 160px; }
+
+/* 控件清单表：鼠标移到某行，图上对应的编号会亮起 */
+table.controls tbody tr { transition: background 0.12s; }
+table.controls tbody tr:hover { background: var(--panel-2); }
+table.controls tbody tr:hover td.num { color: var(--orange); }
+
+/* -------------------------------------------------------------- 图与框 -- */
+
+figure {
+  margin: 22px 0 30px;
+}
+figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+figure.plain svg { border: 0; background: none; }
+figcaption {
+  margin-top: 9px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+figcaption b { color: var(--text); font-weight: 600; }
+
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--panel-2);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 18px 0;
+  font-size: 14px;
+}
+.callout.warn   { border-left-color: var(--orange); }
+.callout.danger { border-left-color: var(--red); }
+.callout.tip    { border-left-color: var(--green); }
+.callout > :first-child { margin-top: 0; }
+.callout > :last-child { margin-bottom: 0; }
+.callout .tag {
+  display: inline-block;
+  font: 600 11px var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin: 18px 0;
+}
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 14px 16px;
+}
+.card h4 { margin: 0 0 6px; color: var(--text); font-size: 14px; }
+.card p:last-child { margin-bottom: 0; }
+.card ul { margin: 8px 0 0; font-size: 13.5px; }
+
+.steps { counter-reset: step; list-style: none; padding: 0; }
+.steps > li {
+  position: relative;
+  padding-left: 34px;
+  margin: 12px 0;
+}
+.steps > li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: 600 12px/22px var(--mono);
+  text-align: center;
+}
+
+/* 页面脚部的上一页 / 下一页 */
+.pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 60px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.pager a {
+  display: block;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  max-width: 46%;
+}
+.pager a:hover { border-color: var(--accent); text-decoration: none; }
+.pager .dir { display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.pager .spacer { flex: 1; }
+
+/* ==========================================================================
+   线框图（内联 SVG）的绘制约定
+   viewBox 统一 1000 宽；坐标按 4pt 网格对齐；文字 12–13px。
+   ========================================================================== */
+
+svg text {
+  font-family: var(--sans);
+  font-size: 12px;
+  fill: var(--text);
+  dominant-baseline: middle;
+}
+svg text.mono { font-family: var(--mono); font-size: 11.5px; }
+svg text.mut  { fill: var(--muted); }
+svg text.fnt  { fill: var(--faint); }
+svg text.acc  { fill: var(--accent); }
+svg text.ok   { fill: var(--green); }
+svg text.err  { fill: var(--red); }
+svg text.warn { fill: var(--orange); }
+svg text.b    { font-weight: 600; }
+svg text.s    { font-size: 10.5px; }
+svg text.m    { font-size: 13px; }
+svg text.l    { font-size: 15px; }
+svg text.c    { text-anchor: middle; }
+svg text.r    { text-anchor: end; }
+
+/* SQL 语法高亮的配色（与编辑器保持同一套语义） */
+svg .kw   { fill: var(--purple); font-weight: 600; }
+svg .str  { fill: var(--red); }
+svg .nm   { fill: var(--accent); }
+svg .cmt  { fill: var(--faint); font-style: italic; }
+svg .op2  { fill: var(--muted); }
+svg .bqi  { fill: var(--green); }
+svg .fnc  { fill: var(--orange); }
+
+/* 窗口 / 面板 */
+.s-window { fill: var(--panel); }
+.s-chrome { fill: var(--chrome); }
+.s-chrome2 { fill: var(--chrome-2); }
+.s-sunken { fill: var(--panel-2); }
+.s-field  { fill: var(--panel); }
+.s-accent { fill: var(--accent); }
+.s-soft   { fill: var(--accent-soft); }
+.s-green  { fill: var(--green); }
+.s-orange { fill: var(--orange); }
+.s-red    { fill: var(--red); }
+.s-yellow { fill: var(--yellow); }
+.s-gray   { fill: var(--faint); }
+.s-sel    { fill: var(--sel); }
+.s-alt    { fill: var(--row-alt); }
+.s-edit   { fill: var(--cell-edit); }
+
+/* 描边 */
+.ln   { fill: none; stroke: var(--border); }
+.ln2  { fill: none; stroke: var(--border-2); }
+.lnA  { fill: none; stroke: var(--accent); }
+.lnO  { fill: none; stroke: var(--orange); }
+.lnG  { fill: none; stroke: var(--green); }
+.lnR  { fill: none; stroke: var(--red); }
+.lnD  { fill: none; stroke: var(--border); stroke-dasharray: 4 4; }
+.lnW  { fill: none; stroke: var(--border-2); stroke-width: 1; }
+.sw2  { stroke-width: 2; }
+.sw3  { stroke-width: 3; }
+
+/* 文本基线用 */
+svg text.n { dominant-baseline: auto; }
+
+/* --------------------------------------------------------------------------
+   编号热点：图上画一个带数字的圆点，下面的控件表里用 data-hot 关联。
+   鼠标移到表格行上，图上的圆点会被 JS 加上 .active。
+   -------------------------------------------------------------------------- */
+.hot circle {
+  fill: var(--accent);
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+.hot text {
+  fill: #fff;
+  font: 600 11px var(--sans);
+  text-anchor: middle;
+}
+.hot.active circle {
+  fill: var(--orange);
+  r: 13;
+}
+.hot.active text { font-size: 12px; }
+
+/* 引导线：从圆点画到控件上 */
+.leader {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.75;
+}
+.hot.active .leader { stroke: var(--orange); opacity: 1; }
+
+@media print {
+  nav.toc, .pager { display: none; }
+  .layout { grid-template-columns: 1fr; }
+  main { max-width: none; padding: 0; }
+  figure svg { break-inside: avoid; }
+  body { background: #fff; }
+}
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  nav.toc { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  main { padding: 28px 20px 80px; }
+}

@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06 · 查询编辑器 — TableLite 使用说明书</title>
+<link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <!-- 下面这段是无脚本时的兜底导航；有脚本时会被 manual.js 重新生成并标出当前页 -->
+  <div class="brand"><b>TableLite</b><span>使用说明书</span></div>
+  <div class="sub">macOS 原生 MySQL / MariaDB 客户端</div>
+  <ol>
+      <li><a href="index.html"><span class="n">·</span><span>说明书首页</span></a></li>
+      <li><a href="01-connections.html"><span class="n">01</span><span>连接</span></a></li>
+      <li><a href="02-workspace.html"><span class="n">02</span><span>界面结构</span></a></li>
+      <li><a href="03-data-browsing.html"><span class="n">03</span><span>浏览表数据</span></a></li>
+      <li><a href="04-data-editing.html"><span class="n">04</span><span>编辑数据</span></a></li>
+      <li><a href="05-filtering.html"><span class="n">05</span><span>过滤器</span></a></li>
+      <li><a href="06-query-editor.html"><span class="n">06</span><span>查询编辑器</span></a></li>
+      <li><a href="07-schema-view.html"><span class="n">07</span><span>表结构视图</span></a></li>
+      <li><a href="08-import-export.html"><span class="n">08</span><span>导入与导出</span></a></li>
+      <li><a href="09-readonly.html"><span class="n">09</span><span>只读模式</span></a></li>
+      <li><a href="10-ssh-tunnel.html"><span class="n">10</span><span>SSH 隧道</span></a></li>
+      <li><a href="11-preferences.html"><span class="n">11</span><span>偏好设置</span></a></li>
+      <li><a href="12-shortcuts.html"><span class="n">12</span><span>快捷键总表</span></a></li>
+      <li><a href="13-feedback.html"><span class="n">13</span><span>提示与错误</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1><span class="chapter">第 06 章</span>查询编辑器</h1>
+<p class="lede">
+  按 <kbd>⌘T</kbd> 开一个查询标签。上半部分是写 SQL 的地方，下半部分是结果。
+  写多条语句时，每条语句的结果是一个独立的标签。
+</p>
+
+<h2>整体布局</h2>
+
+<figure>
+<svg viewBox="0 0 1000 720" role="img" aria-label="查询标签的完整布局">
+  <title>查询编辑器布局</title>
+
+  <!-- 编辑器工具栏 -->
+  <rect class="s-chrome ln" x="20" y="20" width="960" height="46" rx="8"/>
+  <rect class="s-accent" x="36" y="29" width="118" height="30" rx="6"/>
+  <text class="c s" x="86" y="44" fill="#fff">▶ 执行 ⌘↩</text>
+  <text class="mut s" x="142" y="44">▾</text>
+  <rect class="s-field ln2" x="160" y="29" width="150" height="30" rx="6"/>
+  <text class="c s" x="235" y="44">▶▶ 执行全部 ⇧⌘↩</text>
+  <rect class="s-field ln2" x="318" y="29" width="100" height="30" rx="6"/>
+  <text class="c s" x="368" y="44">停止 ⌘.</text>
+  <line class="ln" x1="432" y1="28" x2="432" y2="58"/>
+  <rect class="s-field ln2" x="446" y="29" width="34" height="30" rx="6"/>
+  <text class="c s" x="463" y="44">A−</text>
+  <rect class="s-field ln2" x="486" y="29" width="34" height="30" rx="6"/>
+  <text class="c s" x="503" y="44">A+</text>
+  <line class="ln" x1="534" y1="28" x2="534" y2="58"/>
+  <rect class="s-field ln2" x="548" y="29" width="70" height="30" rx="6"/>
+  <text class="c s" x="583" y="44">打开</text>
+  <rect class="s-field ln2" x="626" y="29" width="86" height="30" rx="6"/>
+  <text class="c s" x="669" y="44">另存为</text>
+  <text class="fnt s" x="740" y="44">只读模式见下</text>
+
+  <!-- 编辑器 -->
+  <rect class="s-window ln" x="20" y="72" width="960" height="300" rx="0"/>
+  <rect class="s-sunken" x="20" y="72" width="46" height="300"/>
+  <line class="ln" x1="66" y1="72" x2="66" y2="372"/>
+
+  <rect class="s-alt" x="66" y="86" width="914" height="78"/>
+
+  <text class="fnt mono s r" x="56" y="100">1</text>
+  <text class="fnt mono s r" x="56" y="126">2</text>
+  <text class="fnt mono s r" x="56" y="152">3</text>
+  <text class="fnt mono s r" x="56" y="178">4</text>
+  <text class="fnt mono s r" x="56" y="204">5</text>
+  <text class="fnt mono s r" x="56" y="230">6</text>
+  <text class="fnt mono s r" x="56" y="256">7</text>
+
+  <text class="mono kw" x="82" y="100">SELECT</text>
+  <text class="mono bqi" x="140" y="100">`id`</text>
+  <text class="mono op2" x="174" y="100">,</text>
+  <text class="mono bqi" x="188" y="100">`name`</text>
+  <text class="mono cmt" x="240" y="100">-- 列出活跃用户</text>
+
+  <text class="mono kw" x="82" y="126">FROM</text>
+  <text class="mono bqi" x="126" y="126">`app_dev`.`users`</text>
+
+  <text class="mono kw" x="82" y="152">WHERE</text>
+  <text class="mono bqi" x="138" y="152">`age`</text>
+  <text class="mono op2" x="174" y="152">&gt;</text>
+  <text class="mono nm" x="190" y="152">18</text>
+  <text class="mono op2" x="208" y="152">;</text>
+
+  <text class="mono kw" x="82" y="204">SELECT</text>
+  <text class="mono fnc" x="140" y="204">COUNT</text>
+  <text class="mono op2" x="182" y="204">(*)</text>
+  <text class="mono kw" x="212" y="204">FROM</text>
+  <text class="mono bqi" x="256" y="204">`orders`</text>
+  <text class="mono kw" x="322" y="204">WHERE</text>
+  <text class="mono bqi" x="378" y="204">`status`</text>
+  <text class="mono op2" x="436" y="204">=</text>
+  <text class="mono str" x="452" y="204">'paid'</text>
+  <text class="mono op2" x="500" y="204">;</text>
+
+  <text class="mono cmt" x="82" y="256">-- 光标停在第 2 行时，第 1 条语句整段有淡背景</text>
+  <line class="lnO sw2" x1="74" y1="196" x2="74" y2="212"/>
+
+  <!-- 分隔条 -->
+  <rect class="s-chrome2 ln" x="20" y="372" width="960" height="10"/>
+  <rect class="s-gray" x="480" y="375" width="40" height="4" rx="2"/>
+
+  <!-- 结果标签栏 -->
+  <rect class="s-chrome ln" x="20" y="382" width="960" height="38"/>
+  <rect class="s-window lnA" x="20" y="382" width="96" height="38"/>
+  <line class="lnA" x1="20" y1="418" x2="116" y2="418"/>
+  <text class="c s" x="68" y="401">结果 1</text>
+  <text class="mut s" x="136" y="401">结果 2</text>
+  <text class="mut s" x="212" y="401">错误 ●</text>
+  <text class="fnt s" x="290" y="401">共 2 条 · 耗时 42 ms</text>
+  <text class="fnt s" x="900" y="401">（结果网格只读）</text>
+
+  <!-- 结果网格 -->
+  <rect class="s-chrome2 ln" x="20" y="420" width="960" height="28"/>
+  <text class="mut s" x="36" y="434">id</text>
+  <text class="mut s" x="140" y="434">name</text>
+  <text class="mut s" x="340" y="434">age</text>
+  <text class="mut s" x="480" y="434">email</text>
+  <g class="ln">
+    <line x1="20" y1="448" x2="980" y2="448"/>
+    <line x1="20" y1="476" x2="980" y2="476"/>
+    <line x1="20" y1="504" x2="980" y2="504"/>
+    <line x1="20" y1="532" x2="980" y2="532"/>
+    <line x1="20" y1="560" x2="980" y2="560"/>
+    <line x1="128" y1="420" x2="128" y2="588"/>
+    <line x1="328" y1="420" x2="328" y2="588"/>
+    <line x1="468" y1="420" x2="468" y2="588"/>
+  </g>
+  <rect class="s-alt" x="20" y="476" width="960" height="28"/>
+  <rect class="s-alt" x="20" y="532" width="960" height="28"/>
+  <text class="s" x="36" y="462">1</text><text class="s" x="140" y="462">张三</text>
+  <text class="s" x="340" y="462">24</text><text class="mut" x="480" y="462">zs@example.com</text>
+  <text class="s" x="36" y="490">2</text><text class="s" x="140" y="490">李四</text>
+  <text class="s" x="340" y="490">31</text><text class="mut" x="480" y="490">ls@example.com</text>
+  <text class="s" x="36" y="518">3</text><text class="s" x="140" y="518">王五</text>
+  <text class="s" x="340" y="518">19</text><text class="mut" x="480" y="518">ww@example.com</text>
+  <text class="s" x="36" y="546">4</text><text class="s" x="140" y="546">赵六</text>
+  <text class="s" x="340" y="546">45</text><text class="mut" x="480" y="546">zl@example.com</text>
+  <text class="s" x="36" y="574">5</text><text class="s" x="140" y="574">钱七</text>
+  <text class="s" x="340" y="574">22</text><text class="mut" x="480" y="574">qq@example.com</text>
+
+  <!-- 状态栏 -->
+  <rect class="s-chrome ln" x="20" y="596" width="960" height="40" rx="0"/>
+  <text class="s" x="36" y="616">已执行 2 条语句 · 耗时 42 ms · 返回 1,204 行</text>
+  <text class="fnt s" x="420" y="616">滚动条在右边</text>
+  <rect class="s-chrome2" x="966" y="598" width="10" height="36" rx="5"/>
+  <rect class="s-gray" x="966" y="598" width="10" height="16" rx="5"/>
+
+  <!-- 提示 -->
+  <text class="fnt s" x="20" y="664">拖拽中间的分隔条可以调整编辑器与结果区的比例，比例会被记住。</text>
+  <text class="fnt s" x="20" y="688">结果区可以排序、调列宽、列显隐、复制、快速查看、导出，但——不能编辑。</text>
+  <text class="warn s" x="20" y="712">只读模式下，工具栏会显示：只读模式：仅允许 SELECT / SHOW / EXPLAIN / DESC</text>
+
+  <!-- 热点 -->
+  <g class="hot" data-hot="1"><circle cx="28" cy="29" r="11"/><text x="28" y="29">1</text></g>
+  <g class="hot" data-hot="2"><circle cx="36" cy="72" r="11"/><text x="36" y="72">2</text></g>
+  <g class="hot" data-hot="3"><circle cx="22" cy="88" r="11"/><text x="22" y="88">3</text></g>
+  <g class="hot" data-hot="4"><circle cx="500" cy="375" r="11"/><text x="500" y="375">4</text></g>
+  <g class="hot" data-hot="5"><circle cx="960" cy="390" r="11"/><text x="960" y="390">5</text></g>
+  <g class="hot" data-hot="6"><circle cx="972" cy="616" r="11"/><text x="972" y="616">6</text></g>
+</svg>
+<figcaption><b>图 6-1</b>　查询标签的布局。光标停在第 2 行时，第 1 条语句整段带一层淡背景。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>控件</th><th>作用</th></tr></thead>
+<tbody>
+<tr data-hot="1"><td class="num">1</td><td class="wide">编辑器工具栏</td>
+  <td><b>▶ 执行</b>跑光标所在语句（有选中就跑选中的）；<b>▶▶ 执行全部</b>跑整个脚本；<b>停止</b>取消正在跑的查询；<b>A− / A+</b> 临时调字号；<b>打开 / 另存为</b>读写 <code>.sql</code> 文件。</td></tr>
+<tr data-hot="2"><td class="num">2</td><td class="wide">行号</td>
+  <td>左边缘的行号栏。可以在偏好里关掉。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">当前语句背景</td>
+  <td>光标所在的那条语句会整段加一层淡背景，这样按「执行」之前你就知道会跑哪一段。可以在偏好里关掉。</td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">分隔条</td>
+  <td>上下拖拽调整编辑器和结果区的比例，比例会被记住。</td></tr>
+<tr data-hot="5"><td class="num">5</td><td class="wide">结果标签</td>
+  <td>每条语句一个标签。类型有<b>结果 N</b>（有返回行）、<b>完成</b>（非查询语句）、<b>错误</b>（失败）、<b>只读拦截</b>（被只读模式挡下）。超过 24 个会折叠。</td></tr>
+<tr data-hot="6"><td class="num">6</td><td class="wide">状态栏</td>
+  <td>显示执行了几条、总耗时、总返回行数。执行中这里会变成进度，右边出现「停止」。</td></tr>
+</tbody>
+</table>
+
+<h3>语法高亮的配色</h3>
+
+<figure class="plain">
+<svg viewBox="0 0 1000 90" role="img" aria-label="语法高亮的配色">
+  <title>语法高亮配色</title>
+  <text class="mono kw" x="20" y="30">SELECT</text>
+  <text class="fnt s" x="20" y="52">关键字</text>
+  <text class="mono fnc" x="110" y="30">COUNT</text>
+  <text class="fnt s" x="110" y="52">函数名</text>
+  <text class="mono bqi" x="200" y="30">`users`</text>
+  <text class="fnt s" x="200" y="52">反引号标识符</text>
+  <text class="mono str" x="330" y="30">'paid'</text>
+  <text class="fnt s" x="330" y="52">字符串</text>
+  <text class="mono nm" x="410" y="30">18</text>
+  <text class="fnt s" x="410" y="52">数字</text>
+  <text class="mono cmt" x="480" y="30">-- 注释</text>
+  <text class="fnt s" x="480" y="52">注释</text>
+  <text class="mono op2" x="580" y="30">= &lt;&gt; ( ) , ;</text>
+  <text class="fnt s" x="580" y="52">操作符</text>
+  <text class="mono" x="700" y="30">@user_id</text>
+  <text class="fnt s" x="700" y="52">变量</text>
+</svg>
+<figcaption><b>图 6-2</b>　高亮覆盖的记号类型。类型名本身（<code>VARCHAR</code>、<code>INT</code>）也算关键字。</figcaption>
+</figure>
+
+<h2>编辑器能做什么、不能做什么</h2>
+
+<div class="cols">
+  <div class="card">
+    <h4>能做</h4>
+    <ul>
+      <li>语法高亮（关键字、函数名、类型名、字符串、反引号标识符、数字、注释、变量、操作符）</li>
+      <li>行号、当前语句整段高亮</li>
+      <li>自动缩进：换行时保持上一行的缩进</li>
+      <li><kbd>Tab</kbd> 插入 4 个空格（可在偏好里改）</li>
+      <li>查找（<kbd>⌘F</kbd> 打开系统查找条）</li>
+      <li>撤销 / 重做</li>
+      <li>注释切换（<kbd>⌘/</kbd>）、缩进 / 反缩进</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>不做</h4>
+    <ul>
+      <li>自动补全</li>
+      <li>SQL 格式化 / 美化</li>
+      <li>多光标</li>
+      <li>分屏</li>
+      <li>表名字段的语义提示</li>
+    </ul>
+  </div>
+</div>
+
+<div class="callout danger">
+  <span class="tag">智能引号必须关掉</span>
+  <p>
+    在编辑器里输入 <code>'</code>、<code>"</code>、<code>--</code> 时，<b>绝不能</b>被系统替换成弯引号
+    （<code>’</code>、<code>“</code>）或长破折号（<code>—</code>）。这是 SQL 编辑器最容易踩的坑——
+    一个弯引号会让整条语句语法错误，而且肉眼很难看出来。
+  </p>
+  <p>
+    因此系统的智能引号、智能破折号、拼写纠正在这个文本框里全部关闭。
+    如果你发现粘贴进去的 SQL 报语法错，先检查有没有被换成弯引号。
+  </p>
+</div>
+
+<h3>脚本自动保存</h3>
+
+<ul>
+  <li>编辑内容每隔一小段时间自动存成草稿。</li>
+  <li>App 重启后，如果偏好里开了「恢复上次脚本」，会恢复上次的编辑内容。</li>
+  <li>关闭查询标签<b>不提示保存</b>——除非这个标签是从磁盘打开过或另存过的文件，并且又有新改动。</li>
+</ul>
+
+<h2>执行</h2>
+
+<h3>执行范围</h3>
+
+<table>
+<thead><tr><th>操作</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td><kbd>⌘↩</kbd></td><td>有选中内容 → 执行选中部分；没有选中 → 执行光标所在的语句</td></tr>
+<tr><td><kbd>⇧⌘↩</kbd></td><td>执行全部语句</td></tr>
+<tr><td>工具栏「执行」右边的小箭头</td><td>可以把 <kbd>⌘↩</kbd> 的默认行为改成「执行全部」，设置会被记住</td></tr>
+</tbody>
+</table>
+
+<p>语句按分号切分。字符串里、反引号里、注释里的分号<b>不算</b>分隔符；最后一段即使没有分号也算一条语句；空语句和纯注释段会被跳过。</p>
+
+<h3>执行中的样子</h3>
+
+<figure>
+<svg viewBox="0 0 1000 300" role="img" aria-label="执行中与执行完成的状态栏">
+  <title>执行中的状态</title>
+
+  <text class="mut s" x="20" y="26">正在执行</text>
+  <rect class="s-chrome ln" x="20" y="38" width="960" height="40" rx="6"/>
+  <text class="s" x="36" y="58">正在执行… 已接收 12,480 行（2.1 MB）（3.4 秒）</text>
+  <rect class="s-field ln2" x="430" y="45" width="70" height="26" rx="6"/>
+  <text class="c s" x="465" y="58">停止</text>
+  <text class="fnt s" x="530" y="58">结果边收边显示，不用等全部返回</text>
+  <rect class="s-chrome2" x="880" y="46" width="90" height="24" rx="6"/>
+  <rect class="s-accent" x="880" y="46" width="52" height="24" rx="6"/>
+  <text class="c s" x="925" y="58" fill="#fff">58%</text>
+
+  <text class="mut s" x="20" y="116">大结果</text>
+  <rect class="s-chrome ln" x="20" y="128" width="960" height="40" rx="6"/>
+  <text class="warn s" x="36" y="148">结果较大（已超过 10 万行），可随时停止</text>
+  <rect class="s-field ln2" x="430" y="135" width="70" height="26" rx="6"/>
+  <text class="c s" x="465" y="148">停止</text>
+  <text class="fnt s" x="530" y="148">停止后已经收到的部分结果会保留展示</text>
+
+  <text class="mut s" x="20" y="206">执行完成</text>
+  <rect class="s-chrome ln" x="20" y="218" width="960" height="40" rx="6"/>
+  <text class="s" x="36" y="238">已执行 3 条语句 · 耗时 42 ms · 返回 1,204 行</text>
+
+  <text class="fnt s" x="20" y="284">停止后向服务器发送取消请求（KILL QUERY）。如果取消失败，会提示「取消失败，查询仍在服务器上运行」。</text>
+</svg>
+<figcaption><b>图 6-3</b>　执行中、结果过大、执行完成三种状态栏。</figcaption>
+</figure>
+
+<h3>出错时</h3>
+
+<ul>
+  <li>默认行为：<b>遇到第一个错误就停止</b>，后面的语句不再执行。</li>
+  <li>可以在偏好里改成「继续执行剩余语句」，这样一次能看到所有错误——跑迁移脚本的时候更省事。</li>
+  <li>出错的语句在结果标签上标红。</li>
+</ul>
+
+<h2>结果展示</h2>
+
+<figure>
+<svg viewBox="0 0 1000 380" role="img" aria-label="四种结果标签及其内容">
+  <title>结果标签</title>
+
+  <!-- 标签栏 -->
+  <rect class="s-chrome ln" x="20" y="20" width="960" height="38"/>
+  <rect class="s-window lnA" x="20" y="20" width="86" height="38"/>
+  <line class="lnA" x1="20" y1="56" x2="106" y2="56"/>
+  <text class="c s" x="63" y="39">结果 1</text>
+  <text class="mut s" x="126" y="39">结果 2</text>
+  <text class="mut s" x="202" y="39">完成</text>
+  <text class="err s" x="266" y="39">错误 ●</text>
+  <text class="warn s" x="336" y="39">只读拦截</text>
+  <text class="mut s" x="414" y="39">…</text>
+
+  <!-- 结果 N -->
+  <rect class="s-sunken ln" x="20" y="76" width="460" height="150" rx="8"/>
+  <text class="b s" x="40" y="98">结果 N —— 一条查询，有返回行</text>
+  <rect class="s-window ln" x="40" y="110" width="420" height="100" rx="0"/>
+  <rect class="s-chrome2" x="40" y="110" width="420" height="26"/>
+  <text class="mut s" x="54" y="123">id</text>
+  <text class="mut s" x="120" y="123">name</text>
+  <g class="ln"><line x1="40" y1="136" x2="460" y2="136"/><line x1="40" y1="162" x2="460" y2="162"/></g>
+  <text class="s" x="54" y="149">1</text><text class="s" x="120" y="149">张三</text>
+  <text class="s" x="54" y="175">2</text><text class="s" x="120" y="175">李四</text>
+
+  <!-- 完成 -->
+  <rect class="s-sunken ln" x="500" y="76" width="480" height="150" rx="8"/>
+  <text class="b s" x="520" y="98">完成 —— 非查询语句，显示影响行数</text>
+  <rect class="s-window ln" x="520" y="116" width="440" height="80" rx="7"/>
+  <text class="c" x="740" y="146">影响 3 行 · 耗时 12 ms · last_insert_id = 42</text>
+  <text class="c fnt s" x="740" y="172">INSERT / UPDATE / DELETE / DDL 都走这个面板</text>
+
+  <!-- 错误 -->
+  <rect class="s-sunken ln" x="20" y="246" width="460" height="116" rx="8"/>
+  <text class="b err s" x="40" y="268">错误 —— 这条语句失败了</text>
+  <rect class="s-window lnR" x="40" y="280" width="420" height="66" rx="7"/>
+  <text class="mono err s" x="54" y="300">[错误 1064] SQLSTATE 42000</text>
+  <text class="mono s" x="54" y="320">You have an error in your SQL syntax…</text>
+  <text class="fnt s" x="54" y="338">原文照贴，不翻译</text>
+
+  <!-- 只读拦截 -->
+  <rect class="s-sunken ln" x="500" y="246" width="480" height="116" rx="8"/>
+  <text class="b warn s" x="520" y="268">只读拦截 —— 被只读模式挡下</text>
+  <rect class="s-window lnO" x="520" y="280" width="440" height="66" rx="7"/>
+  <text class="mono s" x="534" y="300">UPDATE users SET name = 'x' WHERE id = 1;</text>
+  <text class="s" x="534" y="322">当前连接处于只读模式，只能执行查询语句。</text>
+  <text class="fnt s" x="534" y="340">混合脚本里被拦截的语句不会中断后面的安全语句</text>
+</svg>
+<figcaption><b>图 6-4</b>　四种结果标签。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>标签文字</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td><code>结果 N</code></td><td>一条查询，有返回行</td></tr>
+<tr><td><code>完成</code></td><td>非查询语句，显示影响行数与 <code>last_insert_id</code></td></tr>
+<tr><td><code>错误</code></td><td>该语句失败</td></tr>
+<tr><td><code>只读拦截</code></td><td>被只读模式拒绝</td></tr>
+</tbody>
+</table>
+
+<ul>
+  <li>结果标签超过 24 个时折叠：前 23 个直接显示，其余收进一个 <code>…</code> 下拉。</li>
+  <li>右键标签：<code>关闭</code> / <code>关闭其他</code> / <code>复制这条语句</code> / <code>复制结果</code>。</li>
+  <li>结果网格是<b>只读</b>的。想改数据请到表数据视图里去改。</li>
+  <li>结果网格支持：本地排序（不重新查询）、调整列宽、列显隐、复制、快速查看、导出。</li>
+  <li>查询成功但没返回行时显示：<code>查询成功，0 行，耗时 3 ms</code>。</li>
+</ul>
+
+<h2>查询历史</h2>
+
+<p>左侧栏底部的 <code>查询历史</code> 入口，点开成一个独立标签。</p>
+
+<figure>
+<svg viewBox="0 0 1000 440" role="img" aria-label="查询历史标签">
+  <title>查询历史</title>
+
+  <rect class="s-chrome ln" x="20" y="20" width="960" height="40" rx="6"/>
+  <rect class="s-field ln2" x="36" y="27" width="200" height="26" rx="6"/>
+  <text class="fnt s" x="48" y="40">搜索 SQL 内容…</text>
+  <rect class="s-field ln2" x="248" y="27" width="130" height="26" rx="6"/>
+  <text class="s" x="260" y="40">全部连接</text>
+  <text class="mut s" x="360" y="40">▾</text>
+  <rect class="s-field ln2" x="388" y="27" width="110" height="26" rx="6"/>
+  <text class="s" x="400" y="40">今天</text>
+  <text class="mut s" x="478" y="40">▾</text>
+  <rect class="s-field ln2" x="860" y="27" width="104" height="26" rx="6"/>
+  <text class="c s" x="912" y="40">清空历史</text>
+
+  <g class="ln">
+    <line x1="20" y1="104" x2="980" y2="104"/>
+    <line x1="20" y1="142" x2="980" y2="142"/>
+    <line x1="20" y1="180" x2="980" y2="180"/>
+    <line x1="20" y1="218" x2="980" y2="218"/>
+  </g>
+  <rect class="s-soft" x="20" y="60" width="960" height="44"/>
+
+  <text class="fnt mono s" x="40" y="82">14:32:07</text>
+  <text class="ok s" x="120" y="82">✓</text>
+  <text class="mut mono s" x="146" y="82">42 ms</text>
+  <text class="mut mono s" x="212" y="82">1,204 行</text>
+  <text class="mono s" x="300" y="82">SELECT id, name FROM users WHERE age &gt; 18;</text>
+
+  <text class="fnt mono s" x="40" y="122">14:31:55</text>
+  <text class="err s" x="120" y="122">✗</text>
+  <text class="mut mono s" x="146" y="122">3 ms</text>
+  <text class="mono s" x="300" y="122">UPDATE users SET name = 'x' WHERE id = 1;</text>
+
+  <text class="fnt mono s" x="40" y="160">昨天 18:02</text>
+  <text class="ok s" x="120" y="160">✓</text>
+  <text class="mut mono s" x="146" y="160">812 ms</text>
+  <text class="mut mono s" x="212" y="160">3 行</text>
+  <text class="mono s" x="300" y="160">INSERT INTO orders (user_id, total) VALUES (42, 199);</text>
+
+  <text class="fnt mono s" x="40" y="199">昨天 17:40</text>
+  <text class="ok s" x="120" y="199">✓</text>
+  <text class="mut mono s" x="146" y="199">15 ms</text>
+  <text class="mut mono s" x="212" y="199">88 行</text>
+  <text class="mono s" x="300" y="199">SELECT * FROM application_logs LIMIT 100;</text>
+
+  <!-- 预览区 -->
+  <rect class="s-sunken ln" x="20" y="244" width="960" height="120" rx="8"/>
+  <text class="b s" x="40" y="266">选中的这条的完整 SQL</text>
+  <rect class="s-window ln" x="40" y="278" width="920" height="70" rx="7"/>
+  <text class="mono s" x="56" y="300">SELECT `id`, `name`, `email`, `created_at`</text>
+  <text class="mono s" x="56" y="320">FROM `app_dev`.`users`</text>
+  <text class="mono s" x="56" y="340">WHERE `age` &gt; 18 AND `status` = 'active';</text>
+
+  <!-- 操作说明 -->
+  <line class="ln" x1="20" y1="388" x2="980" y2="388"/>
+  <text class="s" x="20" y="410">单击 → 在下方预览完整 SQL　·　双击 → 插入到当前查询标签　·　右键 → 复制 / 在新标签打开 / 删除该条</text>
+  <text class="fnt s" x="20" y="430">只记录从 SQL 编辑器执行过的语句。分页、元数据读取这些客户端自动发的查询不会进来（它们在 Console Log 里）。</text>
+</svg>
+<figcaption><b>图 6-5</b>　查询历史。默认保留最近 5000 条。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>项</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>记录范围</td><td><b>只记录从 SQL 编辑器执行的语句。</b>表分页、元数据读取这类客户端自动发出的查询不记录</td></tr>
+<tr><td>搜索</td><td>按 SQL 内容搜索；按连接过滤；按时间范围过滤</td></tr>
+<tr><td>每条包含</td><td>时间、成功 / 失败、耗时、返回行数或影响行数、完整 SQL</td></tr>
+<tr><td>保留条数</td><td>默认最近 5000 条</td></tr>
+<tr><td>清空</td><td>「清空历史」清当前连接的记录；按住 <kbd>⌥</kbd> 点击清空所有连接</td></tr>
+</tbody>
+</table>
+
+<h2>Console Log</h2>
+
+<p>左侧栏底部的 <code>Console Log</code> 入口，同样是一个独立标签。它和查询历史的分工是：</p>
+
+<div class="cols">
+  <div class="card">
+    <h4>查询历史</h4>
+    <p>记录<b>你写的</b>语句，用来「找回上次那条 SQL」。</p>
+  </div>
+  <div class="card">
+    <h4>Console Log</h4>
+    <p>记录<b>所有发给服务器的</b>语句，用来「搞清楚界面到底发了什么出去」。</p>
+  </div>
+</div>
+
+<figure>
+<svg viewBox="0 0 1000 440" role="img" aria-label="Console Log 标签">
+  <title>Console Log</title>
+
+  <rect class="s-chrome ln" x="20" y="20" width="960" height="40" rx="6"/>
+  <rect class="s-field ln2" x="36" y="27" width="130" height="26" rx="6"/>
+  <text class="s" x="48" y="40">全部</text>
+  <text class="mut s" x="136" y="40">▾</text>
+  <text class="fnt s" x="186" y="40">全部 / 仅数据语句 / 仅元数据</text>
+  <rect class="s-field ln2" x="700" y="27" width="70" height="26" rx="6"/>
+  <text class="c s" x="735" y="40">复制</text>
+  <rect class="s-field ln2" x="780" y="27" width="70" height="26" rx="6"/>
+  <text class="c s" x="815" y="40">清空</text>
+  <text class="fnt s" x="866" y="40">保留最近 5000 条</text>
+
+  <!-- 条目 -->
+  <text class="fnt mono s" x="40" y="84">14:32:07.123</text>
+  <rect class="s-soft" x="150" y="72" width="54" height="20" rx="5"/>
+  <text class="acc s c" x="177" y="82">data</text>
+  <text class="mut mono s" x="218" y="84">app_dev</text>
+  <text class="mut mono s" x="300" y="84">42 ms</text>
+  <text class="mut mono s" x="370" y="84">1204 行</text>
+  <rect class="s-sunken ln" x="40" y="94" width="920" height="30" rx="6"/>
+  <text class="mono s" x="54" y="109">SELECT `id`,`name` FROM `app_dev`.`users` ORDER BY `id` LIMIT 300 OFFSET 0;</text>
+
+  <text class="fnt mono s" x="40" y="152">14:32:06.998</text>
+  <rect class="s-chrome2" x="150" y="140" width="54" height="20" rx="5"/>
+  <text class="mut s c" x="177" y="150">meta</text>
+  <text class="mut mono s" x="218" y="152">app_dev</text>
+  <text class="mut mono s" x="300" y="152">3 ms</text>
+  <rect class="s-sunken ln" x="40" y="162" width="920" height="30" rx="6"/>
+  <text class="mono s" x="54" y="177">SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='app_dev' …</text>
+
+  <text class="fnt mono s" x="40" y="220">14:32:06.541</text>
+  <rect class="s-soft" x="150" y="208" width="54" height="20" rx="5"/>
+  <text class="acc s c" x="177" y="218">data</text>
+  <text class="mut mono s" x="218" y="220">app_dev</text>
+  <text class="err mono s" x="288" y="220">✗ 1064</text>
+  <rect class="s-sunken lnR" x="40" y="230" width="920" height="30" rx="6"/>
+  <text class="mono s" x="54" y="245">SELECT * FORM users</text>
+
+  <text class="fnt mono s" x="40" y="288">14:31:59.002</text>
+  <rect class="s-soft" x="150" y="276" width="54" height="20" rx="5"/>
+  <text class="acc s c" x="177" y="286">data</text>
+  <text class="mut mono s" x="218" y="288">app_dev</text>
+  <text class="mut mono s" x="300" y="288">0 ms</text>
+  <rect class="s-sunken ln" x="40" y="298" width="920" height="30" rx="6"/>
+  <text class="mono fnt s" x="54" y="313">START TRANSACTION;  -- 提交改动时客户端自动发的</text>
+
+  <text class="fnt mono s" x="40" y="356">14:31:58.774</text>
+  <rect class="s-soft" x="150" y="344" width="54" height="20" rx="5"/>
+  <text class="acc s c" x="177" y="354">data</text>
+  <text class="mut mono s" x="218" y="356">app_dev</text>
+  <text class="mut mono s" x="300" y="356">2 ms</text>
+  <rect class="s-sunken ln" x="40" y="366" width="920" height="30" rx="6"/>
+  <text class="mono fnt s" x="54" y="381">KILL QUERY 12345;  -- 点「停止」时发出的取消请求</text>
+
+  <!-- 跟随滚动 -->
+  <rect class="s-field ln2" x="836" y="404" width="144" height="28" rx="6"/>
+  <text class="c s" x="908" y="418">↓ 回到底部</text>
+</svg>
+<figcaption><b>图 6-6</b>　Console Log。<code>[data]</code> 是用户发起的，<code>[meta]</code> 是客户端自动发的。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>项</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>记录范围</td><td><b>所有</b>发给数据库的语句：元数据查询、分页查询、事务控制语句、取消查询的操作，全都在</td></tr>
+<tr><td>两类标签</td><td><code>[data]</code> 用户发起的；<code>[meta]</code> 客户端自动发的</td></tr>
+<tr><td>过滤</td><td><code>全部</code> / <code>仅数据语句</code> / <code>仅元数据</code></td></tr>
+<tr><td>展开</td><td>每条可以展开看完整 SQL 与执行结果概要；失败的标红</td></tr>
+<tr><td>保留条数</td><td>最近 5000 条，更早的自动丢弃</td></tr>
+<tr><td>持久化</td><td>默认只在内存里，关掉 App 就没了。偏好里可以开「写入日志文件」</td></tr>
+<tr><td>滚动</td><td>默认跟随滚动到底部；你手动往上滚以后暂停跟随，并出现「回到底部」按钮</td></tr>
+</tbody>
+</table>
+
+<h2>脚本文件</h2>
+
+<table>
+<thead><tr><th>操作</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td><kbd>⌘O</kbd></td><td>打开 <code>.sql</code> / <code>.txt</code> 文件到新的查询标签</td></tr>
+<tr><td><kbd>⇧⌘S</kbd></td><td>当前脚本另存为</td></tr>
+<tr><td>关闭标签</td><td>如果关联过文件且有未保存改动 → 提示保存；纯草稿内容不提示</td></tr>
+</tbody>
+</table>
+
+<h2>只读模式下的查询编辑器</h2>
+
+<p>
+  连接处于只读模式时，执行前会检查每条语句的类型。写操作被拒绝，工具栏上会常驻一行提示：
+</p>
+
+<p><code>只读模式：仅允许 SELECT / SHOW / EXPLAIN / DESC</code></p>
+
+<p>
+  混合脚本里，安全的语句正常执行，被拒绝的语句有一个标红的 <code>只读拦截</code> 标签，
+  而且<b>不会</b>中断后面安全语句的执行。完整规则见<a href="09-readonly.html">第 9 章</a>。
+</p>
+
+<h2>取消长查询</h2>
+
+<ul>
+  <li>按 <kbd>⌘.</kbd> 或点工具栏「停止」。</li>
+  <li>停止后会向数据库发送取消请求，服务器端正在跑的语句会被中止。</li>
+  <li>如果取消失败（例如权限不足），会提示：<code>取消失败，查询仍在服务器上运行</code>。</li>
+  <li>已经收到的部分结果会保留展示，不会白跑。</li>
+</ul>
+
+<div class="pager"></div>
+
+</main>
+</div>
+<script src="assets/manual.js"></script>
+</body>
+</html>

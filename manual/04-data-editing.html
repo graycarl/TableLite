@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 · 编辑数据 — TableLite 使用说明书</title>
+<link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <!-- 下面这段是无脚本时的兜底导航；有脚本时会被 manual.js 重新生成并标出当前页 -->
+  <div class="brand"><b>TableLite</b><span>使用说明书</span></div>
+  <div class="sub">macOS 原生 MySQL / MariaDB 客户端</div>
+  <ol>
+      <li><a href="index.html"><span class="n">·</span><span>说明书首页</span></a></li>
+      <li><a href="01-connections.html"><span class="n">01</span><span>连接</span></a></li>
+      <li><a href="02-workspace.html"><span class="n">02</span><span>界面结构</span></a></li>
+      <li><a href="03-data-browsing.html"><span class="n">03</span><span>浏览表数据</span></a></li>
+      <li><a href="04-data-editing.html"><span class="n">04</span><span>编辑数据</span></a></li>
+      <li><a href="05-filtering.html"><span class="n">05</span><span>过滤器</span></a></li>
+      <li><a href="06-query-editor.html"><span class="n">06</span><span>查询编辑器</span></a></li>
+      <li><a href="07-schema-view.html"><span class="n">07</span><span>表结构视图</span></a></li>
+      <li><a href="08-import-export.html"><span class="n">08</span><span>导入与导出</span></a></li>
+      <li><a href="09-readonly.html"><span class="n">09</span><span>只读模式</span></a></li>
+      <li><a href="10-ssh-tunnel.html"><span class="n">10</span><span>SSH 隧道</span></a></li>
+      <li><a href="11-preferences.html"><span class="n">11</span><span>偏好设置</span></a></li>
+      <li><a href="12-shortcuts.html"><span class="n">12</span><span>快捷键总表</span></a></li>
+      <li><a href="13-feedback.html"><span class="n">13</span><span>提示与错误</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1><span class="chapter">第 04 章</span>编辑数据</h1>
+<p class="lede">
+  这一章是整个工具里最需要小心的部分。核心只有一句话：
+  <b>你在界面上做的任何修改都不会立刻写进数据库。</b>
+  改动先进暂存区，你确认后再一次性提交。
+</p>
+
+<h2>为什么要有暂存区</h2>
+
+<p>
+  如果每改一个格子就发一条 <code>UPDATE</code>，那你没有任何反悔的机会——
+  手滑改了生产库的一列数据，唯一的补救办法是去翻备份。
+</p>
+
+<p>把改动先攒起来，能带来三件好处：</p>
+
+<ol class="steps">
+  <li><b>可以预览。</b>提交前能看到将要执行的确切 SQL，确认是改这 7 行而不是那 7 行。</li>
+  <li><b>可以整体放弃。</b>一键回到服务器上的真实数据，什么都不用管。</li>
+  <li><b>要么全成要么全不成。</b>所有改动打包在一个事务里，中间的语句失败就整体回滚，不会留下改了一半的状态。</li>
+</ol>
+
+<div class="callout">
+  <span class="tag">按钮上的数字</span>
+  <p>
+    工具栏「提交修改」按钮右边始终显示待提交的改动条数。它是 0 的时候整个按钮组是灰的，
+    所以「现在有没有没提交的东西」这个问题，扫一眼工具栏就知道。
+  </p>
+</div>
+
+<h2>什么时候能编辑</h2>
+
+<p>一张表要能编辑，必须先能被<b>可靠地定位到某一行</b>。不满足条件的表会被明确地置为只读。</p>
+
+<table>
+<thead><tr><th>表的条件</th><th>能不能编辑</th><th>状态栏会说什么</th></tr></thead>
+<tbody>
+<tr><td>有主键</td><td class="ok">可以</td><td>—</td></tr>
+<tr><td>有唯一索引，且索引列都不可为 NULL</td><td class="ok">可以</td><td>—</td></tr>
+<tr><td>唯一索引的列可以为 NULL</td><td>不能</td><td><code>唯一索引的列可以为 NULL，无法可靠定位行</code></td></tr>
+<tr><td>没有主键也没有唯一索引</td><td>不能</td><td><code>该表没有主键或唯一键，无法安全定位行</code></td></tr>
+<tr><td>是视图</td><td>不能</td><td><code>视图不可编辑</code></td></tr>
+<tr><td>连接处于只读模式</td><td>不能</td><td><code>该连接处于只读模式</code></td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+  <span class="tag">不可编辑时的表现</span>
+  <ul>
+    <li>「插入行」按钮直接<b>隐藏</b>，不是变灰</li>
+    <li>「删除行」禁用</li>
+    <li>双击单元格改成打开快速查看（内容还是能看全的）</li>
+    <li>状态栏把原因写清楚，而不是留一堆灰按钮让你猜</li>
+  </ul>
+</div>
+
+<h2>改一个单元格</h2>
+
+<h3>先进入编辑状态</h3>
+
+<p>双击单元格，或者选中后按 <kbd>↩</kbd>。编辑器会根据这一列的类型自动选一个合适的：</p>
+
+<figure>
+<svg viewBox="0 0 1000 580" role="img" aria-label="各种列类型对应的编辑器">
+  <title>各种列类型的编辑器</title>
+
+  <!-- A 普通文本 -->
+  <rect class="s-window ln" x="20" y="20" width="300" height="260" rx="9"/>
+  <text class="b s" x="38" y="44">普通文本 · 单元格内联</text>
+  <line class="ln" x1="20" y1="58" x2="320" y2="58"/>
+
+  <rect class="s-chrome2 ln" x="38" y="74" width="264" height="24"/>
+  <text class="mut s" x="48" y="86">id</text>
+  <text class="mut s" x="108" y="86">name</text>
+  <text class="mut s" x="188" y="86">email</text>
+  <g class="ln">
+    <line x1="38" y1="122" x2="302" y2="122"/>
+    <line x1="38" y1="146" x2="302" y2="146"/>
+    <line x1="98" y1="74" x2="98" y2="170"/>
+    <line x1="178" y1="74" x2="178" y2="170"/>
+  </g>
+  <text class="s" x="48" y="110">1</text>
+  <text class="s" x="108" y="110">张三</text>
+  <text class="s" x="188" y="110">zs@example.com</text>
+
+  <rect class="s-edit lnO sw2" x="98" y="122" width="80" height="24"/>
+  <text class="s" x="108" y="134">李四</text>
+  <line class="lnO sw2" x1="140" y1="126" x2="140" y2="142"/>
+
+  <text class="s" x="48" y="134">2</text>
+  <text class="s" x="188" y="134">ls@example.com</text>
+  <text class="s" x="48" y="158">3</text>
+  <text class="s" x="108" y="158">王五</text>
+  <text class="s" x="188" y="158">ww@example.com</text>
+
+  <text class="fnt s" x="38" y="200">↩ 提交并退出</text>
+  <text class="fnt s" x="38" y="220">Tab / ⇧Tab 提交并移到下一个 / 上一个可编辑单元格</text>
+  <text class="fnt s" x="38" y="240">Esc 放弃这次编辑，恢复原值</text>
+
+  <!-- B 长文本 -->
+  <rect class="s-window ln" x="350" y="20" width="300" height="260" rx="9"/>
+  <text class="b s" x="368" y="44">长文本 / JSON · 弹出窗口</text>
+  <line class="ln" x1="350" y1="58" x2="650" y2="58"/>
+
+  <rect class="s-window ln2" x="368" y="72" width="264" height="140" rx="7"/>
+  <rect class="s-sunken" x="368" y="72" width="30" height="140" rx="7"/>
+  <rect class="s-sunken" x="392" y="72" width="6" height="140"/>
+  <text class="fnt mono s r" x="390" y="92">1</text>
+  <text class="fnt mono s r" x="390" y="112">2</text>
+  <text class="fnt mono s r" x="390" y="132">3</text>
+  <text class="fnt mono s r" x="390" y="152">4</text>
+  <text class="mono s" x="404" y="92">{</text>
+  <text class="mono s" x="404" y="112">　&quot;title&quot;: &quot;标题&quot;,</text>
+  <text class="mono s" x="404" y="132">　&quot;body&quot;: &quot;正文…&quot;</text>
+  <text class="mono s" x="404" y="152">}</text>
+  <line class="lnO sw2" x1="404" y1="156" x2="404" y2="172"/>
+
+  <rect class="s-field ln2" x="466" y="220" width="76" height="26" rx="6"/>
+  <text class="c s" x="504" y="233">取消</text>
+  <rect class="s-accent" x="550" y="220" width="82" height="26" rx="6"/>
+  <text class="c s" x="591" y="233" fill="#fff">确定</text>
+
+  <text class="fnt s" x="368" y="264">带行号的大编辑窗口 · ⇧↩ 换行</text>
+
+  <!-- C 日期 -->
+  <rect class="s-window ln" x="680" y="20" width="300" height="260" rx="9"/>
+  <text class="b s" x="698" y="44">日期 / 时间 · 选择器 + 手输</text>
+  <line class="ln" x1="680" y1="58" x2="980" y2="58"/>
+
+  <rect class="s-field ln2" x="698" y="74" width="180" height="28" rx="6"/>
+  <text class="s" x="710" y="88">2025-01-01 10:00:00</text>
+
+  <rect class="s-window ln2" x="698" y="110" width="180" height="140" rx="7"/>
+  <text class="c s b" x="788" y="128">2025 年 1 月</text>
+  <text class="mut s" x="710" y="128">‹</text>
+  <text class="mut s" x="860" y="128">›</text>
+  <g class="fnt s c">
+    <text x="716" y="148">日</text><text x="742" y="148">一</text><text x="768" y="148">二</text>
+    <text x="794" y="148">三</text><text x="820" y="148">四</text><text x="846" y="148">五</text>
+    <text x="868" y="148">六</text>
+  </g>
+  <g class="s c">
+    <text x="716" y="168">29</text><text x="742" y="168">30</text><text x="768" y="168">31</text>
+  </g>
+  <circle class="s-accent" cx="794" cy="168" r="11"/>
+  <text class="c" x="794" y="168" fill="#fff" style="font-size:11px">1</text>
+  <g class="s c">
+    <text x="820" y="168">2</text><text x="846" y="168">3</text><text x="868" y="168">4</text>
+    <text x="716" y="190">5</text><text x="742" y="190">6</text><text x="768" y="190">7</text>
+    <text x="794" y="190">8</text><text x="820" y="190">9</text><text x="846" y="190">10</text>
+    <text x="868" y="190">11</text>
+    <text x="716" y="212">12</text><text x="742" y="212">13</text><text x="768" y="212">14</text>
+    <text x="794" y="212">15</text><text x="820" y="212">16</text><text x="846" y="212">17</text>
+    <text x="868" y="212">18</text>
+    <text x="716" y="234">19</text><text x="742" y="234">20</text><text x="768" y="234">21</text>
+    <text x="794" y="234">22</text><text x="820" y="234">23</text><text x="846" y="234">24</text>
+    <text x="868" y="234">25</text>
+  </g>
+
+  <text class="fnt s" x="698" y="264">时间部分可以继续手输</text>
+
+  <!-- D ENUM -->
+  <rect class="s-window ln" x="20" y="300" width="300" height="260" rx="9"/>
+  <text class="b s" x="38" y="324">ENUM · 下拉选择</text>
+  <line class="ln" x1="20" y1="338" x2="320" y2="338"/>
+
+  <rect class="s-field ln2" x="38" y="354" width="180" height="28" rx="6"/>
+  <text class="s" x="50" y="368">draft</text>
+  <text class="mut s" x="200" y="368">▾</text>
+
+  <rect class="s-window ln2" x="38" y="386" width="180" height="112" rx="7"/>
+  <text class="acc" x="54" y="406">draft</text>
+  <text class="acc" x="200" y="406">✓</text>
+  <text class="s" x="54" y="432">published</text>
+  <text class="s" x="54" y="458">archived</text>
+  <text class="s" x="54" y="484">deleted</text>
+
+  <text class="fnt s" x="240" y="420">限定了取值</text>
+  <text class="fnt s" x="240" y="440">不需要手输</text>
+  <text class="fnt s" x="240" y="460">也不会拼错</text>
+
+  <!-- E SET -->
+  <rect class="s-window ln" x="350" y="300" width="300" height="260" rx="9"/>
+  <text class="b s" x="368" y="324">SET · 多选</text>
+  <line class="ln" x1="350" y1="338" x2="650" y2="338"/>
+
+  <rect class="s-field ln2" x="368" y="354" width="180" height="28" rx="6"/>
+  <text class="s" x="380" y="368">read,write</text>
+
+  <rect class="s-window ln2" x="368" y="386" width="180" height="112" rx="7"/>
+  <rect class="s-accent" x="382" y="398" width="15" height="15" rx="4"/>
+  <path d="M385 405 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="s" x="406" y="406">read</text>
+  <rect class="s-accent" x="382" y="424" width="15" height="15" rx="4"/>
+  <path d="M385 431 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="s" x="406" y="432">write</text>
+  <rect class="s-field ln2" x="382" y="450" width="15" height="15" rx="4"/>
+  <text class="s" x="406" y="458">delete</text>
+  <rect class="s-field ln2" x="382" y="476" width="15" height="15" rx="4"/>
+  <text class="s" x="406" y="484">admin</text>
+
+  <text class="fnt s" x="560" y="420">多个值用逗号</text>
+  <text class="fnt s" x="560" y="440">拼在一起写入</text>
+
+  <!-- F BLOB -->
+  <rect class="s-window ln" x="680" y="300" width="300" height="260" rx="9"/>
+  <text class="b s" x="698" y="324">BLOB / 二进制 · 不直接改文本</text>
+  <line class="ln" x1="680" y1="338" x2="980" y2="338"/>
+
+  <rect class="s-sunken ln" x="698" y="354" width="264" height="56" rx="7"/>
+  <text class="c s" x="830" y="382">«BLOB 12.3 KB»</text>
+
+  <rect class="s-field ln2" x="698" y="426" width="82" height="28" rx="6"/>
+  <text class="c s" x="739" y="440">查看</text>
+  <rect class="s-field ln2" x="788" y="426" width="110" height="28" rx="6"/>
+  <text class="c s" x="843" y="440">从文件导入…</text>
+  <rect class="s-field ln2" x="906" y="426" width="82" height="28" rx="6"/>
+  <text class="c s" x="947" y="440">设为 NULL</text>
+
+  <text class="fnt s" x="698" y="480">二进制没法安全地当文本编辑，</text>
+  <text class="fnt s" x="698" y="500">所以只提供这三个操作。</text>
+  <text class="fnt s" x="698" y="528">往格子里粘贴十六进制文本也会被拒绝。</text>
+</svg>
+<figcaption><b>图 4-1</b>　六种列类型对应的编辑器。每种编辑器都走同一套校验和提交规则。</figcaption>
+</figure>
+
+<h3>提交和放弃这次编辑</h3>
+
+<table>
+<thead><tr><th>按键</th><th>结果</th></tr></thead>
+<tbody>
+<tr><td><kbd>↩</kbd></td><td>提交并退出编辑状态</td></tr>
+<tr><td><kbd>Tab</kbd></td><td>提交并移到右边一个可编辑单元格</td></tr>
+<tr><td><kbd>⇧Tab</kbd></td><td>提交并移到左边一个</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>放弃这次编辑，恢复原值</td></tr>
+<tr><td><kbd>⇧↩</kbd></td><td>在多行编辑器里换行（不会提交）</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+  <span class="tag">校验失败会拦住你</span>
+  <p>
+    数字列只接受合法数字（含负号和小数点），日期时间列会校验格式。
+    校验不过时输入框会抖一下并给出提示，<b>编辑状态不退出</b>，你可以直接改。
+  </p>
+</div>
+
+<h3>改完之后界面会告诉你什么</h3>
+
+<ul>
+  <li>改过的单元格变成<b>橙色底色</b>，左上角出现小三角标记</li>
+  <li>改过的行，<b>行号列</b>也会出现标记</li>
+  <li>这些标记一直保留到提交或放弃</li>
+  <li>如果你把某一格改回原来的值，那个格子的标记会消失；如果一行里所有改动都被改回了，这一行恢复成干净的</li>
+</ul>
+
+<h2>插入、复制、删除行</h2>
+
+<figure>
+<svg viewBox="0 0 1000 400" role="img" aria-label="新增行、修改行、删除行在网格里的样子">
+  <title>三种行状态</title>
+
+  <rect class="s-chrome2 ln" x="20" y="20" width="960" height="30"/>
+  <text class="fnt s r" x="52" y="35">#</text>
+  <text class="b" x="70" y="35">🔑 id</text>
+  <text class="b" x="140" y="35">name</text>
+  <text class="b" x="300" y="35">email</text>
+  <text class="b" x="560" y="35">status</text>
+  <text class="b" x="720" y="35">updated_at</text>
+
+  <g class="ln">
+    <line x1="20" y1="82" x2="980" y2="82"/>
+    <line x1="20" y1="114" x2="980" y2="114"/>
+    <line x1="20" y1="146" x2="980" y2="146"/>
+    <line x1="20" y1="178" x2="980" y2="178"/>
+    <line x1="20" y1="210" x2="980" y2="210"/>
+    <line x1="58" y1="50" x2="58" y2="242"/>
+    <line x1="130" y1="50" x2="130" y2="242"/>
+    <line x1="290" y1="50" x2="290" y2="242"/>
+    <line x1="550" y1="50" x2="550" y2="242"/>
+    <line x1="710" y1="50" x2="710" y2="242"/>
+  </g>
+  <rect class="s-sunken" x="20" y="50" width="38" height="192"/>
+
+  <!-- 普通行 -->
+  <text class="fnt s c" x="39" y="66">1</text>
+  <text x="70" y="66">1</text>
+  <text x="140" y="66">张三</text>
+  <text class="mut" x="300" y="66">zs@example.com</text>
+  <text class="mut" x="560" y="66">active</text>
+  <text class="mut s" x="720" y="66">2025-01-01</text>
+
+  <!-- 修改行 -->
+  <rect class="s-edit" x="130" y="82" width="160" height="32" opacity="0.8"/>
+  <rect class="s-edit" x="550" y="82" width="160" height="32" opacity="0.8"/>
+  <path class="lnO sw2" d="M134 84 l9 0 l-9 9 z"/>
+  <path class="lnO sw2" d="M554 84 l9 0 l-9 9 z"/>
+  <rect class="s-orange" x="30" y="88" width="8" height="8" rx="4"/>
+  <text class="fnt s c" x="39" y="98">2</text>
+  <text x="70" y="98">2</text>
+  <text x="140" y="98">李四</text>
+  <text class="mut" x="300" y="98">ls@example.com</text>
+  <text x="560" y="98">published</text>
+  <text class="mut s" x="720" y="98">2025-01-02</text>
+
+  <!-- 新增行 -->
+  <rect class="s-green" x="58" y="114" width="922" height="32" opacity="0.18"/>
+  <path class="lnG sw2" d="M58 146 L980 146" stroke-dasharray="5 4"/>
+  <rect class="s-green" x="30" y="120" width="8" height="8" rx="4"/>
+  <text class="fnt s c" x="39" y="130">＋</text>
+  <text class="fnt" x="70" y="130">（空）</text>
+  <text x="140" y="130">赵六</text>
+  <text x="300" y="130">zl@example.com</text>
+  <text x="560" y="130">draft</text>
+  <text class="fnt s" x="720" y="130">留空 = 用数据库默认值</text>
+
+  <!-- 删除行 -->
+  <rect class="s-red" x="58" y="146" width="922" height="32" opacity="0.10"/>
+  <line class="lnR sw2" x1="130" y1="162" x2="980" y2="162"/>
+  <rect class="s-red" x="30" y="152" width="8" height="8" rx="4"/>
+  <text class="fnt s c" x="39" y="162">4</text>
+  <text class="fnt" x="70" y="162">4</text>
+  <text class="fnt" x="140" y="162">王五</text>
+  <text class="fnt" x="300" y="162">ww@example.com</text>
+  <text class="fnt" x="560" y="162">deleted</text>
+  <text class="fnt s" x="720" y="162">2025-01-04</text>
+
+  <text class="fnt s c" x="39" y="194">5</text>
+  <text x="70" y="194">5</text>
+  <text x="140" y="194">钱七</text>
+  <text class="mut" x="300" y="194">qq@example.com</text>
+  <text class="mut" x="560" y="194">active</text>
+  <text class="mut s" x="720" y="194">2025-01-05</text>
+
+  <!-- 底部规则 -->
+  <line class="ln" x1="20" y1="270" x2="980" y2="270"/>
+  <text class="b s" x="20" y="292">新增的行</text>
+  <text class="s" x="110" y="292">绿色底色，提交前可以按 Esc 取消这一行。自增主键留空，由数据库生成。</text>
+  <text class="b s" x="20" y="322">修改的行</text>
+  <text class="s" x="110" y="322">改过的格子橙色底色带小三角，行号列也有标记。</text>
+  <text class="b s" x="20" y="352">删除的行</text>
+  <text class="s" x="110" y="352">整行加删除线并变淡，但还没真正删除。删除前会显示将要执行的条件，例如 WHERE id = 42。</text>
+  <text class="b s" x="20" y="382">已删除的行</text>
+  <text class="s" x="110" y="382">不能再编辑。想改的话先右键 → 撤销该行的修改。</text>
+</svg>
+<figcaption><b>图 4-2</b>　网格里三种行状态的样子，以及行号列上的对应标记。</figcaption>
+</figure>
+
+<h3>插入行</h3>
+
+<ul>
+  <li>点状态栏的 <code>+ 行</code>，或者按 <kbd>⌘I</kbd></li>
+  <li>网格底部出现一条<b>绿色虚线行</b>，光标停在第一个可编辑列</li>
+  <li>只填需要填的列，留空的交给数据库默认值；自增主键留空即可</li>
+  <li>没提交之前按 <kbd>Esc</kbd> 可以取消这一行</li>
+</ul>
+
+<h3>复制行</h3>
+
+<ul>
+  <li>选中若干行，按 <kbd>⌘D</kbd>，或右键 → <code>复制行</code></li>
+  <li>复制出来的行作为<b>新增行</b>插进来，自增主键会被清空，其余列保留原值</li>
+  <li>复制出的行立刻进入暂存状态</li>
+</ul>
+
+<h3>删除行</h3>
+
+<ul>
+  <li>选中行按 <kbd>⌫</kbd>，或右键 → <code>删除行</code></li>
+  <li>行立刻变淡加删除线，<b>但还没真正删除</b></li>
+  <li>删除前会显示将要执行的条件，例如 <code>WHERE id = 42</code>，让你确认删的是哪一行</li>
+  <li>已标记删除的行不能再编辑</li>
+</ul>
+
+<h3>粘贴</h3>
+
+<p>
+  在单元格上按 <kbd>⌘V</kbd>，如果剪贴板里是带制表符或换行的多行文本（比如从 Excel 复制的），
+  会从当前单元格开始按二维表格铺开。每一格都走和手工编辑一样的校验；目标列不够时会截断并提示。
+</p>
+
+<h2>暂存区的规则</h2>
+
+<p>
+  暂存区属于<b>当前标签</b>。每个表数据标签各有一个，互不影响。切到别的标签不会丢内容。
+  在同一个标签里，同一行最多只会有一条待提交的改动。
+</p>
+
+<table>
+<thead><tr><th>已有</th><th>新操作</th><th>结果</th></tr></thead>
+<tbody>
+<tr><td>无</td><td>改某列</td><td>记为「修改」</td></tr>
+<tr><td>已改 A 列</td><td>再改 B 列</td><td>合并成一次「修改」</td></tr>
+<tr><td>已改 A 列</td><td>把 A 列改回原值</td><td>这一行的改动消失</td></tr>
+<tr><td>无</td><td>新增行</td><td>记为「新增」</td></tr>
+<tr><td>新增行</td><td>继续改这一行</td><td>合并进「新增」</td></tr>
+<tr><td>新增行</td><td>又删除这一行</td><td>两者都消失，不产生任何操作</td></tr>
+<tr><td>无</td><td>删除行</td><td>记为「删除」</td></tr>
+<tr><td>已改某行</td><td>又删除该行</td><td>「修改」被「删除」取代</td></tr>
+<tr><td>已删除某行</td><td>试图编辑该行</td><td>拒绝，提示先撤销删除</td></tr>
+</tbody>
+</table>
+
+<p>右键某一行 → <code>撤销该行的修改</code>，可以只回退这一行，别的改动不受影响。</p>
+
+<h2>预览</h2>
+
+<p>按 <kbd>⇧⌘P</kbd> 或点工具栏「预览」，看看将要执行什么。</p>
+
+<figure>
+<svg viewBox="0 0 1000 420" role="img" aria-label="预览将要执行的 SQL 面板">
+  <title>预览 SQL 面板</title>
+  <rect class="s-window ln2" x="30" y="16" width="940" height="388" rx="11"/>
+  <text class="b" x="56" y="44">将要执行的 SQL（7 条）</text>
+  <line class="ln" x1="30" y1="60" x2="970" y2="60"/>
+
+  <text class="acc s" x="56" y="84">先 INSERT</text>
+  <rect class="s-sunken ln" x="150" y="66" width="800" height="34" rx="6"/>
+  <text class="mono s" x="164" y="83">1　INSERT INTO `app_dev`.`users` (`name`, `email`) VALUES ('赵六', 'zl@…');</text>
+
+  <text class="acc s" x="56" y="132">再 UPDATE</text>
+  <rect class="s-sunken ln" x="150" y="114" width="800" height="34" rx="6"/>
+  <text class="mono s" x="164" y="131">2　UPDATE `app_dev`.`users` SET `email` = 'a@b.c' WHERE `id` = 42;</text>
+  <rect class="s-sunken ln" x="150" y="152" width="800" height="34" rx="6"/>
+  <text class="mono s" x="164" y="169">3　UPDATE `app_dev`.`users` SET `status` = 'published' WHERE `id` = 7;</text>
+
+  <text class="acc s" x="56" y="218">最后 DELETE</text>
+  <rect class="s-sunken ln" x="150" y="200" width="800" height="34" rx="6"/>
+  <text class="mono s" x="164" y="217">4　DELETE FROM `app_dev`.`users` WHERE `id` = 7;</text>
+  <text class="mono fnt s" x="164" y="256">…（共 7 条）</text>
+
+  <rect class="s-sunken ln" x="150" y="276" width="800" height="42" rx="6"/>
+  <text class="s" x="164" y="292">这些语句会被包在一个事务里执行：</text>
+  <text class="mono s" x="164" y="310">START TRANSACTION; … COMMIT;</text>
+
+  <line class="ln" x1="30" y1="336" x2="970" y2="336"/>
+  <rect class="s-field ln2" x="56" y="352" width="110" height="30" rx="6"/>
+  <text class="c s" x="111" y="367">复制全部</text>
+  <rect class="s-field ln2" x="174" y="352" width="190" height="30" rx="6"/>
+  <text class="c s" x="269" y="367">在新查询标签中打开</text>
+  <rect class="s-field ln2" x="760" y="352" width="90" height="30" rx="6"/>
+  <text class="c s" x="805" y="367">关闭</text>
+  <rect class="s-accent" x="858" y="352" width="90" height="30" rx="6"/>
+  <text class="c s" x="903" y="367" fill="#fff">提交</text>
+</svg>
+<figcaption><b>图 4-3</b>　预览面板。语句按「先插入、再修改、最后删除」排序。</figcaption>
+</figure>
+
+<div class="callout tip">
+  <span class="tag">预览和实际提交完全一致</span>
+  <p>
+    面板里显示的语句就是实际会下发的语句，不存在「预览是一套、执行是另一套」的情况。
+    这一点是刻意设计的：<b>所有写入都直接生成 SQL 文本</b>，不经过参数化改写。
+  </p>
+  <p>
+    把鼠标移到预览里的某一条语句上，网格里对应的那一行会高亮，方便你确认。
+  </p>
+</div>
+
+<ul>
+  <li><b>复制全部</b>：把这几条语句拷到剪贴板。</li>
+  <li><b>在新查询标签中打开</b>：把这些语句放进一个查询标签，你可以手动调整后再执行。
+    注意从这里走出去以后就<b>不再走暂存区</b>了，改完直接执行会真的生效。</li>
+</ul>
+
+<h2>提交</h2>
+
+<p>按 <kbd>⌘S</kbd> 或点工具栏「提交」。提交过程是这样的：</p>
+
+<ol class="steps">
+  <li>界面锁定编辑，状态栏显示 <code>正在提交 3/7…</code></li>
+  <li>所有改动在<b>一个事务</b>里依次执行</li>
+  <li><b>全部成功</b> → 清空暂存区，重新加载当前页，状态栏短暂显示 <code>已提交 7 处修改，耗时 128 ms</code></li>
+  <li><b>任何一条失败</b> → 整个事务回滚，<b>所有改动都没生效</b>，弹出错误面板</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 1000 380" role="img" aria-label="提交失败的错误面板">
+  <title>提交失败面板</title>
+  <rect class="s-window ln2" x="200" y="16" width="600" height="348" rx="12"/>
+  <rect class="s-red" x="200" y="16" width="600" height="44" rx="12"/>
+  <rect class="s-red" x="200" y="40" width="600" height="20"/>
+  <text class="b c" x="500" y="38" fill="#fff">提交失败</text>
+  <line class="ln" x1="200" y1="60" x2="800" y2="60"/>
+
+  <text x="228" y="86">第 2 条语句执行失败</text>
+
+  <rect class="s-sunken ln" x="228" y="104" width="544" height="86" rx="7"/>
+  <text class="mono err s" x="242" y="124">[错误 1062] SQLSTATE 23000</text>
+  <text class="mono s" x="242" y="146">Duplicate entry 'a@b.c' for key 'uniq_email'</text>
+  <text class="fnt s" x="242" y="168">↑ 服务器返回的原文，不翻译、不改写、不截断</text>
+
+  <text class="mut s" x="228" y="212">出错的那条语句：</text>
+  <rect class="s-sunken ln" x="228" y="222" width="544" height="30" rx="6"/>
+  <text class="mono s" x="242" y="237">UPDATE `app_dev`.`users` SET `email` = 'a@b.c' WHERE `id` = 42;</text>
+
+  <rect class="s-orange" x="228" y="266" width="544" height="40" rx="7" opacity="0.16"/>
+  <text class="warn s" x="242" y="286">事务已回滚，你的修改都还在暂存区里，尚未生效。</text>
+
+  <line class="ln" x1="200" y1="322" x2="800" y2="322"/>
+  <rect class="s-field ln2" x="228" y="332" width="140" height="30" rx="6"/>
+  <text class="c s" x="298" y="347">放弃全部修改</text>
+  <rect class="s-accent" x="628" y="332" width="144" height="30" rx="6"/>
+  <text class="c s" x="700" y="347" fill="#fff">关闭并修正</text>
+</svg>
+<figcaption><b>图 4-4</b>　提交失败面板。三条必须说清楚的信息：错在哪、原文是什么、数据现在是什么状态。</figcaption>
+</figure>
+
+<div class="callout danger">
+  <span class="tag">失败后暂存区不会被清空</span>
+  <p>
+    提交失败时你的修改<b>原样保留在暂存区</b>，可以修正后再提交。
+    因为事务已经整体回滚，数据库里什么都没变，所以这时也不需要「回退」什么。
+  </p>
+</div>
+
+<h3>提交过程中的其他规矩</h3>
+
+<ul>
+  <li><b>可以取消。</b>取消会在两条语句之间停下来并回滚。</li>
+  <li><b>提交超时</b>时会提示：<code>提交超时，事务状态未知，请在数据库中手动核对这几行的数据</code>。
+    这是少数几个没法自动补救的情况，必须人工确认。</li>
+  <li>如果待提交内容里混进了结构变更语句（本工具自己不会产生，但可能通过粘贴带进来），
+    会<b>直接拒绝</b>，并提示你用 SQL 编辑器执行。</li>
+</ul>
+
+<h3>某条语句影响 0 行怎么办</h3>
+
+<div class="callout">
+  <span class="tag">算成功</span>
+  <p>
+    如果某条 <code>UPDATE</code> / <code>DELETE</code> 影响 0 行（比如这一行已经被别处删掉了），
+    <b>视为成功，不报错</b>。Console Log 里会记一条「影响 0 行」，
+    提交完成后这一行会从刷新后的数据里消失。
+  </p>
+  <p>
+    这样做是有意的：如果你在改一条别人刚删掉的数据，弹一个错误出来只会打断你，
+    反正结果（那一行不存在）和你想的一样。
+  </p>
+</div>
+
+<h2>放弃</h2>
+
+<ul>
+  <li><kbd>⇧⌘⌫</kbd> 或点工具栏「放弃」：清空整个暂存区并重新加载当前页。</li>
+  <li>改动超过 5 条，或者包含删除 / 新增时，会先弹窗确认。</li>
+  <li>只想回退一行：右键那一行 → <code>撤销该行的修改</code>。</li>
+  <li>放弃后表格恢复成服务器上的真实数据。</li>
+</ul>
+
+<h2>有未提交改动时的保护</h2>
+
+<p>下面这些操作会先问你，避免手一滑把攒了半天的改动弄丢：</p>
+
+<ul>
+  <li>关闭这个标签</li>
+  <li>断开或切换连接</li>
+  <li>重载当前页（<kbd>⌘R</kbd>）</li>
+  <li>应用过滤器或改变排序</li>
+  <li>退出 App</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 1000 300" role="img" aria-label="有未提交修改时的确认弹窗">
+  <title>未提交改动确认弹窗</title>
+
+  <rect class="s-window ln2" x="40" y="40" width="440" height="190" rx="12"/>
+  <text class="b c" x="260" y="76">有未提交的修改</text>
+  <text class="c" x="260" y="112">当前标签有 7 处未提交的修改。</text>
+  <line class="ln" x1="40" y1="150" x2="480" y2="150"/>
+  <rect class="s-field ln2" x="66" y="172" width="80" height="32" rx="6"/>
+  <text class="c s" x="106" y="188">取消</text>
+  <rect class="s-field ln2" x="170" y="172" width="110" height="32" rx="6"/>
+  <text class="c s" x="225" y="188">放弃修改</text>
+  <rect class="s-accent" x="306" y="172" width="148" height="32" rx="6"/>
+  <text class="c s" x="380" y="188" fill="#fff">提交并继续</text>
+
+  <rect class="s-window ln2" x="530" y="40" width="430" height="190" rx="12"/>
+  <text class="b c" x="745" y="76">关闭标签</text>
+  <text class="c" x="745" y="112">这个查询标签有未保存的改动。</text>
+  <line class="ln" x1="530" y1="150" x2="960" y2="150"/>
+  <rect class="s-field ln2" x="556" y="172" width="80" height="32" rx="6"/>
+  <text class="c s" x="596" y="188">取消</text>
+  <rect class="s-field ln2" x="660" y="172" width="130" height="32" rx="6"/>
+  <text class="c s" x="725" y="188">放弃并关闭</text>
+  <rect class="s-accent" x="804" y="172" width="130" height="32" rx="6"/>
+  <text class="c s" x="869" y="188" fill="#fff">提交并关闭</text>
+
+  <text class="fnt s c" x="500" y="266">按钮措辞必须具体。不要用「确定 / 取消」这种分不清谁是谁的说法。</text>
+</svg>
+<figcaption><b>图 4-5</b>　两个确认弹窗。左边是通用保护，右边是关闭标签时。</figcaption>
+</figure>
+
+<h2>一个必须知道的限制：不检测并发修改</h2>
+
+<div class="callout danger">
+  <span class="tag">最后写入者生效</span>
+  <p>
+    TableLite <b>不检测</b>「这一行在你打开页面之后是否被别人改过」。
+    提交时直接用你本地的值覆盖服务器上的当前值。
+  </p>
+  <p>
+    也就是说：如果你在 10:00 打开一行、10:05 才提交，而别人在 10:02 改过同一行，
+    那么别人的改动会被你覆盖掉，而且不会有任何提示。
+  </p>
+  <p>
+    这是刻意的取舍——要检测就得给每张表加版本列或者比对整行原值，
+    对一个自用工具来说不划算。用在<b>多人同时在写的表</b>上时请自己注意。
+  </p>
+</div>
+
+<div class="pager"></div>
+
+</main>
+</div>
+<script src="assets/manual.js"></script>
+</body>
+</html>

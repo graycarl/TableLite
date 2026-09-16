@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07 · 表结构视图 — TableLite 使用说明书</title>
+<link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <!-- 下面这段是无脚本时的兜底导航；有脚本时会被 manual.js 重新生成并标出当前页 -->
+  <div class="brand"><b>TableLite</b><span>使用说明书</span></div>
+  <div class="sub">macOS 原生 MySQL / MariaDB 客户端</div>
+  <ol>
+      <li><a href="index.html"><span class="n">·</span><span>说明书首页</span></a></li>
+      <li><a href="01-connections.html"><span class="n">01</span><span>连接</span></a></li>
+      <li><a href="02-workspace.html"><span class="n">02</span><span>界面结构</span></a></li>
+      <li><a href="03-data-browsing.html"><span class="n">03</span><span>浏览表数据</span></a></li>
+      <li><a href="04-data-editing.html"><span class="n">04</span><span>编辑数据</span></a></li>
+      <li><a href="05-filtering.html"><span class="n">05</span><span>过滤器</span></a></li>
+      <li><a href="06-query-editor.html"><span class="n">06</span><span>查询编辑器</span></a></li>
+      <li><a href="07-schema-view.html"><span class="n">07</span><span>表结构视图</span></a></li>
+      <li><a href="08-import-export.html"><span class="n">08</span><span>导入与导出</span></a></li>
+      <li><a href="09-readonly.html"><span class="n">09</span><span>只读模式</span></a></li>
+      <li><a href="10-ssh-tunnel.html"><span class="n">10</span><span>SSH 隧道</span></a></li>
+      <li><a href="11-preferences.html"><span class="n">11</span><span>偏好设置</span></a></li>
+      <li><a href="12-shortcuts.html"><span class="n">12</span><span>快捷键总表</span></a></li>
+      <li><a href="13-feedback.html"><span class="n">13</span><span>提示与错误</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1><span class="chapter">第 07 章</span>表结构视图</h1>
+<p class="lede">
+  表结构视图是<b>只读</b>的。要看看、要复制都行，但不能在这里改——
+  改结构请用查询编辑器手写 DDL。
+</p>
+
+<div class="callout warn">
+  <span class="tag">这一章没有「编辑」按钮</span>
+  <p>
+    新增列、删列、加索引、改类型、加外键，这些操作在界面上<b>完全不存在</b>。
+    想改结构，开一个查询标签写 <code>ALTER TABLE</code>。
+    这个取舍的理由是：图形化的结构编辑器要处理的边界情况极多（数据迁移、默认值、字符集转换……），
+    而手写 DDL 对一个熟练用户来说又快又准确。
+  </p>
+</div>
+
+<h2>怎么打开</h2>
+
+<table>
+<thead><tr><th>方式</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td>对象树右键表 → <code>打开结构</code></td><td>在新标签打开一个独立的结构标签</td></tr>
+<tr><td>数据视图状态栏左边的 <code>数据 / 结构</code> 切换</td><td>在同一个标签内切到结构视图</td></tr>
+</tbody>
+</table>
+
+<p>两种方式都可以，看你想同时对比几样东西。</p>
+
+<h2>列</h2>
+
+<figure>
+<svg viewBox="0 0 1000 460" role="img" aria-label="表结构视图的列页">
+  <title>结构视图：列</title>
+
+  <!-- 子页签 -->
+  <rect class="s-chrome ln" x="20" y="20" width="960" height="34" rx="0"/>
+  <rect class="s-window lnA" x="20" y="20" width="70" height="34"/>
+  <line class="lnA" x1="20" y1="52" x2="90" y2="52"/>
+  <text class="c s" x="55" y="38">列</text>
+  <text class="mut s" x="116" y="38">索引</text>
+  <text class="mut s" x="180" y="38">外键</text>
+  <text class="mut s" x="244" y="38">触发器</text>
+  <text class="mut s" x="322" y="38">建表语句</text>
+  <text class="fnt s" x="880" y="38">users · 结构</text>
+
+  <!-- 表注释 -->
+  <rect class="s-soft" x="20" y="62" width="960" height="26"/>
+  <text class="s" x="36" y="75">表注释：用户账号表</text>
+
+  <!-- 表头 -->
+  <rect class="s-chrome2 ln" x="20" y="96" width="960" height="28"/>
+  <text class="mut s" x="30" y="110">序号</text>
+  <text class="mut s" x="84" y="110">列名</text>
+  <text class="mut s" x="204" y="110">类型</text>
+  <text class="mut s" x="356" y="110">可空</text>
+  <text class="mut s" x="418" y="110">默认值</text>
+  <text class="mut s" x="512" y="110">主键</text>
+  <text class="mut s" x="566" y="110">自增</text>
+  <text class="mut s" x="620" y="110">字符集 / 排序规则</text>
+  <text class="mut s" x="790" y="110">备注</text>
+
+  <g class="ln">
+    <line x1="20" y1="124" x2="980" y2="124"/>
+    <line x1="20" y1="152" x2="980" y2="152"/>
+    <line x1="20" y1="180" x2="980" y2="180"/>
+    <line x1="20" y1="208" x2="980" y2="208"/>
+    <line x1="20" y1="236" x2="980" y2="236"/>
+    <line x1="20" y1="264" x2="980" y2="264"/>
+    <line x1="20" y1="292" x2="980" y2="292"/>
+    <line x1="20" y1="320" x2="980" y2="320"/>
+  </g>
+  <rect class="s-alt" x="20" y="152" width="960" height="28"/>
+  <rect class="s-alt" x="20" y="208" width="960" height="28"/>
+  <rect class="s-alt" x="20" y="264" width="960" height="28"/>
+
+  <!-- id -->
+  <rect class="s-soft" x="20" y="124" width="960" height="28"/>
+  <text class="b s" x="30" y="138">1</text>
+  <text class="b mono s" x="84" y="138">id</text>
+  <text class="b mono s" x="204" y="138">int unsigned</text>
+  <text class="b s" x="356" y="138">否</text>
+  <text class="b s" x="418" y="138">—</text>
+  <text class="b s" x="512" y="138">✓</text>
+  <text class="b s" x="566" y="138">✓</text>
+  <text class="fnt s" x="620" y="138">—</text>
+  <text class="b s" x="790" y="138">主键</text>
+
+  <text class="s" x="30" y="166">2</text>
+  <text class="mono s" x="84" y="166">name</text>
+  <text class="mono s" x="204" y="166">varchar(50)</text>
+  <text class="s" x="356" y="166">否</text>
+  <text class="fnt s" x="418" y="166">—</text>
+  <text class="fnt s" x="512" y="166">　</text>
+  <text class="fnt s" x="566" y="166">　</text>
+  <text class="mono s" x="620" y="166">utf8mb4 / utf8mb4_0900_ai_ci</text>
+  <text class="s" x="790" y="166">显示名</text>
+
+  <text class="s" x="30" y="194">3</text>
+  <text class="mono s" x="84" y="194">email</text>
+  <text class="mono s" x="204" y="194">varchar(100)</text>
+  <text class="s" x="356" y="194">是</text>
+  <text class="fnt s" x="418" y="194">NULL</text>
+  <text class="fnt s" x="512" y="194">　</text>
+  <text class="fnt s" x="566" y="194">　</text>
+  <text class="mono s" x="620" y="194">utf8mb4 / utf8mb4_0900_ai_ci</text>
+  <text class="fnt s" x="790" y="194">—</text>
+
+  <text class="s" x="30" y="222">4</text>
+  <text class="mono s" x="84" y="222">age</text>
+  <text class="mono s" x="204" y="222">smallint</text>
+  <text class="s" x="356" y="222">是</text>
+  <text class="mono s" x="418" y="222">18</text>
+  <text class="fnt s" x="512" y="222">　</text>
+  <text class="fnt s" x="566" y="222">　</text>
+  <text class="fnt s" x="620" y="222">—</text>
+  <text class="fnt s" x="790" y="222">—</text>
+
+  <text class="s" x="30" y="250">5</text>
+  <text class="mono s" x="84" y="250">status</text>
+  <text class="mono s" x="204" y="250">enum('draft','published','archived')</text>
+  <text class="s" x="356" y="250">否</text>
+  <text class="mono s" x="418" y="250">'draft'</text>
+  <text class="fnt s" x="512" y="250">　</text>
+  <text class="fnt s" x="566" y="250">　</text>
+  <text class="mono s" x="620" y="250">utf8mb4 / utf8mb4_0900_ai_ci</text>
+  <text class="fnt s" x="790" y="250">状态</text>
+
+  <text class="s" x="30" y="278">6</text>
+  <text class="mono s" x="84" y="278">content</text>
+  <text class="mono s" x="204" y="278">longtext</text>
+  <text class="s" x="356" y="278">是</text>
+  <text class="fnt s" x="418" y="278">NULL</text>
+  <text class="fnt s" x="512" y="278">　</text>
+  <text class="fnt s" x="566" y="278">　</text>
+  <text class="mono s" x="620" y="278">utf8mb4 / utf8mb4_0900_ai_ci</text>
+  <text class="fnt s" x="790" y="278">—</text>
+
+  <text class="s" x="30" y="306">7</text>
+  <text class="mono s" x="84" y="306">created_at</text>
+  <text class="mono s" x="204" y="306">datetime</text>
+  <text class="s" x="356" y="306">否</text>
+  <text class="mono s" x="418" y="306">CURRENT_TIMESTAMP</text>
+  <text class="fnt s" x="512" y="306">　</text>
+  <text class="fnt s" x="566" y="306">　</text>
+  <text class="fnt s" x="620" y="306">—</text>
+  <text class="fnt s" x="790" y="306">—</text>
+
+  <!-- 底部说明 -->
+  <text class="fnt s" x="20" y="352">主键列整行加粗并带淡蓝底。表的注释显示在这一页的顶部。</text>
+  <text class="fnt s" x="20" y="372">「—」表示没有默认值或没有备注；「NULL」表示默认值就是 NULL，两者不一样。</text>
+
+  <!-- 状态栏 -->
+  <rect class="s-chrome ln" x="20" y="396" width="960" height="40"/>
+  <text class="s" x="36" y="416">● 本地开发 · app_dev</text>
+  <text class="s" x="400" y="416">11 列 · 3 索引 · 1 外键 · 0 触发器</text>
+  <rect class="s-field ln2" x="700" y="403" width="120" height="26" rx="6"/>
+  <text class="c s" x="760" y="416">数据 / 结构</text>
+  <text class="acc s" x="860" y="416">刷新</text>
+
+  <!-- 热点 -->
+  <g class="hot" data-hot="1"><circle cx="28" cy="20" r="11"/><text x="28" y="20">1</text></g>
+  <g class="hot" data-hot="2"><circle cx="78" cy="96" r="11"/><text x="78" y="96">2</text></g>
+  <g class="hot" data-hot="3"><circle cx="196" cy="96" r="11"/><text x="196" y="96">3</text></g>
+  <g class="hot" data-hot="4"><circle cx="404" cy="96" r="11"/><text x="404" y="96">4</text></g>
+  <g class="hot" data-hot="5"><circle cx="608" cy="96" r="11"/><text x="608" y="96">5</text></g>
+  <g class="hot" data-hot="6"><circle cx="760" cy="403" r="11"/><text x="760" y="403">6</text></g>
+  <g class="hot" data-hot="7"><circle cx="972" cy="416" r="11"/><text x="972" y="416">7</text></g>
+</svg>
+<figcaption><b>图 7-1</b>　结构视图的「列」页。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>元素</th><th>说明</th></tr></thead>
+<tbody>
+<tr data-hot="1"><td class="num">1</td><td class="wide">子页签</td>
+  <td>列 / 索引 / 外键 / 触发器 / 建表语句。当前页带下划线。表以外的对象只显示其中一两页。</td></tr>
+<tr data-hot="2"><td class="num">2</td><td class="wide">序号</td>
+  <td>列在表里的位置顺序。改列顺序要写 DDL。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">类型</td>
+  <td>完整类型，包括长度和精度：<code>varchar(255)</code>、<code>decimal(10,2)</code>、<code>enum('a','b')</code>。</td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">可空与默认值</td>
+  <td>没有默认值时显示 <code>—</code>；默认值就是 <code>NULL</code> 时显示 <code>NULL</code>。<b>这两者含义不同</b>，所以分开显示。</td></tr>
+<tr data-hot="5"><td class="num">5</td><td class="wide">主键 / 自增 / 字符集</td>
+  <td>属于主键和自增的打勾；字符集与排序规则只对文本类型显示，其它类型显示 <code>—</code>。</td></tr>
+<tr data-hot="6"><td class="num">6</td><td class="wide">数据 / 结构 切换</td>
+  <td>在同一个标签内切换数据视图和结构视图。也可以让它俩各占一个标签。</td></tr>
+<tr data-hot="7"><td class="num">7</td><td class="wide">刷新</td>
+  <td>重新读取结构（<kbd>⌘R</kbd>）。在查询编辑器里执行过 DDL 之后，已经打开的结构视图会标上「可能过期」。</td></tr>
+</tbody>
+</table>
+
+<h3>列页的字段</h3>
+
+<table>
+<thead><tr><th>列名</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>序号</td><td>列在表中的位置</td></tr>
+<tr><td>列名</td><td></td></tr>
+<tr><td>类型</td><td>完整类型，含长度与精度</td></tr>
+<tr><td>可空</td><td><code>是</code> / <code>否</code></td></tr>
+<tr><td>默认值</td><td>没有默认值 → <code>—</code>；默认值为 NULL → <code>NULL</code></td></tr>
+<tr><td>主键</td><td><code>✓</code> 表示属于主键</td></tr>
+<tr><td>自增</td><td><code>✓</code></td></tr>
+<tr><td>字符集 / 排序规则</td><td>仅文本类型显示</td></tr>
+<tr><td>备注</td><td>列的注释</td></tr>
+</tbody>
+</table>
+
+<h2>索引与外键</h2>
+
+<figure>
+<svg viewBox="0 0 1000 400" role="img" aria-label="索引页与外键页">
+  <title>结构视图：索引与外键</title>
+
+  <!-- 索引 -->
+  <text class="b s" x="20" y="26">索引</text>
+  <rect class="s-chrome2 ln" x="20" y="36" width="960" height="28"/>
+  <text class="mut s" x="30" y="50">索引名</text>
+  <text class="mut s" x="240" y="50">类型</text>
+  <text class="mut s" x="360" y="50">包含的列</text>
+  <text class="mut s" x="640" y="50">基数</text>
+  <text class="mut s" x="760" y="50">备注</text>
+
+  <g class="ln">
+    <line x1="20" y1="64" x2="980" y2="64"/>
+    <line x1="20" y1="96" x2="980" y2="96"/>
+    <line x1="20" y1="128" x2="980" y2="128"/>
+    <line x1="20" y1="160" x2="980" y2="160"/>
+    <line x1="20" y1="192" x2="980" y2="192"/>
+  </g>
+  <rect class="s-soft" x="20" y="64" width="960" height="32"/>
+  <rect class="s-alt" x="20" y="128" width="960" height="32"/>
+
+  <text class="b mono s" x="30" y="80">PRIMARY</text>
+  <text class="b s" x="240" y="80">PRIMARY</text>
+  <text class="b mono s" x="360" y="80">`id`</text>
+  <text class="mut mono s" x="640" y="80">12480</text>
+  <text class="fnt s" x="760" y="80">—</text>
+
+  <text class="mono s" x="30" y="112">uniq_email</text>
+  <text class="s" x="240" y="112">UNIQUE</text>
+  <text class="mono s" x="360" y="112">`email`</text>
+  <text class="mut mono s" x="640" y="112">11902</text>
+  <text class="fnt s" x="760" y="112">—</text>
+
+  <text class="mono s" x="30" y="144">idx_status_created</text>
+  <text class="s" x="240" y="144">普通</text>
+  <text class="mono s" x="360" y="144">`status`, `created_at` desc</text>
+  <text class="mut mono s" x="640" y="144">4</text>
+  <text class="fnt s" x="760" y="144">列表页查询用</text>
+
+  <text class="mono s" x="30" y="176">ft_content</text>
+  <text class="s" x="240" y="176">全文</text>
+  <text class="mono s" x="360" y="176">`content`</text>
+  <text class="mut mono s" x="640" y="176">—</text>
+  <text class="fnt s" x="760" y="176">—</text>
+
+  <text class="fnt s" x="20" y="212">「基数」是估算的唯一值数量，用来判断索引有没有被真正用上。`desc` 的列会明确标注。</text>
+
+  <!-- 外键 -->
+  <text class="b s" x="20" y="256">外键</text>
+  <rect class="s-chrome2 ln" x="20" y="266" width="960" height="28"/>
+  <text class="mut s" x="30" y="280">约束名</text>
+  <text class="mut s" x="200" y="280">本表列</text>
+  <text class="mut s" x="330" y="280">引用表</text>
+  <text class="mut s" x="530" y="280">引用列</text>
+  <text class="mut s" x="680" y="280">删除时</text>
+  <text class="mut s" x="830" y="280">更新时</text>
+
+  <g class="ln">
+    <line x1="20" y1="294" x2="980" y2="294"/>
+    <line x1="20" y1="326" x2="980" y2="326"/>
+    <line x1="20" y1="358" x2="980" y2="358"/>
+  </g>
+  <rect class="s-alt" x="20" y="326" width="960" height="32"/>
+
+  <text class="mono s" x="30" y="310">fk_orders_user</text>
+  <text class="mono s" x="200" y="310">`user_id`</text>
+  <text class="acc mono s" x="330" y="310">app_dev.users</text>
+  <text class="mut mono s" x="530" y="310">`id`</text>
+  <text class="s" x="680" y="310">CASCADE</text>
+  <text class="s" x="830" y="310">RESTRICT</text>
+
+  <text class="mono s" x="30" y="342">fk_articles_author</text>
+  <text class="mono s" x="200" y="342">`author_id`</text>
+  <text class="acc mono s" x="330" y="342">app_dev.users</text>
+  <text class="mut mono s" x="530" y="342">`id`</text>
+  <text class="s" x="680" y="342">SET NULL</text>
+  <text class="s" x="830" y="342">NO ACTION</text>
+
+  <text class="fnt s" x="20" y="380">引用表的表名可以点击，直接跳到那张表。删除时有 CASCADE / SET NULL / RESTRICT / NO ACTION 四种。</text>
+</svg>
+<figcaption><b>图 7-2</b>　索引页与外键页。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>索引页字段</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>索引名</td><td></td></tr>
+<tr><td>类型</td><td><code>PRIMARY</code> / <code>UNIQUE</code> / <code>普通</code> / <code>全文</code> / <code>空间</code></td></tr>
+<tr><td>包含的列</td><td>按顺序列出，降序的列标注 <code>desc</code></td></tr>
+<tr><td>基数</td><td>估算的唯一值数量</td></tr>
+<tr><td>备注</td><td>索引注释</td></tr>
+</tbody>
+</table>
+
+<table>
+<thead><tr><th>外键页字段</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>约束名</td><td></td></tr>
+<tr><td>本表列</td><td></td></tr>
+<tr><td>引用表</td><td><code>库.表</code>，可点击跳转</td></tr>
+<tr><td>引用列</td><td></td></tr>
+<tr><td>删除时 / 更新时</td><td><code>CASCADE</code> / <code>SET NULL</code> / <code>RESTRICT</code> / <code>NO ACTION</code></td></tr>
+</tbody>
+</table>
+
+<h2>触发器与建表语句</h2>
+
+<figure>
+<svg viewBox="0 0 1000 432" role="img" aria-label="触发器页与建表语句页">
+  <title>结构视图：触发器与建表语句</title>
+
+  <!-- 触发器 -->
+  <text class="b s" x="20" y="26">触发器</text>
+  <rect class="s-chrome2 ln" x="20" y="36" width="960" height="28"/>
+  <text class="mut s" x="30" y="50">名称</text>
+  <text class="mut s" x="240" y="50">时机</text>
+  <text class="mut s" x="340" y="50">事件</text>
+  <text class="mut s" x="440" y="50">语句</text>
+
+  <line class="ln" x1="20" y1="64" x2="980" y2="64"/>
+  <line class="ln" x1="20" y1="152" x2="980" y2="152"/>
+
+  <text class="mono s" x="30" y="84">trg_users_ai</text>
+  <text class="s" x="240" y="84">AFTER</text>
+  <text class="s" x="340" y="84">INSERT</text>
+  <text class="mut s" x="440" y="84">▾ 展开</text>
+  <rect class="s-sunken ln" x="436" y="94" width="540" height="46" rx="6"/>
+  <text class="mono fnt s" x="448" y="110">BEGIN</text>
+  <text class="mono fnt s" x="448" y="130">　INSERT INTO audit_log …</text>
+
+  <text class="mono s" x="30" y="172">trg_users_bu</text>
+  <text class="s" x="240" y="172">BEFORE</text>
+  <text class="s" x="340" y="172">UPDATE</text>
+  <text class="mut s" x="440" y="172">▸ 多行折叠显示</text>
+
+  <text class="fnt s" x="20" y="204">触发器体默认折叠，点一下展开。触发器不可编辑，要看内容就展开，要改就手写 DDL。</text>
+
+  <!-- 建表语句 -->
+  <text class="b s" x="20" y="252">建表语句</text>
+  <rect class="s-field ln2" x="880" y="236" width="100" height="28" rx="6"/>
+  <text class="c s" x="930" y="250">复制</text>
+
+  <rect class="s-window ln" x="20" y="274" width="960" height="130" rx="8"/>
+  <text class="mono s" x="40" y="296"><tspan class="kw">CREATE TABLE</tspan> <tspan class="bqi">`users`</tspan> (</text>
+  <text class="mono s" x="40" y="316">　<tspan class="bqi">`id`</tspan> <tspan class="kw">int unsigned</tspan> <tspan class="kw">NOT NULL</tspan> <tspan class="kw">AUTO_INCREMENT</tspan>,</text>
+  <text class="mono s" x="40" y="336">　<tspan class="bqi">`name`</tspan> <tspan class="kw">varchar</tspan>(50) <tspan class="kw">NOT NULL</tspan> <tspan class="cmt">COMMENT</tspan> <tspan class="str">'显示名'</tspan>,</text>
+  <text class="mono s" x="40" y="356">　<tspan class="bqi">`email`</tspan> <tspan class="kw">varchar</tspan>(100) <tspan class="kw">DEFAULT NULL</tspan>,</text>
+  <text class="mono s" x="40" y="376">　<tspan class="kw">PRIMARY KEY</tspan> (<tspan class="bqi">`id`</tspan>), <tspan class="kw">UNIQUE KEY</tspan> <tspan class="bqi">`uniq_email`</tspan> (<tspan class="bqi">`email`</tspan>)</text>
+  <text class="mono s" x="40" y="396">) <tspan class="kw">ENGINE</tspan>=InnoDB <tspan class="kw">DEFAULT CHARSET</tspan>=utf8mb4;</text>
+
+  <text class="fnt s" x="20" y="418">如果当前对象是视图，这一页显示的是创建视图的语句。</text>
+</svg>
+<figcaption><b>图 7-3</b>　触发器页与建表语句页。建表语句用等宽字体 + 语法高亮。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>触发器页字段</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>名称</td><td></td></tr>
+<tr><td>时机</td><td><code>BEFORE</code> / <code>AFTER</code></td></tr>
+<tr><td>事件</td><td><code>INSERT</code> / <code>UPDATE</code> / <code>DELETE</code></td></tr>
+<tr><td>语句</td><td>触发器体，多行折叠显示，点击展开</td></tr>
+</tbody>
+</table>
+
+<h2>视图、函数、存储过程</h2>
+
+<p>不是所有对象都有五页。不同对象显示的内容不一样：</p>
+
+<table>
+<thead><tr><th>对象类型</th><th>显示的子页签</th></tr></thead>
+<tbody>
+<tr><td>表</td><td>列 / 索引 / 外键 / 触发器 / 建表语句（全部五页）</td></tr>
+<tr><td>视图</td><td>列 / 定义（两页）</td></tr>
+<tr><td>函数 / 存储过程</td><td>定义（一页），内容是完整定义语句</td></tr>
+</tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 1000 340" role="img" aria-label="函数的定义页">
+  <title>函数的定义页</title>
+
+  <rect class="s-chrome ln" x="20" y="20" width="960" height="34"/>
+  <text class="mut s" x="36" y="37">app_dev.sp_recalc</text>
+  <rect class="s-field ln2" x="740" y="26" width="80" height="24" rx="6"/>
+  <text class="c s" x="780" y="38">复制</text>
+  <rect class="s-field ln2" x="828" y="26" width="136" height="24" rx="6"/>
+  <text class="c s" x="896" y="38">在新查询标签中编辑</text>
+
+  <rect class="s-window ln" x="20" y="62" width="960" height="230"/>
+  <rect class="s-sunken" x="20" y="62" width="46" height="230"/>
+  <text class="fnt mono s r" x="56" y="84">1</text>
+  <text class="fnt mono s r" x="56" y="106">2</text>
+  <text class="fnt mono s r" x="56" y="128">3</text>
+  <text class="fnt mono s r" x="56" y="150">4</text>
+  <text class="fnt mono s r" x="56" y="172">5</text>
+  <text class="fnt mono s r" x="56" y="194">6</text>
+  <text class="fnt mono s r" x="56" y="216">7</text>
+
+  <text class="mono s" x="82" y="84"><tspan class="kw">CREATE PROCEDURE</tspan> <tspan class="bqi">`sp_recalc`</tspan>()</text>
+  <text class="mono s" x="82" y="106"><tspan class="kw">BEGIN</tspan></text>
+  <text class="mono s" x="82" y="128">　<tspan class="kw">UPDATE</tspan> <tspan class="bqi">`orders`</tspan></text>
+  <text class="mono s" x="82" y="150">　<tspan class="kw">SET</tspan> <tspan class="bqi">`total`</tspan> = (<tspan class="kw">SELECT</tspan> <tspan class="fnc">SUM</tspan>(<tspan class="bqi">`amount`</tspan>) …)</text>
+  <text class="mono s" x="82" y="172">　<tspan class="kw">WHERE</tspan> <tspan class="bqi">`status`</tspan> = <tspan class="str">'paid'</tspan>;</text>
+  <text class="mono s" x="82" y="194"><tspan class="kw">END</tspan></text>
+
+  <text class="fnt s" x="20" y="316">只读文本视图，用和查询编辑器同一套高亮。「在新查询标签中编辑」把定义原文填进一个新查询标签，你改完自己执行。</text>
+</svg>
+<figcaption><b>图 7-4</b>　函数 / 存储过程的定义页。</figcaption>
+</figure>
+
+<h2>结构可能过期时</h2>
+
+<p>
+  你在查询编辑器里执行了 DDL（比如 <code>ALTER TABLE ... ADD COLUMN</code>）之后，
+  已经打开的结构视图内容就不再可靠了。这时视图顶部会出现一条提示：
+</p>
+
+<figure class="plain">
+<svg viewBox="0 0 1000 80" role="img" aria-label="结构可能过期的提示条">
+  <title>过期提示条</title>
+  <rect class="s-yellow" x="20" y="18" width="960" height="40" rx="8" opacity="0.24"/>
+  <text class="warn s" x="40" y="38">这张表的结构可能已经改变（刚执行过 DDL），显示的内容可能不是最新的。</text>
+  <rect class="s-field ln2" x="820" y="24" width="80" height="28" rx="6"/>
+  <text class="c s" x="860" y="38">刷新</text>
+  <text class="fnt s" x="40" y="72">点「刷新」或者 ⌘R 重新读取。</text>
+</svg>
+<figcaption><b>图 7-5</b>　过期提示条。不自动刷新，避免在你正在看的时候列表跳动。</figcaption>
+</figure>
+
+<h2>明确不做</h2>
+
+<div class="callout danger">
+  <span class="tag">这一章的范围到此为止</span>
+  <ul>
+    <li>不在这里新增 / 修改 / 删除列、索引、外键、触发器</li>
+    <li>没有图形化的建表向导</li>
+    <li>没有表之间的 ER 关系图</li>
+    <li>没有数据字典导出、没有表结构对比（diff）</li>
+  </ul>
+  <p>这些都要手写 DDL，或者用专门的数据库设计工具。</p>
+</div>
+
+<div class="pager"></div>
+
+</main>
+</div>
+<script src="assets/manual.js"></script>
+</body>
+</html>

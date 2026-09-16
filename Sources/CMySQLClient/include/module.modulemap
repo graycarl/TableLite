@@ -1,0 +1,6 @@
+// 让 Swift 侧可以 `import CMySQLClient`。
+// 该文件必须与公开头文件同目录，且该目录在 HEADER_SEARCH_PATHS 里。
+module CMySQLClient {
+    header "CMySQLClient.h"
+    export *
+}

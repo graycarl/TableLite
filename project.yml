@@ -1,0 +1,125 @@
+name: TableLite
+
+options:
+  bundleIdPrefix: com.graycarl
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    DEAD_CODE_STRIPPING: YES
+    ALWAYS_SEARCH_USER_PATHS: NO
+    CLANG_ENABLE_OBJC_ARC: YES
+
+targets:
+  # ---------------------------------------------------------------
+  # libmysqlclient 的薄 C 封装层。
+  # 只编译，不链接 libmysqlclient —— 链接由 App target 完成。
+  #
+  # Swift 侧通过 `import CMySQLClient` 使用：
+  #   Sources/CMySQLClient/include/module.modulemap 把公开头文件暴露成模块，
+  #   两个 target 的 HEADER_SEARCH_PATHS 都指向该目录。
+  # ---------------------------------------------------------------
+  CMySQLClient:
+    type: library.static
+    platform: macOS
+    sources:
+      - path: Sources/CMySQLClient
+    settings:
+      base:
+        GCC_C_LANGUAGE_STANDARD: gnu11
+        GCC_WARN_ABOUT_RETURN_TYPE: YES
+        GCC_WARN_UNINITIALIZED_AUTOS: YES
+        CLANG_WARN_DOCUMENTATION_COMMENTS: NO
+        HEADER_SEARCH_PATHS:
+          - $(SRCROOT)/Sources/CMySQLClient/include
+          - $(MYSQL_CLIENT_PREFIX)/include/mysql
+        PUBLIC_HEADERS_FOLDER_PATH: include
+        SKIP_INSTALL: YES
+
+  # ---------------------------------------------------------------
+  # 应用本体
+  # ---------------------------------------------------------------
+  TableLite:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/TableLite
+    dependencies:
+      - target: CMySQLClient
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.graycarl.tablelite
+        PRODUCT_NAME: TableLite
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Sources/TableLite/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/TableLite/Resources/TableLite.entitlements
+
+        # 自用工具：本地 ad-hoc 签名，不公证，不开沙箱
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        DEVELOPMENT_TEAM: ""
+        PROVISIONING_PROFILE_SPECIFIER: ""
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: NO
+
+        HEADER_SEARCH_PATHS:
+          - $(SRCROOT)/Sources/CMySQLClient/include
+          - $(MYSQL_CLIENT_PREFIX)/include/mysql
+        LIBRARY_SEARCH_PATHS:
+          - $(MYSQL_CLIENT_PREFIX)/lib
+          - $(OPENSSL_PREFIX)/lib
+          - $(ZSTD_PREFIX)/lib
+        OTHER_LDFLAGS: $(inherited) -lmysqlclient -lssl -lcrypto -lz -lzstd -lresolv
+        LD_RUNPATH_SEARCH_PATHS:
+          - $(inherited)
+          - $(MYSQL_CLIENT_PREFIX)/lib
+          - $(OPENSSL_PREFIX)/lib
+          - $(ZSTD_PREFIX)/lib
+
+  # ---------------------------------------------------------------
+  # 单元测试
+  # ---------------------------------------------------------------
+  TableLiteTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/TableLiteTests
+    dependencies:
+      - target: TableLite
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/TableLite.app/Contents/MacOS/TableLite
+
+schemes:
+  TableLite:
+    build:
+      targets:
+        TableLite: all
+        CMySQLClient: all
+        TableLiteTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - TableLiteTests
+    archive:
+      config: Release
+
+# 机器相关路径放在不进版本控制的 xcconfig 里（由 make deps 生成）
+configFiles:
+  Debug: Configs/Local.xcconfig
+  Release: Configs/Local.xcconfig

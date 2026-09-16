@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12 · 快捷键总表 — TableLite 使用说明书</title>
+<link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <!-- 下面这段是无脚本时的兜底导航；有脚本时会被 manual.js 重新生成并标出当前页 -->
+  <div class="brand"><b>TableLite</b><span>使用说明书</span></div>
+  <div class="sub">macOS 原生 MySQL / MariaDB 客户端</div>
+  <ol>
+      <li><a href="index.html"><span class="n">·</span><span>说明书首页</span></a></li>
+      <li><a href="01-connections.html"><span class="n">01</span><span>连接</span></a></li>
+      <li><a href="02-workspace.html"><span class="n">02</span><span>界面结构</span></a></li>
+      <li><a href="03-data-browsing.html"><span class="n">03</span><span>浏览表数据</span></a></li>
+      <li><a href="04-data-editing.html"><span class="n">04</span><span>编辑数据</span></a></li>
+      <li><a href="05-filtering.html"><span class="n">05</span><span>过滤器</span></a></li>
+      <li><a href="06-query-editor.html"><span class="n">06</span><span>查询编辑器</span></a></li>
+      <li><a href="07-schema-view.html"><span class="n">07</span><span>表结构视图</span></a></li>
+      <li><a href="08-import-export.html"><span class="n">08</span><span>导入与导出</span></a></li>
+      <li><a href="09-readonly.html"><span class="n">09</span><span>只读模式</span></a></li>
+      <li><a href="10-ssh-tunnel.html"><span class="n">10</span><span>SSH 隧道</span></a></li>
+      <li><a href="11-preferences.html"><span class="n">11</span><span>偏好设置</span></a></li>
+      <li><a href="12-shortcuts.html"><span class="n">12</span><span>快捷键总表</span></a></li>
+      <li><a href="13-feedback.html"><span class="n">13</span><span>提示与错误</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1><span class="chapter">第 12 章</span>快捷键总表</h1>
+<p class="lede">
+  快捷键尽量沿用 TablePlus 的习惯，减少肌肉记忆冲突。
+  这一章是速查表，可以当参考手册随时翻。
+</p>
+
+<h2>最常用的八个</h2>
+
+<figure>
+<svg viewBox="0 0 1000 360" role="img" aria-label="最常用快捷键的键位示意">
+  <title>最常用的快捷键</title>
+
+  <g>
+    <rect class="s-field ln2" x="24" y="30" width="86" height="34" rx="7"/>
+    <text class="c b s" x="67" y="47">⌘↩</text>
+    <text class="b s" x="24" y="84">执行</text>
+    <text class="fnt s" x="24" y="104">跑光标所在语句</text>
+  </g>
+
+  <g>
+    <rect class="s-field ln2" x="146" y="30" width="86" height="34" rx="7"/>
+    <text class="c b s" x="189" y="47">⇧⌘↩</text>
+    <text class="b s" x="146" y="84">执行全部</text>
+    <text class="fnt s" x="146" y="104">跑整个脚本</text>
+  </g>
+
+  <g>
+    <rect class="s-field ln2" x="268" y="30" width="86" height="34" rx="7"/>
+    <text class="c b s" x="311" y="47">⌘.</text>
+    <text class="b s" x="268" y="84">停止</text>
+    <text class="fnt s" x="268" y="104">中止正在跑的查询</text>
+  </g>
+
+  <g>
+    <rect class="s-accent" x="390" y="30" width="86" height="34" rx="7"/>
+    <text class="c b s" x="433" y="47" fill="#fff">⌘S</text>
+    <text class="b s" x="390" y="84">提交修改</text>
+    <text class="fnt s" x="390" y="104">把暂存区的改动写库</text>
+  </g>
+
+  <g>
+    <rect class="s-field ln2" x="512" y="30" width="86" height="34" rx="7"/>
+    <text class="c b s" x="555" y="47">⇧⌘P</text>
+    <text class="b s" x="512" y="84">预览 SQL</text>
+    <text class="fnt s" x="512" y="104">看将要执行什么</text>
+  </g>
+
+  <g>
+    <rect class="s-field ln2" x="634" y="30" width="86" height="34" rx="7"/>
+    <text class="c b s" x="677" y="47">⇧⌘⌫</text>
+    <text class="b s" x="634" y="84">放弃改动</text>
+    <text class="fnt s" x="634" y="104">清空暂存区</text>
+  </g>
+
+  <g>
+    <rect class="s-field ln2" x="756" y="30" width="86" height="34" rx="7"/>
+    <text class="c b s" x="799" y="47">⌘F</text>
+    <text class="b s" x="756" y="84">筛选</text>
+    <text class="fnt s" x="756" y="104">打开行过滤器</text>
+  </g>
+
+  <g>
+    <rect class="s-field ln2" x="878" y="30" width="98" height="34" rx="7"/>
+    <text class="c b s" x="927" y="47">⌘R</text>
+    <text class="b s" x="878" y="84">刷新</text>
+    <text class="fnt s" x="878" y="104">重载数据与对象树</text>
+  </g>
+
+  <!-- 键盘示意 -->
+  <text class="fnt s" x="24" y="164">修饰键在键盘上的位置：</text>
+
+  <rect class="s-chrome2 ln2" x="24" y="182" width="70" height="34" rx="7"/>
+  <text class="c s" x="59" y="199">fn</text>
+  <rect class="s-chrome2 ln2" x="102" y="182" width="70" height="34" rx="7"/>
+  <text class="c s" x="137" y="199">control</text>
+  <text class="c s" x="137" y="212">⌃</text>
+  <rect class="s-field ln2" x="180" y="182" width="70" height="34" rx="7"/>
+  <text class="c s" x="215" y="199">option</text>
+  <text class="c s" x="215" y="212">⌥</text>
+  <rect class="s-accent" x="258" y="182" width="70" height="34" rx="7"/>
+  <text class="c s" x="293" y="199" fill="#fff">command</text>
+  <text class="c s" x="293" y="212" fill="#fff">⌘</text>
+  <rect class="s-chrome2 ln2" x="336" y="182" width="90" height="34" rx="7"/>
+  <text class="c s" x="381" y="199">空格</text>
+
+  <text class="fnt s" x="450" y="192">⌘ 是主力修饰键。⌥ 只用在列过滤器（⌥⌘F）。</text>
+  <text class="fnt s" x="450" y="212">⌃ 只用在显示 / 隐藏左侧栏（⌃⌘S）。</text>
+
+  <!-- 导航键 -->
+  <text class="fnt s" x="24" y="264">网格导航：</text>
+  <rect class="s-field ln2" x="120" y="248" width="34" height="32" rx="6"/>
+  <text class="c s" x="137" y="264">↑</text>
+  <rect class="s-field ln2" x="156" y="248" width="34" height="32" rx="6"/>
+  <text class="c s" x="173" y="264">↓</text>
+  <rect class="s-field ln2" x="192" y="248" width="34" height="32" rx="6"/>
+  <text class="c s" x="209" y="264">←</text>
+  <rect class="s-field ln2" x="228" y="248" width="34" height="32" rx="6"/>
+  <text class="c s" x="245" y="264">→</text>
+  <text class="mut s" x="274" y="264">移动选中单元格</text>
+
+  <rect class="s-field ln2" x="400" y="248" width="60" height="32" rx="6"/>
+  <text class="c s" x="430" y="264">⌘← →</text>
+  <text class="mut s" x="470" y="264">首列 / 末列</text>
+
+  <rect class="s-field ln2" x="570" y="248" width="60" height="32" rx="6"/>
+  <text class="c s" x="600" y="264">⌘↑ ↓</text>
+  <text class="mut s" x="640" y="264">当前页首行 / 末行</text>
+
+  <rect class="s-field ln2" x="800" y="248" width="60" height="32" rx="6"/>
+  <text class="c s" x="830" y="264">⌘1…9</text>
+  <text class="mut s" x="870" y="264">跳到第 N 个标签</text>
+
+  <text class="fnt s" x="24" y="316">⌘↑ / ⌘↓ 只跳到<tspan style="font-weight:600">当前页</tspan>的首末行，不是整张表的——因为后面的行还没加载。</text>
+</svg>
+<figcaption><b>图 12-1</b>　最常用的八个快捷键，以及修饰键和导航键的位置。</figcaption>
+</figure>
+
+<h2>通用</h2>
+
+<table>
+<thead><tr><th>快捷键</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td><kbd>⌘N</kbd></td><td>新建连接</td></tr>
+<tr><td><kbd>⌘T</kbd></td><td>新建查询标签</td></tr>
+<tr><td><kbd>⌘W</kbd></td><td>关闭当前标签</td></tr>
+<tr><td><kbd>⌘,</kbd></td><td>偏好设置</td></tr>
+<tr><td><kbd>⌃⌘S</kbd></td><td>显示 / 隐藏左侧栏</td></tr>
+<tr><td><kbd>⇧⌘C</kbd></td><td>显示 / 隐藏 Console Log</td></tr>
+<tr><td><kbd>⌘[</kbd> / <kbd>⌘]</kbd></td><td>上一个 / 下一个标签</td></tr>
+<tr><td><kbd>⌘1</kbd> … <kbd>⌘9</kbd></td><td>跳到第 N 个标签</td></tr>
+<tr><td><kbd>⌘K</kbd></td><td>切换数据库</td></tr>
+<tr><td><kbd>⌘R</kbd></td><td>刷新当前标签的数据 + 对象树</td></tr>
+<tr><td><kbd>⌘O</kbd></td><td>打开脚本文件</td></tr>
+<tr><td><kbd>⇧⌘S</kbd></td><td>脚本另存为</td></tr>
+<tr><td><kbd>⇧⌘I</kbd></td><td>导入 CSV</td></tr>
+<tr><td><kbd>⇧⌘E</kbd></td><td>导出</td></tr>
+</tbody>
+</table>
+
+<h2>连接</h2>
+
+<table>
+<thead><tr><th>快捷键</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td><kbd>⇧⌘R</kbd></td><td>重新连接</td></tr>
+<tr><td><kbd>⇧⌘D</kbd></td><td>断开连接</td></tr>
+</tbody>
+</table>
+
+<h2>表数据</h2>
+
+<table>
+<thead><tr><th>快捷键</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td><kbd>⌘S</kbd> / <kbd>⌘↩</kbd></td><td>提交修改</td></tr>
+<tr><td><kbd>⇧⌘P</kbd></td><td>预览将要执行的 SQL</td></tr>
+<tr><td><kbd>⇧⌘⌫</kbd></td><td>放弃全部未提交的修改</td></tr>
+<tr><td><kbd>⌘F</kbd></td><td>打开 / 关闭行过滤器</td></tr>
+<tr><td><kbd>⌥⌘F</kbd></td><td>打开 / 关闭列过滤器</td></tr>
+<tr><td><kbd>⌘I</kbd></td><td>插入新行</td></tr>
+<tr><td><kbd>⌘D</kbd></td><td>复制选中的行</td></tr>
+<tr><td><kbd>⌫</kbd></td><td>删除选中的行（进入暂存）</td></tr>
+<tr><td><kbd>⌘C</kbd> / <kbd>⌘V</kbd></td><td>复制 / 粘贴</td></tr>
+<tr><td><kbd>↩</kbd> 或双击</td><td>进入单元格编辑</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>取消单元格编辑 / 关闭过滤器面板</td></tr>
+<tr><td><kbd>Tab</kbd> / <kbd>⇧Tab</kbd></td><td>编辑中移到下一个 / 上一个单元格</td></tr>
+<tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></td><td>移动选中的单元格</td></tr>
+<tr><td><kbd>⌘←</kbd> / <kbd>⌘→</kbd></td><td>跳到首列 / 末列</td></tr>
+<tr><td><kbd>⌘↑</kbd> / <kbd>⌘↓</kbd></td><td>跳到首行 / 末行（当前页内）</td></tr>
+<tr><td><kbd>Space</kbd> 或中键点击</td><td>快速查看</td></tr>
+<tr><td><kbd>⌘=</kbd> / <kbd>⌘-</kbd></td><td>增大 / 减小字号</td></tr>
+</tbody>
+</table>
+
+<h2>查询编辑器</h2>
+
+<table>
+<thead><tr><th>快捷键</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td><kbd>⌘↩</kbd></td><td>执行光标所在语句（有选中时执行选中部分）</td></tr>
+<tr><td><kbd>⇧⌘↩</kbd></td><td>执行全部</td></tr>
+<tr><td><kbd>⌘.</kbd></td><td>停止执行</td></tr>
+<tr><td><kbd>⌘/</kbd></td><td>注释 / 取消注释</td></tr>
+<tr><td><kbd>⌘O</kbd></td><td>打开脚本文件</td></tr>
+<tr><td><kbd>⇧⌘S</kbd></td><td>脚本另存为</td></tr>
+<tr><td><kbd>⌘F</kbd></td><td>查找</td></tr>
+<tr><td><kbd>⌘Z</kbd> / <kbd>⇧⌘Z</kbd></td><td>撤销 / 重做</td></tr>
+</tbody>
+</table>
+
+<h2>过滤器</h2>
+
+<table>
+<thead><tr><th>快捷键</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td><kbd>⌘I</kbd></td><td>添加一条过滤条件</td></tr>
+<tr><td><kbd>⇧⌘I</kbd></td><td>删除当前这条过滤条件</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>关闭过滤器面板（条件保留）</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+  <span class="tag">⌘I 在两种上下文里意思不同</span>
+  <p>
+    在<b>数据网格</b>里 <kbd>⌘I</kbd> 是「插入新行」；在<b>过滤器面板</b>里是「添加一条过滤条件」。
+    面板打开时 ⌘I 归面板管，关掉面板才轮到网格。
+  </p>
+</div>
+
+<h2>快捷键冲突时怎么办</h2>
+
+<p>TableLite 不提供快捷键自定义（Keymap），这是刻意的决定。如果某个键和你的系统或别的软件冲突：</p>
+
+<ul>
+  <li>菜单栏里的每一项都写着对应的快捷键，可以从菜单点，行为完全一样。</li>
+  <li>数据网格和编辑器里的右键菜单覆盖了绝大多数操作。</li>
+  <li>系统偏好「键盘 → 快捷键」里可以看到并调整 macOS 层面的冲突。</li>
+</ul>
+
+<div class="pager"></div>
+
+</main>
+</div>
+<script src="assets/manual.js"></script>
+</body>
+</html>

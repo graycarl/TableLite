@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08 · 导入与导出 — TableLite 使用说明书</title>
+<link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <!-- 下面这段是无脚本时的兜底导航；有脚本时会被 manual.js 重新生成并标出当前页 -->
+  <div class="brand"><b>TableLite</b><span>使用说明书</span></div>
+  <div class="sub">macOS 原生 MySQL / MariaDB 客户端</div>
+  <ol>
+      <li><a href="index.html"><span class="n">·</span><span>说明书首页</span></a></li>
+      <li><a href="01-connections.html"><span class="n">01</span><span>连接</span></a></li>
+      <li><a href="02-workspace.html"><span class="n">02</span><span>界面结构</span></a></li>
+      <li><a href="03-data-browsing.html"><span class="n">03</span><span>浏览表数据</span></a></li>
+      <li><a href="04-data-editing.html"><span class="n">04</span><span>编辑数据</span></a></li>
+      <li><a href="05-filtering.html"><span class="n">05</span><span>过滤器</span></a></li>
+      <li><a href="06-query-editor.html"><span class="n">06</span><span>查询编辑器</span></a></li>
+      <li><a href="07-schema-view.html"><span class="n">07</span><span>表结构视图</span></a></li>
+      <li><a href="08-import-export.html"><span class="n">08</span><span>导入与导出</span></a></li>
+      <li><a href="09-readonly.html"><span class="n">09</span><span>只读模式</span></a></li>
+      <li><a href="10-ssh-tunnel.html"><span class="n">10</span><span>SSH 隧道</span></a></li>
+      <li><a href="11-preferences.html"><span class="n">11</span><span>偏好设置</span></a></li>
+      <li><a href="12-shortcuts.html"><span class="n">12</span><span>快捷键总表</span></a></li>
+      <li><a href="13-feedback.html"><span class="n">13</span><span>提示与错误</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1><span class="chapter">第 08 章</span>导入与导出</h1>
+<p class="lede">
+  导出支持 CSV / JSON / SQL INSERT 三种格式；导入只支持 CSV。
+  两个操作都在后台做，大表也不会把界面卡住。
+</p>
+
+<h2>导出</h2>
+
+<h3>四个入口</h3>
+
+<table>
+<thead><tr><th>入口</th><th>导出的内容</th></tr></thead>
+<tbody>
+<tr><td>对象树右键表 → <code>导出…</code></td><td>整张表，没有过滤条件</td></tr>
+<tr><td>数据视图状态栏 <code>导出…</code></td><td>当前<b>过滤条件下</b>的全部数据（不是只导当前页）</td></tr>
+<tr><td>查询结果标签右键 → <code>导出结果…</code></td><td>该结果集的全部行</td></tr>
+<tr><td>右键选中行 → <code>导出选中行…</code></td><td>仅选中的那些行</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+  <span class="tag">注意导的是「全部」不是「当前页」</span>
+  <p>
+    在数据视图里点导出，导出的是<b>满足当前过滤条件的全部行</b>，
+    而不是你眼前这一页的 300 行。导出面板的顶部会明确写出这一点，例如
+    <code>（应用了过滤条件：status = 'published'，共约 12,480 行）</code>。
+  </p>
+</div>
+
+<h3>导出面板</h3>
+
+<figure>
+<svg viewBox="0 0 1000 620" role="img" aria-label="导出面板">
+  <title>导出面板</title>
+
+  <rect class="s-window ln2" x="40" y="16" width="920" height="588" rx="12"/>
+  <text class="b" x="68" y="46">导出</text>
+  <line class="ln" x1="40" y1="62" x2="960" y2="62"/>
+
+  <text x="68" y="88">源：</text>
+  <text class="mono" x="112" y="88">app_dev.articles</text>
+  <rect class="s-soft" x="68" y="102" width="864" height="30" rx="6"/>
+  <text class="s" x="84" y="117">应用了过滤条件：status = 'published'，共约 12,480 行</text>
+
+  <!-- 格式 -->
+  <text x="68" y="164">格式</text>
+  <circle class="s-field ln2" cx="128" cy="164" r="8"/>
+  <circle class="s-accent" cx="128" cy="164" r="4.5"/>
+  <text x="146" y="164">CSV</text>
+  <circle class="s-field ln2" cx="220" cy="164" r="8"/>
+  <text x="238" y="164">JSON</text>
+  <circle class="s-field ln2" cx="330" cy="164" r="8"/>
+  <text x="348" y="164">SQL INSERT</text>
+
+  <!-- CSV 选项 -->
+  <rect class="s-sunken ln" x="68" y="184" width="864" height="216" rx="9"/>
+  <text class="b s" x="88" y="206">CSV 选项</text>
+  <line class="ln" x1="68" y1="220" x2="932" y2="220"/>
+
+  <text x="88" y="246">分隔符</text>
+  <rect class="s-field ln2" x="220" y="232" width="120" height="28" rx="6"/>
+  <text x="232" y="246">,</text>
+  <text class="mut s" x="316" y="246">▾</text>
+  <text class="fnt s" x="360" y="246">逗号 / 制表符 / 分号</text>
+
+  <text x="88" y="288">换行符</text>
+  <rect class="s-field ln2" x="220" y="274" width="120" height="28" rx="6"/>
+  <text class="mono" x="232" y="288">\n</text>
+  <text class="mut s" x="316" y="288">▾</text>
+  <text class="fnt s" x="360" y="288">LF / CRLF</text>
+
+  <rect class="s-accent" x="88" y="312" width="16" height="16" rx="4"/>
+  <path d="M91 319 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="114" y="321">包含表头</text>
+
+  <text x="88" y="366">文本编码</text>
+  <rect class="s-field ln2" x="220" y="352" width="160" height="28" rx="6"/>
+  <text x="232" y="366">UTF-8</text>
+  <text class="mut s" x="356" y="366">▾</text>
+  <text class="fnt s" x="400" y="366">UTF-8 / UTF-8 BOM</text>
+
+  <text x="88" y="400">NULL 表示</text>
+  <rect class="s-field ln2" x="220" y="386" width="160" height="28" rx="6"/>
+  <text x="232" y="400">空字符串</text>
+  <text class="mut s" x="356" y="400">▾</text>
+  <text class="fnt s" x="400" y="400">空字符串 / NULL 字面量</text>
+
+  <text class="mut" x="500" y="246">日期格式</text>
+  <rect class="s-field ln2" x="620" y="232" width="160" height="28" rx="6"/>
+  <text x="632" y="246">原样输出</text>
+  <text class="mut s" x="756" y="246">▾</text>
+
+  <text class="fnt s" x="500" y="288">换一种格式时，这一整块选项会换成对应的选项。</text>
+  <text class="fnt s" x="500" y="308">选 JSON 时出现「扁平 / 嵌套」「美化」；</text>
+  <text class="fnt s" x="500" y="328">选 SQL 时出现「每条插入行数」「包含 CREATE TABLE」。</text>
+
+  <!-- 后台导出 -->
+  <rect class="s-accent" x="88" y="426" width="16" height="16" rx="4"/>
+  <path d="M91 433 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="114" y="435">后台导出，完成后通知我</text>
+  <text class="fnt s" x="330" y="435">打开后可以切到别的标签继续干活</text>
+
+  <!-- 保存路径 -->
+  <line class="ln" x1="68" y1="466" x2="932" y2="466"/>
+  <text x="68" y="494">保存到</text>
+  <rect class="s-field ln2" x="140" y="480" width="620" height="30" rx="6"/>
+  <text class="mono mut" x="154" y="495">~/Downloads/articles.csv</text>
+  <rect class="s-field ln2" x="772" y="480" width="90" height="30" rx="6"/>
+  <text class="c s" x="817" y="495">选择…</text>
+
+  <!-- 按钮 -->
+  <line class="ln" x1="40" y1="536" x2="960" y2="536"/>
+  <rect class="s-field ln2" x="68" y="556" width="90" height="32" rx="6"/>
+  <text class="c s" x="113" y="572">取消</text>
+  <rect class="s-accent" x="826" y="556" width="106" height="32" rx="6"/>
+  <text class="c s" x="879" y="572" fill="#fff">导出</text>
+
+  <!-- 热点 -->
+  <g class="hot" data-hot="1"><circle cx="50" cy="102" r="11"/><text x="50" y="102">1</text></g>
+  <g class="hot" data-hot="2"><circle cx="200" cy="164" r="11"/><text x="200" y="164">2</text></g>
+  <g class="hot" data-hot="3"><circle cx="60" cy="184" r="11"/><text x="60" y="184">3</text></g>
+  <g class="hot" data-hot="4"><circle cx="942" cy="320" r="11"/><text x="942" y="320">4</text></g>
+  <g class="hot" data-hot="5"><circle cx="60" cy="426" r="11"/><text x="60" y="426">5</text></g>
+  <g class="hot" data-hot="6"><circle cx="942" cy="495" r="11"/><text x="942" y="495">6</text></g>
+  <g class="hot" data-hot="7"><circle cx="879" cy="556" r="11"/><text x="879" y="556">7</text></g>
+</svg>
+<figcaption><b>图 8-1</b>　导出面板。选项区会随格式切换。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>区域</th><th>说明</th></tr></thead>
+<tbody>
+<tr data-hot="1"><td class="num">1</td><td class="wide">源信息</td>
+  <td>明确写出导的是哪张表、有没有过滤条件、大约多少行。这里的信息是防止「以为导了全表结果只导了一部分」的关键。</td></tr>
+<tr data-hot="2"><td class="num">2</td><td class="wide">格式</td>
+  <td>三选一：CSV / JSON / SQL INSERT。切换会换掉下面的选项区。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">格式选项</td>
+  <td>见下方「三种格式各自的选项」。</td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">选项说明</td>
+  <td>灰色小字解释每个选项，不用去查文档。</td></tr>
+<tr data-hot="5"><td class="num">5</td><td class="wide">后台导出</td>
+  <td>勾上后导出在后台跑，状态栏显示进度，你可以切到别的标签继续工作；完成后给一个轻提示，附「在 Finder 中显示」按钮。</td></tr>
+<tr data-hot="6"><td class="num">6</td><td class="wide">保存路径</td>
+  <td>默认落在 <code>~/Downloads</code>，文件名按表名自动取。点「选择…」改路径。</td></tr>
+<tr data-hot="7"><td class="num">7</td><td class="wide">导出按钮</td>
+  <td>开始导出。导出过程中按钮变成「取消」，随时可以停。</td></tr>
+</tbody>
+</table>
+
+<h3>三种格式各自的选项</h3>
+
+<figure>
+<svg viewBox="0 0 1000 420" role="img" aria-label="三种导出格式的选项">
+  <title>三种导出格式</title>
+
+  <!-- CSV -->
+  <rect class="s-sunken ln" x="16" y="20" width="312" height="330" rx="9"/>
+  <text class="b s" x="36" y="44">CSV</text>
+  <line class="ln" x1="16" y1="58" x2="328" y2="58"/>
+  <text class="s" x="36" y="82">分隔符　　, / ⇥ / ;</text>
+  <text class="s" x="36" y="110">换行符　　LF / CRLF</text>
+  <text class="s" x="36" y="138">包含表头　是 / 否</text>
+  <text class="s" x="36" y="166">文本编码　UTF-8 / UTF-8 BOM</text>
+  <text class="s" x="36" y="194">NULL 表示　空字符串 / NULL</text>
+  <text class="s" x="36" y="222">日期格式　原样 / 自定义</text>
+  <line class="ln" x1="16" y1="242" x2="328" y2="242"/>
+  <text class="fnt s" x="36" y="264">含特殊字符（分隔符、引号、换行）的</text>
+  <text class="fnt s" x="36" y="284">字段用双引号包起来，内部的双引号</text>
+  <text class="fnt s" x="36" y="304">转义成两个双引号。</text>
+  <text class="fnt s" x="36" y="330">NULL 与空字符串默认能区分开。</text>
+
+  <!-- JSON -->
+  <rect class="s-sunken ln" x="344" y="20" width="312" height="330" rx="9"/>
+  <text class="b s" x="364" y="44">JSON</text>
+  <line class="ln" x1="344" y1="58" x2="656" y2="58"/>
+  <text class="s" x="364" y="82">结构　　　扁平 / 嵌套</text>
+  <text class="s" x="364" y="110">美化　　　是 / 否</text>
+  <text class="s" x="364" y="138">缩进　　　2 空格</text>
+  <line class="ln" x1="344" y1="158" x2="656" y2="158"/>
+  <text class="fnt s" x="364" y="180">输出一个对象数组。数字列输出为数字，</text>
+  <text class="fnt s" x="364" y="200">其余为字符串，NULL 为 null。</text>
+  <text class="fnt s" x="364" y="220">默认扁平、默认美化。</text>
+  <rect class="s-window ln" x="364" y="240" width="272" height="94" rx="6"/>
+  <text class="mono s" x="376" y="258">[</text>
+  <text class="mono s" x="376" y="276">　{ &quot;id&quot;: 1, &quot;name&quot;: &quot;张三&quot; },</text>
+  <text class="mono s" x="376" y="294">　{ &quot;id&quot;: 2, &quot;name&quot;: null }</text>
+  <text class="mono s" x="376" y="312">]</text>
+
+  <!-- SQL -->
+  <rect class="s-sunken ln" x="672" y="20" width="312" height="330" rx="9"/>
+  <text class="b s" x="692" y="44">SQL INSERT</text>
+  <line class="ln" x1="672" y1="58" x2="984" y2="58"/>
+  <text class="s" x="692" y="82">每条插入行数　1 / 100 / 500…</text>
+  <text class="s" x="692" y="110">包含 CREATE TABLE　是 / 否</text>
+  <text class="s" x="692" y="138">目标表名　　　是 / 否</text>
+  <line class="ln" x1="672" y1="158" x2="984" y2="158"/>
+  <text class="fnt s" x="692" y="180">值一律用安全的字面量形式，</text>
+  <text class="fnt s" x="692" y="200">二进制内容输出成十六进制。</text>
+  <rect class="s-window ln" x="692" y="220" width="272" height="114" rx="6"/>
+  <text class="mono s" x="704" y="240">INSERT INTO `app_dev`.`users`</text>
+  <text class="mono s" x="704" y="258">　(`id`,`name`,`email`)</text>
+  <text class="mono s" x="704" y="276">VALUES</text>
+  <text class="mono s" x="704" y="294">　(1,'张三','zs@example.com'),</text>
+  <text class="mono s" x="704" y="312">　(2,'李四','ls@example.com');</text>
+
+  <text class="fnt s" x="16" y="380">三种格式都可以随时取消。取消后已经写入的部分会保留，并明确告诉你这是一个不完整的文件。</text>
+  <text class="fnt s" x="16" y="404">大表导出不会一次性把所有数据读进内存，是一边从服务器读一边写文件。</text>
+</svg>
+<figcaption><b>图 8-2</b>　三种格式的选项与输出样子。</figcaption>
+</figure>
+
+<h3>导出过程中</h3>
+
+<ul>
+  <li>导出在后台进行，大表导出时可以在其他标签继续工作。</li>
+  <li>状态栏显示进度：<code>正在导出… 已写入 129,480 行（24.1 MB）</code>。</li>
+  <li>可以随时取消；取消后已写入的部分会保留，并提示这是不完整的文件。</li>
+  <li>完成后通知：<code>导出完成：129,480 行 → ~/Downloads/articles.csv</code>。</li>
+</ul>
+
+<h3>导出出错时</h3>
+
+<table>
+<thead><tr><th>情况</th><th>提示</th></tr></thead>
+<tbody>
+<tr><td>导出途中连接断开</td><td>「导出中断，文件不完整」，保留已写内容</td></tr>
+<tr><td>目标文件不可写</td><td>提示具体原因（权限、磁盘空间、路径不存在）</td></tr>
+<tr><td>目标文件已存在</td><td>询问是否覆盖</td></tr>
+</tbody>
+</table>
+
+<h2>CSV 导入</h2>
+
+<p>入口有两个：菜单「文件 → 导入 CSV…」（<kbd>⇧⌘I</kbd>），或者对象树右键表 → <code>导入 CSV…</code>。整个流程分三步。</p>
+
+<h3>第一步：选文件与解析选项</h3>
+
+<figure>
+<svg viewBox="0 0 1000 420" role="img" aria-label="导入向导第一步">
+  <title>导入 CSV（1/3）</title>
+
+  <rect class="s-window ln2" x="60" y="16" width="880" height="388" rx="12"/>
+  <text class="b" x="88" y="46">导入 CSV（1/3）</text>
+  <line class="ln" x1="60" y1="62" x2="940" y2="62"/>
+
+  <text x="88" y="90">文件</text>
+  <rect class="s-field ln2" x="136" y="76" width="600" height="30" rx="6"/>
+  <text class="mono mut" x="150" y="91">~/Downloads/users.csv</text>
+  <rect class="s-field ln2" x="748" y="76" width="90" height="30" rx="6"/>
+  <text class="c s" x="793" y="91">选择…</text>
+
+  <text class="b s" x="88" y="128">预览（前 20 行）</text>
+  <rect class="s-window ln" x="88" y="140" width="824" height="120" rx="7"/>
+  <rect class="s-chrome2" x="88" y="140" width="824" height="26"/>
+  <text class="mut s" x="102" y="153">id</text>
+  <text class="mut s" x="182" y="153">name</text>
+  <text class="mut s" x="302" y="153">email</text>
+  <text class="mut s" x="502" y="153">created_at</text>
+  <g class="ln">
+    <line x1="88" y1="166" x2="912" y2="166"/>
+    <line x1="88" y1="192" x2="912" y2="192"/>
+    <line x1="88" y1="218" x2="912" y2="218"/>
+    <line x1="170" y1="140" x2="170" y2="260"/>
+    <line x1="290" y1="140" x2="290" y2="260"/>
+    <line x1="490" y1="140" x2="490" y2="260"/>
+  </g>
+  <rect class="s-alt" x="88" y="192" width="824" height="26"/>
+  <text class="s" x="102" y="179">1</text><text class="s" x="182" y="179">张三</text>
+  <text class="mut s" x="302" y="179">zs@example.com</text>
+  <text class="mut s" x="502" y="179">2025-01-01 10:00:00</text>
+  <text class="s" x="102" y="205">2</text><text class="s" x="182" y="205">李四</text>
+  <text class="mut s" x="302" y="205">ls@example.com</text>
+  <text class="mut s" x="502" y="205">2025-01-02 11:00:00</text>
+  <text class="s" x="102" y="231">3</text><text class="s" x="182" y="231">王五</text>
+  <text class="mut s" x="302" y="231">ww@example.com</text>
+  <text class="mut s" x="502" y="231">2025-01-03 09:30:00</text>
+
+  <rect class="s-yellow" x="88" y="272" width="824" height="26" rx="6" opacity="0.22"/>
+  <text class="warn s" x="102" y="285">自动识别到分隔符：逗号（,）· 编码：UTF-8</text>
+
+  <text x="88" y="328">分隔符</text>
+  <rect class="s-field ln2" x="180" y="314" width="110" height="28" rx="6"/>
+  <text x="192" y="328">,</text>
+  <text class="mut s" x="268" y="328">▾</text>
+
+  <rect class="s-accent" x="330" y="320" width="16" height="16" rx="4"/>
+  <path d="M333 327 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="356" y="329">首行是表头</text>
+
+  <text x="88" y="368">文本编码</text>
+  <rect class="s-field ln2" x="180" y="354" width="150" height="28" rx="6"/>
+  <text x="192" y="368">自动检测</text>
+  <text class="mut s" x="306" y="368">▾</text>
+
+  <text x="400" y="368">换行符</text>
+  <rect class="s-field ln2" x="480" y="354" width="150" height="28" rx="6"/>
+  <text x="492" y="368">自动检测</text>
+  <text class="mut s" x="606" y="368">▾</text>
+
+  <rect class="s-field ln2" x="88" y="394" width="90" height="0" rx="6"/>
+  <rect class="s-field ln2" x="826" y="358" width="106" height="32" rx="6"/>
+  <text class="c s" x="879" y="374">下一步</text>
+</svg>
+<figcaption><b>图 8-3</b>　导入向导第一步。预览表能让你一眼确认解析对不对。</figcaption>
+</figure>
+
+<ul>
+  <li>编码默认自动检测；检测失败时提示手动选择。</li>
+  <li>分隔符无法确定时提示手动选择。</li>
+  <li>预览表格是这一步的重点——<b>解析错了要在这里发现</b>，别等到导完几千行才发现列错位。</li>
+</ul>
+
+<h3>第二步：列映射</h3>
+
+<figure>
+<svg viewBox="0 0 1000 480" role="img" aria-label="导入向导第二步">
+  <title>导入 CSV（2/3）</title>
+
+  <rect class="s-window ln2" x="60" y="16" width="880" height="448" rx="12"/>
+  <text class="b" x="88" y="46">导入 CSV（2/3）</text>
+  <line class="ln" x1="60" y1="62" x2="940" y2="62"/>
+
+  <text x="88" y="90">目标表</text>
+  <text class="mono b" x="148" y="90">app_dev.users</text>
+
+  <rect class="s-chrome2 ln" x="88" y="106" width="824" height="28"/>
+  <text class="mut s" x="102" y="120">CSV 列</text>
+  <text class="mut s" x="290" y="120">目标列</text>
+  <text class="mut s" x="560" y="120">类型</text>
+  <text class="mut s" x="760" y="120">说明</text>
+
+  <!-- 匹配行 -->
+  <line class="ln" x1="88" y1="134" x2="912" y2="134"/>
+  <line class="ln" x1="88" y1="176" x2="912" y2="176"/>
+  <line class="ln" x1="88" y1="218" x2="912" y2="218"/>
+  <line class="ln" x1="88" y1="260" x2="912" y2="260"/>
+  <line class="ln" x1="88" y1="302" x2="912" y2="302"/>
+  <rect class="s-alt" x="88" y="176" width="824" height="42"/>
+  <rect class="s-alt" x="88" y="260" width="824" height="42"/>
+
+  <text class="mono s" x="102" y="155">id</text>
+  <text class="mut s" x="268" y="155">→</text>
+  <rect class="s-field ln2" x="290" y="141" width="240" height="28" rx="6"/>
+  <text class="mono s" x="304" y="155">id</text>
+  <text class="mut s" x="508" y="155">▾</text>
+  <text class="mut mono s" x="560" y="155">int unsigned</text>
+  <text class="fnt s" x="760" y="155">主键 · 自增</text>
+
+  <text class="mono s" x="102" y="197">name</text>
+  <text class="mut s" x="268" y="197">→</text>
+  <rect class="s-field ln2" x="290" y="183" width="240" height="28" rx="6"/>
+  <text class="mono s" x="304" y="197">name</text>
+  <text class="mut s" x="508" y="197">▾</text>
+  <text class="mut mono s" x="560" y="197">varchar(50)</text>
+  <text class="err s" x="760" y="197">非空</text>
+
+  <text class="mono s" x="102" y="239">email</text>
+  <text class="mut s" x="268" y="239">→</text>
+  <rect class="s-field ln2" x="290" y="225" width="240" height="28" rx="6"/>
+  <text class="mono s" x="304" y="239">email</text>
+  <text class="mut s" x="508" y="239">▾</text>
+  <text class="mut mono s" x="560" y="239">varchar(100)</text>
+  <text class="fnt s" x="760" y="239">—</text>
+
+  <text class="mono s" x="102" y="281">created_at</text>
+  <text class="mut s" x="268" y="281">→</text>
+  <rect class="s-field ln2" x="290" y="267" width="240" height="28" rx="6"/>
+  <text class="fnt s" x="304" y="281">（跳过）</text>
+  <text class="mut s" x="508" y="281">▾</text>
+  <text class="mut s" x="560" y="281">—</text>
+  <text class="fnt s" x="760" y="281">不参与插入</text>
+
+  <text class="mono s" x="102" y="323">phone</text>
+  <text class="mut s" x="268" y="323">→</text>
+  <rect class="s-field ln2" x="290" y="309" width="240" height="28" rx="6"/>
+  <text class="fnt s" x="304" y="323">（跳过）</text>
+  <text class="mut s" x="508" y="323">▾</text>
+  <text class="fnt s" x="560" y="323">未匹配到</text>
+  <text class="warn s" x="760" y="323">CSV 列名在表里没有</text>
+
+  <line class="ln" x1="88" y1="348" x2="912" y2="348"/>
+  <rect class="s-field ln2" x="88" y="362" width="16" height="16" rx="4"/>
+  <text x="114" y="371">遇到错误时继续导入其余行</text>
+
+  <rect class="s-field ln2" x="88" y="392" width="16" height="16" rx="4"/>
+  <text x="114" y="401">导入前先清空目标表（TRUNCATE）</text>
+  <text class="warn s" x="400" y="401">危险：会删掉表里已有的全部数据</text>
+
+  <rect class="s-accent" x="88" y="422" width="16" height="16" rx="4"/>
+  <path d="M91 429 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="114" y="431">在事务中导入</text>
+  <text class="fnt s" x="248" y="431">要么全部成功，要么全部回滚</text>
+
+  <text x="600" y="431">预计导入：</text>
+  <text class="b" x="684" y="431">12,480 行</text>
+
+  <rect class="s-field ln2" x="700" y="416" width="100" height="30" rx="6"/>
+  <text class="c s" x="750" y="431">上一步</text>
+  <rect class="s-field ln2" x="810" y="416" width="106" height="30" rx="6"/>
+  <text class="c s" x="863" y="431">下一步</text>
+</svg>
+<figcaption><b>图 8-4</b>　导入向导第二步：列映射。</figcaption>
+</figure>
+
+<ul>
+  <li>按<b>列名</b>自动匹配；匹配不上的默认选「跳过」，可以手动指定。</li>
+  <li>每个下拉里列出目标表的所有列，并显示该列的类型与是否必填。</li>
+  <li>「跳过」的列不参与插入。</li>
+  <li>如果目标列不可为空但没有映射，导入前就给出警告。</li>
+  <li><b>在事务中导入</b>默认勾选。去掉勾选会变成逐行提交——中间失败时前面导入的行会留下来。</li>
+</ul>
+
+<h3>第三步：执行</h3>
+
+<figure>
+<svg viewBox="0 0 1000 400" role="img" aria-label="导入向导第三步与失败列表">
+  <title>导入 CSV（3/3）</title>
+
+  <rect class="s-window ln2" x="60" y="16" width="880" height="220" rx="12"/>
+  <text class="b" x="88" y="46">导入 CSV（3/3）</text>
+  <line class="ln" x1="60" y1="62" x2="940" y2="62"/>
+
+  <text class="s" x="88" y="96">正在导入…</text>
+  <rect class="s-chrome2 ln" x="88" y="112" width="824" height="20" rx="10"/>
+  <rect class="s-accent" x="88" y="112" width="500" height="20" rx="10"/>
+  <text class="c s" x="500" y="122" fill="#fff">约 60%</text>
+
+  <text class="s" x="88" y="160">已写入 7,420 行 / 12,480</text>
+  <text class="ok s" x="88" y="192">成功 7,420</text>
+  <text class="fnt s" x="180" y="192">·</text>
+  <text class="err s" x="200" y="192">失败 0</text>
+
+  <rect class="s-field ln2" x="88" y="204" width="90" height="30" rx="6"/>
+  <text class="c s" x="133" y="220">取消</text>
+  <rect class="s-field ln2" x="822" y="204" width="90" height="30" rx="6"/>
+  <text class="c mut s" x="867" y="220">完成</text>
+
+  <!-- 失败列表 -->
+  <text class="b s" x="60" y="272">如果有失败行</text>
+  <rect class="s-window ln2" x="60" y="286" width="880" height="98" rx="9"/>
+  <text class="err s" x="80" y="308">导入结束：成功 12,472 行，失败 8 行</text>
+  <text class="fnt s" x="80" y="330">失败原因（前 100 条）：</text>
+  <text class="mono s" x="280" y="330">第 1,204 行 → [错误 1406] Data too long for column 'name'</text>
+  <text class="mono s" x="280" y="350">第 5,617 行 → [错误 1048] Column 'email' cannot be null</text>
+  <text class="mono s" x="280" y="370">…</text>
+  <rect class="s-field ln2" x="60" y="396" width="0" height="0"/>
+  <rect class="s-field ln2" x="700" y="344" width="220" height="30" rx="6"/>
+  <text class="c s" x="810" y="359">导出失败行 CSV</text>
+</svg>
+<figcaption><b>图 8-5</b>　导入进度与失败行列表。失败行可以导出成 CSV，修正后重试。</figcaption>
+</figure>
+
+<h3>导入的行为规则</h3>
+
+<table>
+<thead><tr><th>项</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td>进度</td><td>实时显示已写入行数，可以取消</td></tr>
+<tr><td>勾选「在事务中导入」</td><td>要么全部成功，要么全部回滚</td></tr>
+<tr><td>不勾选</td><td>逐行提交，中间失败时前面导入的行会留下来（部分成功）</td></tr>
+<tr><td>取消导入</td><td>事务模式：回滚；非事务模式：保留已导入的行并明确提示</td></tr>
+<tr><td>有失败行</td><td>导入结束后列出前 100 条失败原因，可导出为 CSV 以便修正后重试</td></tr>
+<tr><td>导入完成</td><td>自动刷新对应表的标签</td></tr>
+</tbody>
+</table>
+
+<h3>从 CSV 新建表</h3>
+
+<p>如果目标表还不存在，可以在入口处选「导入到新表」。这时第二步会变成推断列类型的界面。</p>
+
+<figure>
+<svg viewBox="0 0 1000 320" role="img" aria-label="从 CSV 新建表的列推断界面">
+  <title>从 CSV 新建表</title>
+
+  <rect class="s-window ln2" x="60" y="16" width="880" height="288" rx="12"/>
+  <text class="b" x="88" y="46">导入到新表</text>
+  <line class="ln" x1="60" y1="62" x2="940" y2="62"/>
+
+  <text x="88" y="90">新表名</text>
+  <rect class="s-field ln2" x="180" y="76" width="300" height="30" rx="6"/>
+  <text class="mono" x="194" y="91">users_imported</text>
+  <rect class="s-field ln2" x="820" y="76" width="160" height="30" rx="6"/>
+  <text class="c s" x="900" y="91">全部按文本类型创建</text>
+
+  <text class="fnt s" x="88" y="122">列类型按前 N 行的内容推断，下面每一列都可以手动改。</text>
+
+  <rect class="s-chrome2 ln" x="88" y="136" width="824" height="28"/>
+  <text class="mut s" x="102" y="150">CSV 列</text>
+  <text class="mut s" x="330" y="150">推断类型</text>
+  <text class="mut s" x="620" y="150">推断依据</text>
+
+  <g class="ln">
+    <line x1="88" y1="164" x2="912" y2="164"/>
+    <line x1="88" y1="200" x2="912" y2="200"/>
+    <line x1="88" y1="236" x2="912" y2="236"/>
+    <line x1="88" y1="272" x2="912" y2="272"/>
+  </g>
+  <rect class="s-alt" x="88" y="200" width="824" height="36"/>
+  <rect class="s-alt" x="88" y="272" width="824" height="36"/>
+
+  <text class="mono s" x="102" y="182">id</text>
+  <rect class="s-field ln2" x="330" y="168" width="260" height="28" rx="6"/>
+  <text class="mono s" x="344" y="182">INT</text>
+  <text class="mut s" x="570" y="182">▾</text>
+  <text class="fnt s" x="620" y="182">全是整数</text>
+
+  <text class="mono s" x="102" y="218">name</text>
+  <rect class="s-field ln2" x="330" y="204" width="260" height="28" rx="6"/>
+  <text class="mono s" x="344" y="218">VARCHAR(255)</text>
+  <text class="mut s" x="570" y="218">▾</text>
+  <text class="fnt s" x="620" y="218">文本</text>
+
+  <text class="mono s" x="102" y="254">created_at</text>
+  <rect class="s-field ln2" x="330" y="240" width="260" height="28" rx="6"/>
+  <text class="mono s" x="344" y="254">DATETIME</text>
+  <text class="mut s" x="570" y="254">▾</text>
+  <text class="fnt s" x="620" y="254">形如日期时间</text>
+
+  <text class="mono s" x="102" y="290">amount</text>
+  <rect class="s-field ln2" x="330" y="276" width="260" height="28" rx="6"/>
+  <text class="mono s" x="344" y="290">DECIMAL(10,2)</text>
+  <text class="mut s" x="570" y="290">▾</text>
+  <text class="fnt s" x="620" y="290">带小数点的数字</text>
+
+  <text class="fnt s" x="760" y="290">推断不准就在这里改</text>
+</svg>
+<figcaption><b>图 8-6</b>　从 CSV 新建表。推断结果都可以改，实在不行就「全部按文本类型创建」。</figcaption>
+</figure>
+
+<ul>
+  <li>读前 N 行推断列名与类型（文本 / 整数 / 小数 / 日期时间）。</li>
+  <li>推断结果可以在这一步逐列修改，类型下拉里可选常见类型。</li>
+  <li>提供一个「全部按文本类型创建」的快捷选项——能覆盖大多数情况，反正导进去以后再改类型也不难。</li>
+  <li>表名可编辑。</li>
+  <li>生成建表语句并<b>在执行前展示出来</b>，你确认了才执行。</li>
+  <li>只读连接下这个功能不可用。</li>
+</ul>
+
+<h2>明确不做</h2>
+
+<div class="callout danger">
+  <span class="tag">导入导出的边界</span>
+  <ul>
+    <li>Excel（<code>.xlsx</code>）导入导出</li>
+    <li>JSON 文件导入（只导出）</li>
+    <li>SQL dump 文件导入——用 <code>mysqldump</code> / <code>mysql</code> 命令行更合适</li>
+    <li>数据库备份 / 恢复</li>
+    <li>导入时的数据转换规则（大小写转换、截断长度、正则替换之类）</li>
+  </ul>
+  <p>需要清洗数据的话，导成 CSV 用脚本处理完再导回来。</p>
+</div>
+
+<div class="pager"></div>
+
+</main>
+</div>
+<script src="assets/manual.js"></script>
+</body>
+</html>

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>05 · 过滤器 — TableLite 使用说明书</title>
+<link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <!-- 下面这段是无脚本时的兜底导航；有脚本时会被 manual.js 重新生成并标出当前页 -->
+  <div class="brand"><b>TableLite</b><span>使用说明书</span></div>
+  <div class="sub">macOS 原生 MySQL / MariaDB 客户端</div>
+  <ol>
+      <li><a href="index.html"><span class="n">·</span><span>说明书首页</span></a></li>
+      <li><a href="01-connections.html"><span class="n">01</span><span>连接</span></a></li>
+      <li><a href="02-workspace.html"><span class="n">02</span><span>界面结构</span></a></li>
+      <li><a href="03-data-browsing.html"><span class="n">03</span><span>浏览表数据</span></a></li>
+      <li><a href="04-data-editing.html"><span class="n">04</span><span>编辑数据</span></a></li>
+      <li><a href="05-filtering.html"><span class="n">05</span><span>过滤器</span></a></li>
+      <li><a href="06-query-editor.html"><span class="n">06</span><span>查询编辑器</span></a></li>
+      <li><a href="07-schema-view.html"><span class="n">07</span><span>表结构视图</span></a></li>
+      <li><a href="08-import-export.html"><span class="n">08</span><span>导入与导出</span></a></li>
+      <li><a href="09-readonly.html"><span class="n">09</span><span>只读模式</span></a></li>
+      <li><a href="10-ssh-tunnel.html"><span class="n">10</span><span>SSH 隧道</span></a></li>
+      <li><a href="11-preferences.html"><span class="n">11</span><span>偏好设置</span></a></li>
+      <li><a href="12-shortcuts.html"><span class="n">12</span><span>快捷键总表</span></a></li>
+      <li><a href="13-feedback.html"><span class="n">13</span><span>提示与错误</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1><span class="chapter">第 05 章</span>过滤器</h1>
+<p class="lede">
+  过滤器只影响<b>看什么</b>，不改动任何数据。分成两种：行过滤器决定显示哪些行，
+  列过滤器决定显示哪些列。
+</p>
+
+<h2>行过滤器</h2>
+
+<p>按 <kbd>⌘F</kbd> 打开。面板出现在数据网格上方的一条横条里，不遮挡数据。</p>
+
+<figure>
+<svg viewBox="0 0 1000 380" role="img" aria-label="行过滤器面板的线框图">
+  <title>行过滤器面板</title>
+
+  <rect class="s-sunken ln2" x="20" y="20" width="960" height="262" rx="10"/>
+
+  <!-- 错误提示条 -->
+  <rect class="s-red" x="34" y="34" width="932" height="30" rx="6" opacity="0.14"/>
+  <text class="err s" x="48" y="50">第 2 条条件的列 `statuz` 不存在，请重新选择。</text>
+
+  <text class="b s" x="34" y="86">过滤器</text>
+
+  <!-- 条件行 1 -->
+  <rect class="s-accent" x="38" y="107" width="17" height="17" rx="4"/>
+  <path d="M41 114 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <rect class="s-field ln2" x="70" y="99" width="170" height="32" rx="6"/>
+  <text x="84" y="115">name</text>
+  <text class="mut s" x="222" y="115">▾</text>
+  <rect class="s-field ln2" x="250" y="99" width="150" height="32" rx="6"/>
+  <text x="264" y="115">包含</text>
+  <text class="mut s" x="382" y="115">▾</text>
+  <rect class="s-field ln2" x="410" y="99" width="300" height="32" rx="6"/>
+  <text x="424" y="115">张</text>
+  <line class="lnO sw2" x1="440" y1="104" x2="440" y2="126"/>
+  <rect class="s-field ln2" x="722" y="99" width="32" height="32" rx="6"/>
+  <text class="c" x="738" y="115">+</text>
+  <rect class="s-field ln2" x="762" y="99" width="32" height="32" rx="6"/>
+  <text class="c mut" x="778" y="115">−</text>
+
+  <!-- 条件行 2 -->
+  <rect class="s-accent" x="38" y="151" width="17" height="17" rx="4"/>
+  <path d="M41 158 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <rect class="s-field ln2" x="70" y="143" width="170" height="32" rx="6"/>
+  <text x="84" y="159">age</text>
+  <text class="mut s" x="222" y="159">▾</text>
+  <rect class="s-field ln2" x="250" y="143" width="150" height="32" rx="6"/>
+  <text x="264" y="159">大于等于</text>
+  <text class="mut s" x="382" y="159">▾</text>
+  <rect class="s-field ln2" x="410" y="143" width="300" height="32" rx="6"/>
+  <text x="424" y="159">18</text>
+  <rect class="s-field ln2" x="722" y="143" width="32" height="32" rx="6"/>
+  <text class="c" x="738" y="159">+</text>
+  <rect class="s-field ln2" x="762" y="143" width="32" height="32" rx="6"/>
+  <text class="c mut" x="778" y="159">−</text>
+
+  <!-- 条件行 3：停用 -->
+  <rect class="s-field ln2" x="38" y="195" width="17" height="17" rx="4"/>
+  <text class="fnt" x="70" y="203">status</text>
+  <text class="fnt" x="250" y="203">不等于</text>
+  <text class="fnt" x="410" y="203">deleted</text>
+  <rect class="s-field ln2" x="722" y="187" width="32" height="32" rx="6"/>
+  <text class="c" x="738" y="203">+</text>
+  <rect class="s-field ln2" x="762" y="187" width="32" height="32" rx="6"/>
+  <text class="c" x="778" y="203">−</text>
+  <text class="fnt s" x="820" y="203">← 取消勾选可以临时停用，不用删掉</text>
+
+  <line class="ln" x1="20" y1="228" x2="980" y2="228"/>
+
+  <!-- 组合方式 -->
+  <circle class="s-field ln2" cx="46" cy="252" r="8"/>
+  <circle class="s-accent" cx="46" cy="252" r="4.5"/>
+  <text x="64" y="252">全部满足</text>
+  <circle class="s-field ln2" cx="164" cy="252" r="8"/>
+  <text x="182" y="252">满足任一</text>
+
+  <rect class="s-field ln2" x="330" y="236" width="170" height="32" rx="6"/>
+  <text class="c s" x="415" y="252">高级 / 直接写条件</text>
+
+  <rect class="s-field ln2" x="700" y="236" width="90" height="32" rx="6"/>
+  <text class="c s" x="745" y="252">重置</text>
+  <rect class="s-accent" x="800" y="236" width="90" height="32" rx="6"/>
+  <text class="c s" x="845" y="252" fill="#fff">应用</text>
+
+  <!-- 下面的网格 -->
+  <rect class="s-chrome2 ln" x="20" y="300" width="960" height="28"/>
+  <text class="mut s" x="36" y="314">🔑 id</text>
+  <text class="mut s" x="140" y="314">name</text>
+  <text class="mut s" x="300" y="314">email</text>
+  <text class="fnt s" x="900" y="314">（结果网格在下面）</text>
+
+  <!-- 热点 -->
+  <g class="hot" data-hot="1"><circle cx="46" cy="107" r="11"/><text x="46" y="107">1</text></g>
+  <g class="hot" data-hot="2"><circle cx="180" cy="99" r="11"/><text x="180" y="99">2</text></g>
+  <g class="hot" data-hot="3"><circle cx="356" cy="99" r="11"/><text x="356" y="99">3</text></g>
+  <g class="hot" data-hot="4"><circle cx="500" cy="99" r="11"/><text x="500" y="99">4</text></g>
+  <g class="hot" data-hot="5"><circle cx="738" cy="99" r="11"/><text x="738" y="99">5</text></g>
+  <g class="hot" data-hot="6"><circle cx="126" cy="252" r="11"/><text x="126" y="252">6</text></g>
+  <g class="hot" data-hot="7"><circle cx="415" cy="236" r="11"/><text x="415" y="236">7</text></g>
+  <g class="hot" data-hot="8"><circle cx="845" cy="236" r="11"/><text x="845" y="236">8</text></g>
+  <g class="hot" data-hot="9"><circle cx="960" cy="34" r="11"/><text x="960" y="34">9</text></g>
+</svg>
+<figcaption><b>图 5-1</b>　行过滤器面板。第三条条件没有被勾选，所以它不参与过滤，但条件本身保留着。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>控件</th><th>作用</th></tr></thead>
+<tbody>
+<tr data-hot="1"><td class="num">1</td><td class="wide">勾选框</td>
+  <td>决定这一条是否参与过滤。<b>取消勾选可以临时停用某个条件而不删掉它</b>——对比不同的筛选范围时很好用。</td></tr>
+<tr data-hot="2"><td class="num">2</td><td class="wide">列下拉</td>
+  <td>列出当前表的所有列。列很多的时候下拉里带搜索框。选中的列会带上它的类型信息，避免选错同名列。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">操作符下拉</td>
+  <td>13 种操作符，见下一节。选中不需要值的操作符（比如「为空」）时，右边的值输入框会自动禁用。</td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">值输入框</td>
+  <td>填比较值。「在区间内」需要两个值；「在列表中」用逗号分隔多个值。ENUM / SET / 布尔列会变成下拉，不用手输。</td></tr>
+<tr data-hot="5"><td class="num">5</td><td class="wide">＋ / −</td>
+  <td>添加一行（<kbd>⌘I</kbd>）、删除这一行（<kbd>⇧⌘I</kbd>）。</td></tr>
+<tr data-hot="6"><td class="num">6</td><td class="wide">组合方式</td>
+  <td><b>全部满足</b>（AND）或<b>满足任一</b>（OR），二选一，作用于所有勾选中的条件。不支持混用，也不支持嵌套括号。</td></tr>
+<tr data-hot="7"><td class="num">7</td><td class="wide">高级 / 直接写条件</td>
+  <td>切换到直接手写过滤条件的模式，例如 <code>id IN (1, 2, 3) AND status &lt;&gt; 'deleted'</code>。切过去会提示「高级条件不会被校验，请自行确认语法正确」。</td></tr>
+<tr data-hot="8"><td class="num">8</td><td class="wide">重置 / 应用</td>
+  <td><b>重置</b>清空所有条件并重新加载。<b>应用</b>按当前条件从第 1 页重新加载。</td></tr>
+<tr data-hot="9"><td class="num">9</td><td class="wide">错误提示条</td>
+  <td>应用失败时（比如引用了不存在的列）在面板顶部指出是哪一条错了。面板保持打开，方便直接改。</td></tr>
+</tbody>
+</table>
+
+<p>按 <kbd>Esc</kbd> 关闭面板。条件会保留，只是隐藏起来。</p>
+
+<h3>13 种操作符</h3>
+
+<figure>
+<svg viewBox="0 0 1000 460" role="img" aria-label="操作符下拉列表">
+  <title>操作符下拉</title>
+
+  <rect class="s-window ln2" x="40" y="20" width="320" height="420" rx="9"/>
+  <text class="fnt s" x="56" y="40">文本</text>
+  <text x="56" y="62">等于</text>
+  <text x="56" y="86">不等于</text>
+  <text x="56" y="110">包含</text>
+  <text x="56" y="134">不包含</text>
+  <text x="56" y="158">开头是</text>
+  <text x="56" y="182">结尾是</text>
+
+  <line class="ln" x1="40" y1="198" x2="360" y2="198"/>
+  <text class="fnt s" x="56" y="216">数值与日期</text>
+  <text x="56" y="238">大于</text>
+  <text x="56" y="262">大于等于</text>
+  <text x="56" y="286">小于</text>
+  <text x="56" y="310">小于等于</text>
+  <text x="56" y="334">在区间内</text>
+  <text x="56" y="358">在列表中</text>
+
+  <line class="ln" x1="40" y1="374" x2="360" y2="374"/>
+  <text class="fnt s" x="56" y="392">空值</text>
+  <text x="56" y="414">为空　/　不为空</text>
+
+  <!-- 右侧说明 -->
+  <text class="b s" x="400" y="46">生成的 SQL 大概长这样</text>
+  <text class="mono s" x="400" y="76">`name` = '张三'</text>
+  <text class="mono s" x="400" y="100">`name` &lt;&gt; '张三'</text>
+  <text class="mono s" x="400" y="124">`name` LIKE '%张%'</text>
+  <text class="mono s" x="400" y="148">`name` NOT LIKE '%张%'</text>
+  <text class="mono s" x="400" y="172">`name` LIKE '张%'</text>
+  <text class="mono s" x="400" y="196">`name` LIKE '%张'</text>
+
+  <text class="mono s" x="400" y="238">`age` &gt; 18</text>
+  <text class="mono s" x="400" y="262">`age` &gt;= 18</text>
+  <text class="mono s" x="400" y="286">`age` &lt; 60</text>
+  <text class="mono s" x="400" y="310">`age` &lt;= 60</text>
+  <text class="mono s" x="400" y="334">`age` BETWEEN 18 AND 60</text>
+  <text class="mono s" x="400" y="358">`status` IN ('a','b')</text>
+
+  <text class="mono s" x="400" y="414">`email` IS NULL　/　IS NOT NULL</text>
+
+  <text class="fnt s" x="760" y="124">值里的 % 和 _ 会被转义，</text>
+  <text class="fnt s" x="760" y="144">所以「包含 %」查的就是百分号本身，</text>
+  <text class="fnt s" x="760" y="164">不是通配符。</text>
+
+  <text class="fnt s" x="760" y="334">BETWEEN 含两端</text>
+  <text class="fnt s" x="760" y="358">值用逗号分隔</text>
+
+  <text class="fnt s" x="760" y="414">这两条不需要填值</text>
+</svg>
+<figcaption><b>图 5-2</b>　操作符下拉。左边是你在界面上看到的词，右边是实际生成的 SQL 条件。</figcaption>
+</figure>
+
+<h2>高级模式：直接写条件</h2>
+
+<p>
+  点「高级 / 直接写条件」，可以完全自己写过滤条件。条件行的模式与它互斥，切过去会清空另一侧。
+</p>
+
+<figure>
+<svg viewBox="0 0 1000 260" role="img" aria-label="高级模式直接写条件">
+  <title>高级模式</title>
+
+  <rect class="s-sunken ln2" x="20" y="20" width="960" height="220" rx="10"/>
+  <rect class="s-yellow" x="36" y="36" width="928" height="30" rx="6" opacity="0.22"/>
+  <text class="warn s" x="50" y="52">高级条件不会被校验，请自行确认语法正确。</text>
+
+  <text x="36" y="96">过滤条件</text>
+  <rect class="s-field ln2" x="36" y="112" width="820" height="60" rx="7"/>
+  <text class="mono s" x="52" y="136">id IN (1, 2, 3)</text>
+  <text class="mono s" x="52" y="158">AND status &lt;&gt; 'deleted'</text>
+
+  <line class="ln" x1="20" y1="192" x2="980" y2="192"/>
+  <text class="fnt s" x="36" y="216">切换回条件行模式时，这里写的内容会被清空。</text>
+  <rect class="s-accent" x="870" y="198" width="90" height="30" rx="6"/>
+  <text class="c s" x="915" y="213" fill="#fff">应用</text>
+</svg>
+<figcaption><b>图 5-3</b>　高级模式。SQL 片段直接拼进 <code>WHERE</code> 后面，不做引号包裹。</figcaption>
+</figure>
+
+<h2>列过滤器</h2>
+
+<p>按 <kbd>⌥⌘F</kbd> 打开一个浮层，控制显示哪些列。</p>
+
+<figure>
+<svg viewBox="0 0 1000 380" role="img" aria-label="列过滤器浮层">
+  <title>列过滤器</title>
+
+  <rect class="s-window ln2" x="290" y="20" width="420" height="340" rx="11"/>
+  <text class="b" x="316" y="48">显示的列</text>
+  <line class="ln" x1="290" y1="64" x2="710" y2="64"/>
+
+  <rect class="s-field ln2" x="316" y="76" width="200" height="28" rx="6"/>
+  <text class="fnt s" x="328" y="90">搜索列…</text>
+  <rect class="s-field ln2" x="530" y="76" width="70" height="28" rx="6"/>
+  <text class="c s" x="565" y="90">全选</text>
+  <rect class="s-field ln2" x="608" y="76" width="76" height="28" rx="6"/>
+  <text class="c s" x="646" y="90">全不选</text>
+
+  <rect class="s-accent" x="316" y="120" width="16" height="16" rx="4"/>
+  <path d="M319 127 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="mono s" x="342" y="128">id</text>
+  <text class="fnt s" x="400" y="128">INT · 主键</text>
+
+  <rect class="s-accent" x="316" y="148" width="16" height="16" rx="4"/>
+  <path d="M319 155 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="mono s" x="342" y="156">name</text>
+  <text class="fnt s" x="400" y="156">VARCHAR(50)</text>
+
+  <rect class="s-accent" x="316" y="176" width="16" height="16" rx="4"/>
+  <path d="M319 183 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="mono s" x="342" y="184">email</text>
+  <text class="fnt s" x="400" y="184">VARCHAR(100)</text>
+
+  <rect class="s-field ln2" x="316" y="204" width="16" height="16" rx="4"/>
+  <text class="mono s" x="342" y="212">content</text>
+  <text class="fnt s" x="400" y="212">LONGTEXT</text>
+
+  <rect class="s-accent" x="316" y="232" width="16" height="16" rx="4"/>
+  <path d="M319 239 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="mono s" x="342" y="240">created_at</text>
+  <text class="fnt s" x="400" y="240">DATETIME</text>
+
+  <line class="ln" x1="290" y1="272" x2="710" y2="272"/>
+  <text class="fnt s" x="316" y="294">至少保留一列可见</text>
+  <rect class="s-field ln2" x="480" y="308" width="90" height="30" rx="6"/>
+  <text class="c s" x="525" y="323">取消</text>
+  <rect class="s-accent" x="584" y="308" width="100" height="30" rx="6"/>
+  <text class="c s" x="634" y="323" fill="#fff">应用</text>
+
+  <!-- 提示 -->
+  <path class="leader" d="M710 212 L760 212"/>
+  <text class="fnt s" x="770" y="200">取消勾选的列不显示，</text>
+  <text class="fnt s" x="770" y="220">但数据仍然会被查询。</text>
+  <text class="fnt s" x="770" y="248">列显隐状态和列宽一起记住，</text>
+  <text class="fnt s" x="770" y="268">下次打开同一张表时恢复。</text>
+</svg>
+<figcaption><b>图 5-4</b>　列过滤器浮层。</figcaption>
+</figure>
+
+<div class="callout warn">
+  <span class="tag">列显隐只是显示行为</span>
+  <p>
+    隐藏一列<b>不会</b>减少查询的列数，被隐藏的列照样会被读出来——因为提交修改时可能需要用到它们。
+    真正想少读数据，用「复制列名」自己写 <code>SELECT</code>。
+  </p>
+  <p>至少要保持一列可见，否则「应用」按钮是灰的并给出提示。</p>
+</div>
+
+<h2>快速过滤</h2>
+
+<p>大多数时候你不必先打开过滤器面板再填条件。几种一步到位的做法：</p>
+
+<figure>
+<svg viewBox="0 0 1000 300" role="img" aria-label="快速过滤的几种入口">
+  <title>快速过滤</title>
+
+  <!-- 列头右键 -->
+  <rect class="s-chrome2 ln" x="30" y="30" width="300" height="30"/>
+  <text class="b" x="46" y="45">status</text>
+  <rect class="s-window ln2" x="30" y="62" width="220" height="96" rx="8"/>
+  <text x="48" y="84">按此列排序</text>
+  <text class="acc" x="48" y="112">按此列筛选</text>
+  <text x="48" y="140">调整列宽</text>
+  <text class="fnt s" x="264" y="112">← 新增一条「status = __」，</text>
+  <text class="fnt s" x="264" y="132">值留空并聚焦，等你填写</text>
+
+  <!-- 单元格右键 -->
+  <rect class="s-sunken ln" x="30" y="180" width="300" height="30"/>
+  <text class="s" x="46" y="195">draft</text>
+  <rect class="s-window ln2" x="30" y="212" width="220" height="76" rx="8"/>
+  <text class="acc" x="48" y="234">按此值筛选</text>
+  <text class="acc" x="48" y="262">排除此值</text>
+  <text class="fnt s" x="264" y="234">← 立刻加上 status = 'draft'</text>
+  <text class="fnt s" x="264" y="262">← 立刻加上 status &lt;&gt; 'draft'</text>
+
+  <!-- ENUM 值下拉 -->
+  <rect class="s-field ln2" x="580" y="30" width="220" height="30" rx="6"/>
+  <text class="s" x="594" y="45">draft</text>
+  <text class="mut s" x="772" y="45">▾</text>
+  <rect class="s-window ln2" x="580" y="62" width="220" height="110" rx="8"/>
+  <text class="acc" x="596" y="84">draft</text>
+  <text class="s" x="596" y="110">published</text>
+  <text class="s" x="596" y="136">archived</text>
+  <text class="s" x="596" y="162">deleted</text>
+  <text class="fnt s" x="816" y="110">ENUM / SET / 布尔列</text>
+  <text class="fnt s" x="816" y="130">的值会变成下拉，</text>
+  <text class="fnt s" x="816" y="150">避免手输错。</text>
+
+  <!-- 外键 -->
+  <rect class="s-sunken ln" x="580" y="200" width="220" height="30" rx="6"/>
+  <text class="s" x="596" y="215">user_id 42</text>
+  <text class="acc" x="756" y="215">↗</text>
+  <text class="fnt s" x="816" y="215">点外键箭头 → 在新标签打开被引用表，</text>
+  <text class="fnt s" x="816" y="235">并自动加上「主键 = 该值」的条件。</text>
+</svg>
+<figcaption><b>图 5-5</b>　四种不用打开过滤器面板就能筛选的方式。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>操作</th><th>效果</th></tr></thead>
+<tbody>
+<tr><td>右键列头 → <code>按此列筛选</code></td><td>新增一条「列 = 该列」的等于条件，值留空并聚焦，等你填写</td></tr>
+<tr><td>右键单元格 → <code>按此值筛选</code></td><td>新增一条「列 = 该列」且值等于该单元格内容的条件，立即应用</td></tr>
+<tr><td>右键单元格 → <code>排除此值</code></td><td>同上，操作符是「不等于」</td></tr>
+<tr><td>外键单元格点 ↗</td><td>在新标签打开被引用表，并自动加上「主键 = 该值」的条件</td></tr>
+<tr><td>ENUM / SET / 布尔列</td><td>过滤器的值输入框变成下拉选项</td></tr>
+</tbody>
+</table>
+
+<h3>过滤器会被记住</h3>
+
+<p>
+  每张表最后一次用过的过滤条件会被记住，下次打开这张表时自动恢复。
+  不喜欢这个行为可以在偏好里关掉（见<a href="11-preferences.html">第 11 章</a>）。
+</p>
+
+<h2>过滤器与其他操作的相互影响</h2>
+
+<table>
+<thead><tr><th>操作</th><th>行为</th></tr></thead>
+<tbody>
+<tr><td>应用 / 重置过滤器</td><td>回到第 1 页重新加载</td></tr>
+<tr><td>有未提交改动时改过滤器</td><td>允许，但先提示「切换过滤条件会重新加载数据，你的修改会保留在暂存区」</td></tr>
+<tr><td>有未提交改动时改排序</td><td>同上</td></tr>
+<tr><td>过滤器生效时提交</td><td>提交成功后按当前过滤条件重新加载。被过滤掉的改动行虽然提交成功了，但不会出现在结果里</td></tr>
+<tr><td>过滤条件引用了不存在的列</td><td>应用时在面板顶部报错，并指出是哪一条</td></tr>
+<tr><td>导出一张被过滤的表</td><td>导出的是<b>当前过滤条件下</b>的数据，导出面板里会明确写出这一点</td></tr>
+</tbody>
+</table>
+
+<h2>已知限制</h2>
+
+<div class="callout danger">
+  <span class="tag">不能嵌套括号</span>
+  <ul>
+    <li>不支持 <code>(A AND B) OR C</code> 这种嵌套分组</li>
+    <li>所有条件只能是 AND 或 OR 中的一种，<b>不能混用</b></li>
+    <li>高级模式不做语法校验，写错了会把错误直接抛给数据库</li>
+  </ul>
+  <p>
+    需要复杂条件时，用高级模式手写，或者干脆用<a href="06-query-editor.html">查询编辑器</a>写一条完整的
+    <code>SELECT</code>。查询结果同样可以排序、复制、导出。
+  </p>
+</div>
+
+<div class="pager"></div>
+
+</main>
+</div>
+<script src="assets/manual.js"></script>
+</body>
+</html>

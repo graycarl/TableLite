@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 · SSH 隧道 — TableLite 使用说明书</title>
+<link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <!-- 下面这段是无脚本时的兜底导航；有脚本时会被 manual.js 重新生成并标出当前页 -->
+  <div class="brand"><b>TableLite</b><span>使用说明书</span></div>
+  <div class="sub">macOS 原生 MySQL / MariaDB 客户端</div>
+  <ol>
+      <li><a href="index.html"><span class="n">·</span><span>说明书首页</span></a></li>
+      <li><a href="01-connections.html"><span class="n">01</span><span>连接</span></a></li>
+      <li><a href="02-workspace.html"><span class="n">02</span><span>界面结构</span></a></li>
+      <li><a href="03-data-browsing.html"><span class="n">03</span><span>浏览表数据</span></a></li>
+      <li><a href="04-data-editing.html"><span class="n">04</span><span>编辑数据</span></a></li>
+      <li><a href="05-filtering.html"><span class="n">05</span><span>过滤器</span></a></li>
+      <li><a href="06-query-editor.html"><span class="n">06</span><span>查询编辑器</span></a></li>
+      <li><a href="07-schema-view.html"><span class="n">07</span><span>表结构视图</span></a></li>
+      <li><a href="08-import-export.html"><span class="n">08</span><span>导入与导出</span></a></li>
+      <li><a href="09-readonly.html"><span class="n">09</span><span>只读模式</span></a></li>
+      <li><a href="10-ssh-tunnel.html"><span class="n">10</span><span>SSH 隧道</span></a></li>
+      <li><a href="11-preferences.html"><span class="n">11</span><span>偏好设置</span></a></li>
+      <li><a href="12-shortcuts.html"><span class="n">12</span><span>快捷键总表</span></a></li>
+      <li><a href="13-feedback.html"><span class="n">13</span><span>提示与错误</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1><span class="chapter">第 10 章</span>SSH 隧道</h1>
+<p class="lede">
+  数据库只允许内网访问时，通过一台跳板机把连接转发进去。
+  配置好之后，用户不需要在终端里手动开隧道——连接行为和直连完全一样。
+</p>
+
+<h2>它是怎么工作的</h2>
+
+<figure>
+<svg viewBox="0 0 1000 380" role="img" aria-label="SSH 隧道的连接路径">
+  <title>SSH 隧道工作原理</title>
+
+  <!-- 本机 -->
+  <rect class="s-window ln2" x="30" y="80" width="220" height="200" rx="10"/>
+  <text class="b c" x="140" y="108">你的 Mac</text>
+  <line class="ln" x1="30" y1="122" x2="250" y2="122"/>
+  <rect class="s-sunken ln" x="50" y="136" width="180" height="46" rx="7"/>
+  <text class="c s" x="140" y="152">TableLite</text>
+  <text class="c fnt s" x="140" y="170">MySQL 客户端</text>
+  <rect class="s-soft ln2" x="50" y="196" width="180" height="46" rx="7"/>
+  <text class="c mono s acc" x="140" y="212">127.0.0.1:53142</text>
+  <text class="c fnt s" x="140" y="230">随机挑一个本机端口</text>
+  <text class="fnt s c" x="140" y="264">（对 TableLite 来说，数据库就在这里）</text>
+
+  <!-- 跳板机 -->
+  <rect class="s-window ln2" x="390" y="80" width="220" height="200" rx="10"/>
+  <text class="b c" x="500" y="108">跳板机</text>
+  <line class="ln" x1="390" y1="122" x2="610" y2="122"/>
+  <text class="c mono s" x="500" y="148">bastion.example.com</text>
+  <text class="c fnt s" x="500" y="170">deploy@:22</text>
+  <rect class="s-sunken ln" x="410" y="188" width="180" height="60" rx="7"/>
+  <text class="c s" x="500" y="208">系统 ssh 进程</text>
+  <text class="c fnt mono s" x="500" y="228">ssh -N -L 53142:…</text>
+  <text class="fnt s c" x="500" y="264">（TableLite 启动的子进程）</text>
+
+  <!-- 数据库 -->
+  <rect class="s-window ln2" x="750" y="80" width="220" height="200" rx="10"/>
+  <text class="b c" x="860" y="108">数据库服务器</text>
+  <line class="ln" x1="750" y1="122" x2="970" y2="122"/>
+  <text class="c mono s" x="860" y="148">10.0.2.5:3306</text>
+  <text class="c fnt s" x="860" y="170">只在跳板机的内网里可达</text>
+  <rect class="s-chrome2 ln" x="770" y="192" width="180" height="50" rx="7"/>
+  <text class="c s" x="860" y="210">MySQL / MariaDB</text>
+  <text class="c fnt s" x="860" y="228">只有内网能连</text>
+
+  <!-- 连线 -->
+  <path class="lnA sw2" d="M250 219 L390 219"/>
+  <path class="lnA sw2" d="M390 212 L250 212" stroke-dasharray="0"/>
+  <text class="acc s c" x="320" y="200">SSH 加密</text>
+  <path class="lnA sw2" d="M610 219 L750 219"/>
+  <text class="acc s c" x="680" y="200">内网 MySQL</text>
+
+  <text class="fnt s c" x="500" y="322">这条路径对你完全不可见。你在 TableLite 里填的还是「主机 = 10.0.2.5，端口 = 3306」。</text>
+  <text class="fnt s c" x="500" y="344">本地端口是随机挑的，不会显示在主界面上，只在悬停详情里能看到。</text>
+</svg>
+<figcaption><b>图 10-1</b>　SSH 隧道的连接路径。TableLite 启动一个系统 <code>ssh</code> 子进程做端口转发。</figcaption>
+</figure>
+
+<div class="callout">
+  <span class="tag">用的是系统的 ssh</span>
+  <p>
+    TableLite <b>不自己实现 SSH 协议</b>，而是调用 macOS 自带的 <code>/usr/bin/ssh</code>
+    做本地端口转发（<code>-L</code>）。这样做有三个好处：
+  </p>
+  <ul>
+    <li>你的 <code>~/.ssh/config</code>、<code>known_hosts</code>、ssh-agent 全部直接生效，和在终端里连一模一样。</li>
+    <li>各种密钥类型、跳板机、代理，系统都已经处理好了。</li>
+    <li>不用维护一份 SSH 实现。</li>
+  </ul>
+  <p>代价是：需要在界面上管好这个子进程，退出时必须清理干净，不能留后台进程。</p>
+</div>
+
+<h2>配置项</h2>
+
+<p>都在连接配置表单的「SSH 隧道」区域里。</p>
+
+<figure>
+<svg viewBox="0 0 1000 460" role="img" aria-label="SSH 隧道配置区域的放大图">
+  <title>SSH 隧道配置</title>
+
+  <rect class="s-sunken ln" x="40" y="20" width="920" height="420" rx="10"/>
+  <text class="b" x="64" y="48">SSH 隧道</text>
+  <line class="ln" x1="40" y1="64" x2="960" y2="64"/>
+
+  <rect class="s-accent" x="64" y="82" width="17" height="17" rx="4"/>
+  <path d="M67 89 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="92" y="91">通过 SSH 连接</text>
+  <text class="fnt s" x="220" y="91">总开关。不勾的话下面这些字段不可用，连接走直连。</text>
+
+  <text x="64" y="132">SSH 主机</text>
+  <rect class="s-field ln2" x="188" y="117" width="320" height="30" rx="6"/>
+  <text x="200" y="132">bastion.example.com</text>
+  <text class="r" x="548" y="132">端口</text>
+  <rect class="s-field ln2" x="568" y="117" width="90" height="30" rx="6"/>
+  <text x="580" y="132">22</text>
+
+  <text x="64" y="172">SSH 用户</text>
+  <rect class="s-field ln2" x="188" y="157" width="320" height="30" rx="6"/>
+  <text x="200" y="172">deploy</text>
+
+  <line class="ln" x1="40" y1="196" x2="960" y2="196"/>
+  <text x="64" y="222">认证方式</text>
+
+  <!-- 1 -->
+  <circle class="s-field ln2" cx="196" cy="222" r="8"/>
+  <circle class="s-accent" cx="196" cy="222" r="4.5"/>
+  <text x="214" y="222">使用 ~/.ssh/config 与 ssh-agent</text>
+  <text class="acc s" x="480" y="222">（推荐）</text>
+  <rect class="s-soft" x="180" y="234" width="760" height="26" rx="6"/>
+  <text class="s" x="196" y="247">主机、端口、用户、密钥、ProxyJump 全部交给系统 SSH 配置决定</text>
+
+  <!-- 2 -->
+  <circle class="s-field ln2" cx="196" cy="282" r="8"/>
+  <text x="214" y="282">使用私钥</text>
+  <rect class="s-field ln2" x="330" y="267" width="300" height="30" rx="6"/>
+  <text class="mono mut" x="342" y="282">~/.ssh/id_ed25519</text>
+  <rect class="s-field ln2" x="640" y="267" width="80" height="30" rx="6"/>
+  <text class="c s" x="680" y="282">选择…</text>
+  <text class="fnt s" x="740" y="282">私钥有口令时，第一次连接会弹出输入框</text>
+
+  <!-- 3 -->
+  <circle class="s-field ln2" cx="196" cy="330" r="8"/>
+  <text x="214" y="330">使用密码</text>
+  <text class="fnt s" x="316" y="330">密码保存在系统钥匙串里</text>
+
+  <line class="ln" x1="40" y1="360" x2="960" y2="360"/>
+  <rect class="s-field ln2" x="64" y="378" width="17" height="17" rx="4"/>
+  <text x="92" y="387">使用 ssh config 别名</text>
+  <text class="fnt s" x="240" y="387">勾上后，「SSH 主机」里可以填 ~/.ssh/config 里的 Host 名</text>
+
+  <text class="r" x="600" y="387">跳板机</text>
+  <rect class="s-field ln2" x="620" y="372" width="200" height="30" rx="6"/>
+  <text class="mut" x="632" y="387">user@proxy:22</text>
+  <text class="fnt s" x="836" y="387">先连 A 再跳 B</text>
+
+  <text class="fnt s" x="64" y="424">改了这里的配置后需要重新连接才生效。</text>
+</svg>
+<figcaption><b>图 10-2</b>　SSH 隧道配置区。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>字段</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>通过 SSH 连接</td><td>总开关。勾上后下面这些字段才可用</td></tr>
+<tr><td>SSH 主机</td><td>跳板机的域名或 IP。开启「使用 ssh config 别名」时，可以填 <code>~/.ssh/config</code> 里的 Host 名</td></tr>
+<tr><td>SSH 端口</td><td>默认 22</td></tr>
+<tr><td>SSH 用户</td><td>登录跳板机的用户名</td></tr>
+<tr><td>认证方式</td><td>三选一，见下</td></tr>
+<tr><td>使用 ssh config 别名</td><td>勾选后完全交给系统 SSH 配置解析该主机（包括别名、端口、用户、密钥）</td></tr>
+<tr><td>跳板机</td><td>形如 <code>user@proxy:22</code>，用于「先连 A 再跳 B」的场景</td></tr>
+</tbody>
+</table>
+
+<h2>三种认证方式</h2>
+
+<figure>
+<svg viewBox="0 0 1000 420" role="img" aria-label="三种 SSH 认证方式的适用场景">
+  <title>三种认证方式</title>
+
+  <rect class="s-window ln" x="16" y="20" width="312" height="380" rx="10"/>
+  <rect class="s-soft" x="16" y="20" width="312" height="34" rx="10"/>
+  <text class="b s" x="36" y="37">① 用 ~/.ssh/config 与 ssh-agent</text>
+  <line class="ln" x1="16" y1="54" x2="328" y2="54"/>
+  <text class="ok s" x="36" y="80">推荐，最省事</text>
+  <text class="s" x="36" y="112">适用场景：</text>
+  <text class="mut s" x="36" y="134">· 平时就是这么连的</text>
+  <text class="mut s" x="36" y="156">· 已经在 ssh-agent 里加载了密钥</text>
+  <text class="mut s" x="36" y="178">· 用了 ProxyJump 之类的高级配置</text>
+  <line class="ln" x1="16" y1="200" x2="328" y2="200"/>
+  <text class="s" x="36" y="226">在 TableLite 里要填：</text>
+  <text class="mut s" x="36" y="248">只需要 SSH 主机（可以填别名）</text>
+  <text class="mut s" x="36" y="270">不需要填密码，也不用手动指定密钥</text>
+  <line class="ln" x1="16" y1="292" x2="328" y2="292"/>
+  <text class="fnt s" x="36" y="316">你的 ~/.ssh/config 改动会立即生效，</text>
+  <text class="fnt s" x="36" y="336">不需要在 TableLite 里重新配置。</text>
+  <text class="fnt s" x="36" y="364">行为等同于在终端里敲</text>
+  <text class="fnt mono s" x="36" y="384">ssh &lt;别名&gt;</text>
+
+  <rect class="s-window ln" x="344" y="20" width="312" height="380" rx="10"/>
+  <rect class="s-chrome2" x="344" y="20" width="312" height="34" rx="10"/>
+  <text class="b s" x="364" y="37">② 用私钥</text>
+  <line class="ln" x1="344" y1="54" x2="656" y2="54"/>
+  <text class="s" x="364" y="80">适用场景：</text>
+  <text class="mut s" x="364" y="102">· 不想动 ~/.ssh/config</text>
+  <text class="mut s" x="364" y="124">· 不同的跳板机用不同的密钥</text>
+  <text class="mut s" x="364" y="146">· 密钥不在默认位置</text>
+  <line class="ln" x1="344" y1="168" x2="656" y2="168"/>
+  <text class="s" x="364" y="194">在 TableLite 里要填：</text>
+  <text class="mut s" x="364" y="216">SSH 主机、端口、用户</text>
+  <text class="mut s" x="364" y="238">私钥文件路径（默认目录是 ~/.ssh）</text>
+  <line class="ln" x1="344" y1="260" x2="656" y2="260"/>
+  <text class="s" x="364" y="286">私钥有口令时：</text>
+  <text class="mut s" x="364" y="308">第一次连接弹出输入框</text>
+  <text class="mut s" x="364" y="330">可以勾「记住口令」，之后存在钥匙串里</text>
+  <line class="ln" x1="344" y1="352" x2="656" y2="352"/>
+  <text class="fnt s" x="364" y="376">支持未加密的 RSA / ECDSA / Ed25519，</text>
+  <text class="fnt s" x="364" y="396">以及带口令的同类密钥。</text>
+
+  <rect class="s-window ln" x="672" y="20" width="312" height="380" rx="10"/>
+  <rect class="s-chrome2" x="672" y="20" width="312" height="34" rx="10"/>
+  <text class="b s" x="692" y="37">③ 用密码</text>
+  <line class="ln" x1="672" y1="54" x2="984" y2="54"/>
+  <text class="s" x="692" y="80">适用场景：</text>
+  <text class="mut s" x="692" y="102">· 跳板机只开了密码登录</text>
+  <text class="mut s" x="692" y="124">· 临时连一台别人的机器</text>
+  <line class="ln" x1="672" y1="146" x2="984" y2="146"/>
+  <text class="s" x="692" y="172">在 TableLite 里要填：</text>
+  <text class="mut s" x="692" y="194">SSH 主机、端口、用户、密码</text>
+  <text class="mut s" x="692" y="216">密码保存在系统钥匙串里</text>
+  <line class="ln" x1="672" y1="238" x2="984" y2="238"/>
+  <text class="s" x="692" y="264">为什么这个放最后：</text>
+  <text class="mut s" x="692" y="286">密码认证需要借助系统的密码询问</text>
+  <text class="mut s" x="692" y="308">机制，在某些环境（例如服务器禁用</text>
+  <text class="mut s" x="692" y="330">了密码登录）会失败并提示。</text>
+  <line class="ln" x1="672" y1="352" x2="984" y2="352"/>
+  <text class="fnt s" x="692" y="376">失败时的提示：SSH 认证失败：</text>
+  <text class="fnt mono s" x="692" y="396">Permission denied (password).</text>
+</svg>
+<figcaption><b>图 10-3</b>　三种认证方式。默认选第一种。</figcaption>
+</figure>
+
+<h2>连接过程中的提示</h2>
+
+<p>连接时状态栏依次显示两条：</p>
+
+<ol class="steps">
+  <li><code>正在建立 SSH 隧道…</code></li>
+  <li><code>正在连接 MySQL…</code></li>
+</ol>
+
+<p>
+  隧道建立成功后，状态栏的提示里会带上隧道信息，但<b>只在悬停详情里显示</b>——
+  主界面不显示本地端口，避免干扰。
+</p>
+
+<h3>首次连接一台新主机</h3>
+
+<div class="callout">
+  <span class="tag">自动接受新指纹，但不接受变化的指纹</span>
+  <p>
+    系统 SSH 会记录主机指纹。TableLite 的行为是：
+  </p>
+  <ul>
+    <li><b>首次</b>连接一台新主机时，<b>自动接受</b>它的指纹——等同于系统 SSH 默认的 <code>accept-new</code>。
+      这样你不用先在终端里连一次。</li>
+    <li>如果主机指纹<b>发生了变化</b>（可能是服务器重装，也可能是中间人攻击），
+      直接失败并展示完整警告，<b>不会静默忽略</b>。</li>
+  </ul>
+</div>
+
+<figure>
+<svg viewBox="0 0 1000 400" role="img" aria-label="SSH 主机指纹变化的警告面板">
+  <title>主机指纹变化警告</title>
+  <rect class="s-window ln2" x="180" y="16" width="640" height="368" rx="12"/>
+  <rect class="s-red" x="180" y="16" width="640" height="44" rx="12"/>
+  <rect class="s-red" x="180" y="40" width="640" height="20"/>
+  <text class="b c" x="500" y="38" fill="#fff">SSH 连接失败</text>
+  <line class="ln" x1="180" y1="60" x2="820" y2="60"/>
+
+  <rect class="s-sunken ln" x="208" y="76" width="584" height="90" rx="7"/>
+  <text class="mono err s" x="222" y="96">@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@</text>
+  <text class="mono err s" x="222" y="116">WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!</text>
+  <text class="mono err s" x="222" y="136">IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!</text>
+  <text class="mono s" x="222" y="156">Offending ECDSA key in /Users/hongbo/.ssh/known_hosts:42</text>
+
+  <text x="208" y="196">服务器的 SSH 指纹与本地记录不一致。这可能意味着</text>
+  <text x="208" y="220">服务器被重装过，也可能存在安全风险。</text>
+
+  <text class="warn" x="208" y="256">如果你确认服务器是安全的，请在终端里手动连接一次</text>
+  <text class="warn" x="208" y="280">并清理 ~/.ssh/known_hosts 中的旧记录。</text>
+
+  <line class="ln" x1="180" y1="312" x2="820" y2="312"/>
+  <rect class="s-field ln2" x="208" y="326" width="120" height="30" rx="6"/>
+  <text class="c s" x="268" y="341">查看详细输出</text>
+  <rect class="s-field ln2" x="700" y="326" width="90" height="30" rx="6"/>
+  <text class="c s" x="745" y="341">关闭</text>
+
+  <text class="fnt s" x="208" y="376">TableLite 不会帮你改 known_hosts。这个决定应该由你在终端里做。</text>
+</svg>
+<figcaption><b>图 10-4</b>　主机指纹变化时的警告。原始输出原样展示，不做删减。</figcaption>
+</figure>
+
+<h2>隧道断开</h2>
+
+<ul>
+  <li>连接状态变成<b>红点</b>。</li>
+  <li>状态栏提示 <code>SSH 隧道已断开</code>。</li>
+  <li><b>不自动重连</b>——避免在你不知情的时候反复建立隧道。</li>
+  <li>点「重新连接」后，会重开隧道并重连数据库。</li>
+</ul>
+
+<h2>断开与退出时的清理</h2>
+
+<div class="callout danger">
+  <span class="tag">不能留后台 ssh 进程</span>
+  <ul>
+    <li>关闭连接时同时关掉隧道，<b>不残留后台进程</b>。</li>
+    <li>退出 App 时清理所有隧道。</li>
+  </ul>
+  <p>
+    这一点是要专门验证的：如果在终端里 <code>ps aux | grep ssh</code>
+    还能看到隧道进程，说明清理有 bug。
+  </p>
+</div>
+
+<h2>错误提示</h2>
+
+<figure>
+<svg viewBox="0 0 1000 400" role="img" aria-label="SSH 各类错误的提示文案">
+  <title>SSH 错误提示</title>
+
+  <rect class="s-sunken ln" x="20" y="20" width="960" height="56" rx="8"/>
+  <circle class="s-red" cx="48" cy="48" r="8"/>
+  <path d="M45 45 l6 6 M51 45 l-6 6" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="70" y="42">跳板机无法连通</text>
+  <text class="mut s" x="70" y="60">无法连接到 SSH 主机 bastion.example.com:22（连接超时）</text>
+
+  <rect class="s-sunken ln" x="20" y="88" width="960" height="56" rx="8"/>
+  <circle class="s-red" cx="48" cy="116" r="8"/>
+  <path d="M45 113 l6 6 M51 113 l-6 6" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="70" y="110">用户 / 密码错误</text>
+  <text class="mut mono s" x="70" y="128">SSH 认证失败：Permission denied (password).</text>
+
+  <rect class="s-sunken ln" x="20" y="156" width="960" height="56" rx="8"/>
+  <circle class="s-red" cx="48" cy="184" r="8"/>
+  <path d="M45 181 l6 6 M51 181 l-6 6" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="70" y="178">私钥错误或需要口令</text>
+  <text class="mut s" x="70" y="196">SSH 认证失败：私钥需要口令，或密钥未被接受</text>
+
+  <rect class="s-sunken ln" x="20" y="224" width="960" height="56" rx="8"/>
+  <circle class="s-red" cx="48" cy="252" r="8"/>
+  <path d="M45 249 l6 6 M51 249 l-6 6" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="70" y="246">目标数据库不可达</text>
+  <text class="mut s" x="70" y="264">SSH 隧道建立成功，但无法从跳板机访问 10.0.2.5:3306</text>
+
+  <rect class="s-sunken ln" x="20" y="292" width="960" height="56" rx="8"/>
+  <circle class="s-red" cx="48" cy="320" r="8"/>
+  <path d="M45 317 l6 6 M51 317 l-6 6" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="70" y="314">跳板机上没有权限</text>
+  <text class="mut mono s" x="70" y="332">原样展示 SSH 的错误输出，例如：listen [::1]:53142: bind: Permission denied</text>
+
+  <text class="fnt s" x="20" y="376">每一个错误面板里都有一项「查看详细输出」，显示 SSH 进程的原始错误文本，方便排查。</text>
+</svg>
+<figcaption><b>图 10-5</b>　SSH 相关的错误提示。第四种特别好用——说明隧道通了但目标端口不通。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>情况</th><th>提示</th></tr></thead>
+<tbody>
+<tr><td>跳板机无法连通</td><td><code>无法连接到 SSH 主机 bastion.example.com:22（连接超时）</code></td></tr>
+<tr><td>用户 / 密码错误</td><td><code>SSH 认证失败：Permission denied (password).</code></td></tr>
+<tr><td>私钥错误或需要口令</td><td><code>SSH 认证失败：私钥需要口令，或密钥未被接受</code></td></tr>
+<tr><td>目标数据库不可达</td><td><code>SSH 隧道建立成功，但无法从跳板机访问 10.0.2.5:3306</code></td></tr>
+<tr><td>主机指纹变化</td><td>见上方的警告面板</td></tr>
+<tr><td>跳板机上没有权限</td><td>原样展示 SSH 的错误输出</td></tr>
+</tbody>
+</table>
+
+<h2>明确不做</h2>
+
+<div class="callout danger">
+  <span class="tag">关于 SSH 的边界</span>
+  <ul>
+    <li>不支持在界面里生成或管理 SSH 密钥（用 <code>ssh-keygen</code>）</li>
+    <li>不支持端口转发之外的其他 SSH 功能（远程执行命令、SFTP）</li>
+    <li>不支持保存多个跳板机的层级——只支持一个「跳板机」字段</li>
+    <li>不支持在 App 内编辑 <code>~/.ssh/config</code>，请用文本编辑器</li>
+    <li>不自动修改 <code>known_hosts</code></li>
+  </ul>
+</div>
+
+<div class="pager"></div>
+
+</main>
+</div>
+<script src="assets/manual.js"></script>
+</body>
+</html>

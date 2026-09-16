@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  TableLite 是自用工具，刻意**不开启 App Sandbox**。
+	  理由见 docs/tech-designs/12-build-and-deps.md §1：
+	    · 需要读取 ~/.ssh/config 与私钥
+	    · 需要以用户身份启动 /usr/bin/ssh 子进程
+	    · 需要连接任意 TCP 主机
+	  开启沙箱会在这三处处处受限。对应的构建设置是 ENABLE_APP_SANDBOX = NO。
+
+	  下面这条 entitlement 在沙箱关闭时不起作用，保留是为了将来若要开启沙箱
+	  时不用再回来补。
+	-->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+</dict>
+</plist>

@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03 · 浏览表数据 — TableLite 使用说明书</title>
+<link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc">
+  <!-- 下面这段是无脚本时的兜底导航；有脚本时会被 manual.js 重新生成并标出当前页 -->
+  <div class="brand"><b>TableLite</b><span>使用说明书</span></div>
+  <div class="sub">macOS 原生 MySQL / MariaDB 客户端</div>
+  <ol>
+      <li><a href="index.html"><span class="n">·</span><span>说明书首页</span></a></li>
+      <li><a href="01-connections.html"><span class="n">01</span><span>连接</span></a></li>
+      <li><a href="02-workspace.html"><span class="n">02</span><span>界面结构</span></a></li>
+      <li><a href="03-data-browsing.html"><span class="n">03</span><span>浏览表数据</span></a></li>
+      <li><a href="04-data-editing.html"><span class="n">04</span><span>编辑数据</span></a></li>
+      <li><a href="05-filtering.html"><span class="n">05</span><span>过滤器</span></a></li>
+      <li><a href="06-query-editor.html"><span class="n">06</span><span>查询编辑器</span></a></li>
+      <li><a href="07-schema-view.html"><span class="n">07</span><span>表结构视图</span></a></li>
+      <li><a href="08-import-export.html"><span class="n">08</span><span>导入与导出</span></a></li>
+      <li><a href="09-readonly.html"><span class="n">09</span><span>只读模式</span></a></li>
+      <li><a href="10-ssh-tunnel.html"><span class="n">10</span><span>SSH 隧道</span></a></li>
+      <li><a href="11-preferences.html"><span class="n">11</span><span>偏好设置</span></a></li>
+      <li><a href="12-shortcuts.html"><span class="n">12</span><span>快捷键总表</span></a></li>
+      <li><a href="13-feedback.html"><span class="n">13</span><span>提示与错误</span></a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1><span class="chapter">第 03 章</span>浏览表数据</h1>
+<p class="lede">
+  从对象树点一张表，就打开了它的数据视图。这一章讲表格长什么样、
+  怎么翻页、怎么排序、各种奇怪的内容（NULL、BLOB、超长文本、图片）分别怎么显示。
+</p>
+
+<h2>数据网格</h2>
+
+<figure>
+<svg viewBox="0 0 1000 470" role="img" aria-label="数据网格的线框图">
+  <title>数据网格</title>
+
+  <!-- 表头 -->
+  <rect class="s-chrome2 ln" x="20" y="20" width="948" height="30"/>
+  <text class="fnt s r" x="52" y="35">#</text>
+  <text class="b" x="70" y="35">🔑</text>
+  <text class="b" x="88" y="35">id</text>
+  <text class="b" x="140" y="35">name</text>
+  <text class="b" x="260" y="35">email</text>
+  <text class="b" x="430" y="35">content</text>
+  <text class="b" x="610" y="35">photo</text>
+  <text class="b" x="730" y="35">meta</text>
+  <text class="b" x="870" y="35">created_at</text>
+  <text class="fnt s" x="946" y="35">▲</text>
+
+  <!-- 行 -->
+  <rect class="s-sunken" x="20" y="50" width="38" height="160"/>
+  <line class="ln" x1="58" y1="50" x2="58" y2="210"/>
+
+  <g class="ln">
+    <line x1="20" y1="82" x2="968" y2="82"/>
+    <line x1="20" y1="114" x2="968" y2="114"/>
+    <line x1="20" y1="146" x2="968" y2="146"/>
+    <line x1="20" y1="178" x2="968" y2="178"/>
+    <line x1="130" y1="50" x2="130" y2="210"/>
+    <line x1="250" y1="50" x2="250" y2="210"/>
+    <line x1="420" y1="50" x2="420" y2="210"/>
+    <line x1="600" y1="50" x2="600" y2="210"/>
+    <line x1="720" y1="50" x2="720" y2="210"/>
+    <line x1="860" y1="50" x2="860" y2="210"/>
+  </g>
+  <rect class="s-alt" x="58" y="82" width="910" height="32"/>
+  <rect class="s-alt" x="58" y="146" width="910" height="32"/>
+
+  <!-- 第 1 行 -->
+  <text class="fnt s c" x="39" y="66">1</text>
+  <text x="70" y="66">1</text>
+  <text x="140" y="66">张三</text>
+  <text class="mut" x="260" y="66">zs@example.com</text>
+  <text class="mut" x="430" y="66">这是一篇很长的文…</text>
+  <text class="mut s" x="610" y="66">«图片 PNG 45.2 KB»</text>
+  <text class="mut s" x="730" y="66">«GEOMETRY 25 B»</text>
+  <text class="mut s" x="870" y="66">2025-01-01 10:00</text>
+
+  <!-- 第 2 行 -->
+  <text class="fnt s c" x="39" y="98">2</text>
+  <text x="70" y="98">2</text>
+  <text x="140" y="98">李四</text>
+  <text class="mut" x="260" y="98">ls@example.com</text>
+  <text class="mut s" x="430" y="98">«BLOB 12.3 KB»</text>
+  <text class="fnt" x="610" y="98">（空）</text>
+  <text class="mono mut s" x="730" y="98">{&quot;a&quot;:1,&quot;b&quot;:2}</text>
+  <text class="mut s" x="870" y="98">2025-01-02 11:00</text>
+
+  <!-- 第 3 行：外键 + NULL -->
+  <text class="fnt s c" x="39" y="130">3</text>
+  <text x="70" y="130">3</text>
+  <text x="140" y="130">王五</text>
+  <text class="fnt" x="260" y="130">NULL</text>
+  <text class="fnt" x="430" y="130">NULL</text>
+  <text class="fnt" x="610" y="130">NULL</text>
+  <text class="fnt" x="730" y="130">NULL</text>
+  <text class="mut s" x="870" y="130">2025-01-03</text>
+
+  <!-- 第 4 行：短二进制 + 外键箭头 -->
+  <text class="fnt s c" x="39" y="162">4</text>
+  <text x="70" y="162">4</text>
+  <text x="140" y="162">赵六</text>
+  <text x="260" y="162">zl@example.com</text>
+  <text class="mono mut s" x="430" y="162">0xDEADBEEF</text>
+  <text class="mut s" x="610" y="162">«BLOB 4 B»</text>
+  <text class="acc s" x="730" y="162">user_id 42</text>
+  <text class="acc" x="826" y="162">↗</text>
+  <text class="mut s" x="870" y="162">2025-01-04</text>
+
+  <!-- 第 5 行：已修改 -->
+  <rect class="s-edit" x="130" y="178" width="120" height="32" opacity="0.8"/>
+  <path class="lnO sw2" d="M134 180 l9 0 l-9 9 z"/>
+  <text class="warn s c" x="39" y="194">5</text>
+  <text x="70" y="194">5</text>
+  <text x="140" y="194">钱七</text>
+  <text class="mut" x="260" y="194">qq@example.com</text>
+  <text class="mut" x="430" y="194">—</text>
+  <text class="mut s" x="610" y="194">—</text>
+  <text class="mut s" x="730" y="194">—</text>
+  <text class="mut s" x="870" y="194">2025-01-05</text>
+
+  <!-- 滚动条 -->
+  <rect class="s-chrome2" x="970" y="50" width="10" height="160" rx="5"/>
+  <rect class="s-gray" x="970" y="50" width="10" height="70" rx="5"/>
+
+  <!-- 底部说明 -->
+  <text class="fnt s" x="20" y="238">↓ 行号列　·　主键列加粗且带钥匙图标　·　外键列带 ↗ 可跳转</text>
+
+  <!-- 提示气泡 -->
+  <rect class="s-window ln2" x="460" y="258" width="520" height="52" rx="8"/>
+  <text class="s" x="476" y="276">`content` LONGTEXT NULL · 原始内容 1.2 MB</text>
+  <text class="fnt s" x="476" y="296">点开可查看完整内容（当前只取了前 4 KB）</text>
+  <line class="lnD" x1="560" y1="74" x2="560" y2="258"/>
+
+  <!-- 热点 -->
+  <g class="hot" data-hot="1"><circle cx="39" cy="20" r="11"/><text x="39" y="20">1</text></g>
+  <g class="hot" data-hot="2"><circle cx="95" cy="20" r="11"/><text x="95" y="20">2</text></g>
+  <g class="hot" data-hot="3"><circle cx="836" cy="146" r="11"/><text x="836" y="146">3</text></g>
+  <g class="hot" data-hot="4"><circle cx="286" cy="130" r="11"/><text x="286" y="130">4</text></g>
+  <g class="hot" data-hot="5"><circle cx="466" cy="98" r="11"/><text x="466" y="98">5</text></g>
+  <g class="hot" data-hot="6"><circle cx="546" cy="66" r="11"/><text x="546" y="66">6</text></g>
+  <g class="hot" data-hot="7"><circle cx="176" cy="194" r="11"/><text x="176" y="194">7</text></g>
+  <g class="hot" data-hot="8"><circle cx="946" cy="20" r="11"/><text x="946" y="20">8</text></g>
+  <g class="hot" data-hot="9"><circle cx="982" cy="20" r="11"/><text x="982" y="20">9</text></g>
+</svg>
+<figcaption><b>图 3-1</b>　数据网格。鼠标悬停在超长内容的单元格上，会弹出它到底有多大。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>元素</th><th>含义</th></tr></thead>
+<tbody>
+<tr data-hot="1"><td class="num">1</td><td class="wide">行号列</td>
+  <td>最左边一列序号。点它可以选中整行；<kbd>⌘</kbd> + 点击可以多选不连续的行。有已修改的行，行号上会带标记。</td></tr>
+<tr data-hot="2"><td class="num">2</td><td class="wide">主键列</td>
+  <td>表头带钥匙图标、列名加粗。有主键的表才可以编辑（见<a href="04-data-editing.html">第 4 章</a>）。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">外键跳转 ↗</td>
+  <td>外键列的单元格后面带这个箭头。点一下会在<b>新标签</b>打开被引用的那张表，并自动只显示对应的那一行。</td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">NULL</td>
+  <td>灰色的斜体 <code>NULL</code>。注意它和<b>空字符串</b>不一样：空字符串显示为一格空白。</td></tr>
+<tr data-hot="5"><td class="num">5</td><td class="wide">二进制</td>
+  <td>长二进制显示成 <code>«BLOB 12.3 KB»</code>；很短的直接显示十六进制 <code>0xDEADBEEF</code>，省得还要点开看。</td></tr>
+<tr data-hot="6"><td class="num">6</td><td class="wide">超长文本</td>
+  <td>末尾带 <code>…</code> 表示被截断了。悬停会告诉你原始大小，点开或双击才去服务器取完整值。</td></tr>
+<tr data-hot="7"><td class="num">7</td><td class="wide">已修改的单元格</td>
+  <td>橙色底色 + 左上角小三角 = 有未提交的修改。行号列也会出现同样的标记。</td></tr>
+<tr data-hot="8"><td class="num">8</td><td class="wide">排序箭头</td>
+  <td>点列头排序：第一次 ▲ 升序，第二次 ▼ 降序，第三次取消。</td></tr>
+<tr data-hot="9"><td class="num">9</td><td class="wide">滚动条</td>
+  <td>按偏好可以自动隐藏。滚到表格底部就是当前页的最后一行，不是整张表的最后一行。</td></tr>
+</tbody>
+</table>
+
+<h3>各种内容分别怎么显示</h3>
+
+<table>
+<thead><tr><th>内容类型</th><th>显示</th><th>理由</th></tr></thead>
+<tbody>
+<tr><td>普通文本</td><td>原样，超出列宽省略</td><td>—</td></tr>
+<tr><td><code>NULL</code></td><td>灰斜体 <code>NULL</code></td><td>和空字符串区分开</td></tr>
+<tr><td>数字</td><td>右对齐</td><td>方便比大小</td></tr>
+<tr><td>布尔（<code>tinyint(1)</code>）</td><td><code>0</code> / <code>1</code></td><td>偏好了可改成复选框</td></tr>
+<tr><td>日期时间</td><td>原样显示服务器返回的文本</td><td>不做时区转换，避免看错</td></tr>
+<tr><td>超长文本</td><td>截断 + <code>…</code></td><td>一页几十个 1 MB 的格子会卡死</td></tr>
+<tr><td>BLOB / 二进制</td><td><code>«BLOB 12.3 KB»</code> / <code>0xDEADBEEF</code></td><td>二进制没法当文本看</td></tr>
+<tr><td>图片二进制</td><td><code>«图片 PNG 45.2 KB»</code></td><td>能识别出来的话直接说明是图片</td></tr>
+<tr><td>几何类型</td><td><code>«GEOMETRY 25 B»</code></td><td>同样不解析</td></tr>
+<tr><td>JSON</td><td>一行紧凑显示</td><td><b>不</b>自动美化——美化过的 JSON 和实际存的值不一样，会误导</td></tr>
+<tr><td>空字符串</td><td>一格空白</td><td>和 NULL 区分</td></tr>
+<tr><td>已修改</td><td>橙色底色</td><td>见第 4 章</td></tr>
+<tr><td>新增的行</td><td>整行绿色底色</td><td>见第 4 章</td></tr>
+<tr><td>已删除的行</td><td>整行删除线并变淡</td><td>见第 4 章</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+  <span class="tag">超长内容的延迟加载</span>
+  <p>
+    超过 <b>4 KB</b> 的文本和二进制列，打开表时只取前 4 KB。状态栏会告诉你实际有多大
+    （比如 <code>内容 1.2 MB</code>）。点「快速查看」或双击编辑时才会去服务器取完整值，中间会有一小段 loading。
+  </p>
+  <p>
+    <b>如果表没有主键或唯一键</b>，就没办法准确定位到这一行，这些单元格会一直保持截断状态，
+    并提示 <code>无法定位行以加载完整内容</code>。
+  </p>
+</div>
+
+<h2>分页</h2>
+
+<p>
+  表数据是<b>分页</b>加载的，默认每页 300 行。打开一张百万行的表不会把一百万行都拉下来。
+</p>
+
+<figure>
+<svg viewBox="0 0 1000 240" role="img" aria-label="分页状态栏的各个部分">
+  <title>分页控件</title>
+
+  <!-- 状态栏主体 -->
+  <rect class="s-chrome ln" x="20" y="30" width="960" height="46" rx="8"/>
+
+  <text class="s" x="44" y="53">行 1–300 / 约 12,480 行</text>
+  <text class="fnt s" x="240" y="53">↑ 估算值，前面标「约」</text>
+
+  <text class="s" x="480" y="53">第 1 页</text>
+
+  <rect class="s-field ln2" x="560" y="40" width="110" height="26" rx="6"/>
+  <text class="s" x="574" y="53">300 行/页</text>
+  <text class="mut s" x="652" y="53">▾</text>
+
+  <rect class="s-field ln2" x="700" y="40" width="34" height="26" rx="6"/>
+  <text class="c mut s" x="717" y="53">‹</text>
+  <rect class="s-field ln2" x="742" y="40" width="34" height="26" rx="6"/>
+  <text class="c s" x="759" y="53">›</text>
+
+  <text class="s" x="792" y="53">跳到</text>
+  <rect class="s-field ln2" x="826" y="40" width="50" height="26" rx="6"/>
+  <text class="s" x="840" y="53">1</text>
+
+  <rect class="s-field ln2" x="890" y="40" width="78" height="26" rx="6"/>
+  <text class="c s" x="929" y="53">精确统计</text>
+
+  <!-- 每页行数下拉 -->
+  <rect class="s-window ln2" x="560" y="80" width="140" height="130" rx="8"/>
+  <text class="acc" x="576" y="100">100 行/页</text>
+  <rect class="s-soft" x="566" y="110" width="128" height="26" rx="6"/>
+  <text class="acc" x="576" y="123">300 行/页</text>
+  <text x="576" y="150">1000 行/页</text>
+  <text x="576" y="176">5000 行/页</text>
+  <text class="fnt s" x="576" y="200">也可以手填，上限 10000</text>
+
+  <!-- 第 3 点 -->
+  <g class="hot" data-hot="1"><circle cx="36" cy="30" r="11"/><text x="36" y="30">1</text></g>
+  <g class="hot" data-hot="2"><circle cx="490" cy="24" r="11"/><text x="490" y="24">2</text></g>
+  <g class="hot" data-hot="3"><circle cx="726" cy="24" r="11"/><text x="726" y="24">3</text></g>
+  <g class="hot" data-hot="4"><circle cx="980" cy="53" r="11"/><text x="980" y="53">4</text></g>
+  <g class="hot" data-hot="5"><circle cx="960" cy="150" r="11"/><text x="960" y="150">5</text></g>
+</svg>
+<figcaption><b>图 3-2</b>　分页控件。行数是估算的，所以前面写「约」。</figcaption>
+</figure>
+
+<table class="controls">
+<thead><tr><th>#</th><th>控件</th><th>作用</th></tr></thead>
+<tbody>
+<tr data-hot="1"><td class="num">1</td><td class="wide">行数范围</td>
+  <td>显示当前页是哪几行，以及总行数的<b>估算值</b>。估算靠读取表的统计信息，很快但可能不准，所以标了「约」。估不出来时显示 <code>约 0 行（估算不可靠）</code>。</td></tr>
+<tr data-hot="2"><td class="num">2</td><td class="wide">页码</td>
+  <td>当前是第几页。换排序、换过滤条件、换每页行数都会回到第 1 页。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">翻页按钮</td>
+  <td><b>‹</b> 上一页，<b>›</b> 下一页。在第一页或最后一页时对应按钮变灰。后面还有个「跳到第 __ 页」的输入框。</td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">精确统计</td>
+  <td>点它才真正执行一次 <code>COUNT(*)</code>。大表可能很慢，期间可以取消。<b>打开表时绝不会自动做精确计数</b>。</td></tr>
+<tr data-hot="5"><td class="num">5</td><td class="wide">每页行数</td>
+  <td>可选 <code>100 / 300 / 1000 / 5000</code>，也可以手动填，上限 10000。</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+  <span class="tag">翻到很深的页会越来越慢</span>
+  <p>
+    偏移量超过 10 万行时，会提示：<code>偏移量很大，翻页会越来越慢；建议用过滤器缩小范围后再翻页</code>。
+    这不是本工具的问题，而是 <code>LIMIT ... OFFSET ...</code> 本身就要扫过前面所有行。
+    想看后面的数据，用过滤器或者排序更实际。
+  </p>
+</div>
+
+<h2>排序</h2>
+
+<figure>
+<svg viewBox="0 0 1000 190" role="img" aria-label="排序的三种状态">
+  <title>列头排序</title>
+
+  <rect class="s-chrome2 ln" x="30" y="30" width="200" height="30"/>
+  <text class="b" x="46" y="45">name</text>
+  <text class="fnt s" x="206" y="45">▲</text>
+  <text class="fnt s c" x="130" y="80">第 1 次点击：升序</text>
+
+  <rect class="s-chrome2 ln" x="270" y="30" width="200" height="30"/>
+  <text class="b" x="286" y="45">name</text>
+  <text class="fnt s" x="446" y="45">▼</text>
+  <text class="fnt s c" x="370" y="80">第 2 次点击：降序</text>
+
+  <rect class="s-chrome2 ln" x="510" y="30" width="200" height="30"/>
+  <text class="b" x="526" y="45">name</text>
+  <text class="fnt s c" x="610" y="80">第 3 次点击：取消排序</text>
+
+  <!-- 多列排序 -->
+  <rect class="s-chrome2 ln" x="750" y="30" width="220" height="30"/>
+  <text class="b" x="766" y="45">status</text>
+  <text class="fnt s" x="820" y="45">▲1</text>
+  <text class="b" x="856" y="45">created_at</text>
+  <text class="fnt s" x="942" y="45">▼2</text>
+  <text class="fnt s c" x="860" y="80">按住 ⇧ 点列头，追加多列排序</text>
+
+  <text class="fnt s" x="30" y="126">取消全部排序后，回到默认顺序——按主键排。没有主键的表按什么顺序不保证。</text>
+  <text class="fnt s" x="30" y="150">换一种排序方式会回到第 1 页并重新加载数据。</text>
+</svg>
+<figcaption><b>图 3-3</b>　排序的三种状态，以及按住 <kbd>⇧</kbd> 追加多列排序。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>操作</th><th>结果</th></tr></thead>
+<tbody>
+<tr><td>点列头</td><td>升序 ▲ → 降序 ▼ → 取消排序，循环</td></tr>
+<tr><td><kbd>⇧</kbd> + 点列头</td><td>追加进排序列表，表头上显示序号</td></tr>
+<tr><td>取消排序</td><td>回到默认顺序（按主键）</td></tr>
+<tr><td>改变排序</td><td>回到第 1 页并重新从服务器加载</td></tr>
+</tbody>
+</table>
+
+<h2>快速查看</h2>
+
+<p>
+  对内容很大或结构化的单元格，可以在一个可调整大小的浮层里看完整内容。
+  三种打开方式：选中单元格按 <kbd>Space</kbd>、中键点击、右键 → <code>快速查看</code>。
+</p>
+
+<figure>
+<svg viewBox="0 0 1000 620" role="img" aria-label="快速查看浮层的四种呈现">
+  <title>快速查看</title>
+
+  <!-- JSON -->
+  <rect class="s-window ln2" x="14" y="16" width="478" height="288" rx="10"/>
+  <rect class="s-chrome" x="14" y="16" width="478" height="30" rx="10"/>
+  <text class="s" x="34" y="31">快速查看 · content</text>
+  <text class="fnt s" x="440" y="31">JSON</text>
+  <line class="ln" x1="14" y1="46" x2="492" y2="46"/>
+
+  <text class="mono s" x="34" y="70">{</text>
+  <text class="mono s" x="50" y="90">▾ &quot;user&quot;: {</text>
+  <text class="mono acc s" x="66" y="110">&quot;id&quot;: 42,</text>
+  <text class="mono acc s" x="66" y="130">&quot;name&quot;: &quot;张三&quot;</text>
+  <text class="mono s" x="50" y="150">},</text>
+  <text class="mono s" x="50" y="170">▸ &quot;tags&quot;: [3 项]</text>
+  <text class="mono s" x="50" y="190">&quot;active&quot;: true,</text>
+  <text class="mono s" x="50" y="210">&quot;score&quot;: null</text>
+  <text class="mono s" x="34" y="230">}</text>
+  <text class="fnt s" x="34" y="266">格式化显示，可以折叠展开</text>
+
+  <!-- 长文本 -->
+  <rect class="s-window ln2" x="508" y="16" width="478" height="288" rx="10"/>
+  <rect class="s-chrome" x="508" y="16" width="478" height="30" rx="10"/>
+  <text class="s" x="528" y="31">快速查看 · body</text>
+  <text class="fnt s" x="900" y="31">长文本</text>
+  <line class="ln" x1="508" y1="46" x2="986" y2="46"/>
+
+  <rect class="s-sunken" x="508" y="46" width="42" height="218"/>
+  <text class="fnt mono s r" x="542" y="68">1</text>
+  <text class="fnt mono s r" x="542" y="88">2</text>
+  <text class="fnt mono s r" x="542" y="108">3</text>
+  <text class="fnt mono s r" x="542" y="128">4</text>
+  <text class="fnt mono s r" x="542" y="148">5</text>
+  <text class="fnt mono s r" x="542" y="168">6</text>
+  <text class="fnt mono s r" x="542" y="188">7</text>
+  <text class="mono s" x="556" y="68"># 标题</text>
+  <text class="mono s" x="556" y="88">这是一段很长的正文，</text>
+  <text class="mono s" x="556" y="108">使用等宽字体显示，</text>
+  <text class="mono s" x="556" y="128">左边带行号，</text>
+  <text class="mono s" x="556" y="148">可以用 ⌘F 查找。</text>
+  <text class="mono s" x="556" y="168">整个文件 1.2 MB，</text>
+  <text class="mono s" x="556" y="188">这里是完整内容。</text>
+  <text class="fnt s" x="528" y="286">等宽字体 + 行号 + 查找</text>
+
+  <!-- 十六进制 -->
+  <rect class="s-window ln2" x="14" y="318" width="478" height="288" rx="10"/>
+  <rect class="s-chrome" x="14" y="318" width="478" height="30" rx="10"/>
+  <text class="s" x="34" y="333">快速查看 · photo</text>
+  <text class="fnt s" x="430" y="333">二进制</text>
+  <line class="ln" x1="14" y1="348" x2="492" y2="348"/>
+  <text class="s" x="34" y="370">PNG 图片 · 45.2 KB（当前预览前 64 KB）</text>
+  <rect class="s-sunken ln" x="34" y="382" width="440" height="140" rx="6"/>
+  <text class="mono fnt s" x="46" y="402">00000000</text>
+  <text class="mono s" x="112" y="402">89 50 4E 47 0D 0A 1A 0A</text>
+  <text class="mut mono s" x="256" y="402">.PNG....</text>
+  <text class="mono fnt s" x="46" y="422">00000008</text>
+  <text class="mono s" x="112" y="422">00 00 00 0D 49 48 44 52</text>
+  <text class="mut mono s" x="256" y="422">....IHDR</text>
+  <text class="mono fnt s" x="46" y="442">00000010</text>
+  <text class="mono s" x="112" y="442">00 00 04 00 00 00 03 00</text>
+  <text class="mut mono s" x="256" y="442">........</text>
+  <text class="mono fnt s" x="46" y="462">00000018</text>
+  <text class="mono s" x="112" y="462">08 02 00 00 00 7B 1D 8B</text>
+  <text class="mut mono s" x="256" y="462">.....{..</text>
+  <text class="fnt mono s" x="46" y="482">…</text>
+  <rect class="s-field ln2" x="34" y="532" width="130" height="30" rx="6"/>
+  <text class="c s" x="99" y="547">导出为文件…</text>
+
+  <!-- 图片 -->
+  <rect class="s-window ln2" x="508" y="318" width="478" height="288" rx="10"/>
+  <rect class="s-chrome" x="508" y="318" width="478" height="30" rx="10"/>
+  <text class="s" x="528" y="333">快速查看 · avatar</text>
+  <text class="fnt s" x="900" y="333">图片</text>
+  <line class="ln" x1="508" y1="348" x2="986" y2="348"/>
+  <rect class="s-sunken ln" x="558" y="368" width="360" height="150" rx="6"/>
+  <circle class="s-chrome2" cx="738" cy="428" r="34"/>
+  <circle class="s-chrome2" cx="726" cy="420" r="4"/>
+  <circle class="s-chrome2" cx="750" cy="420" r="4"/>
+  <path class="ln2" d="M724 442 q14 12 28 0"/>
+  <text class="fnt s c" x="738" y="496">（这里显示真实图片）</text>
+  <text class="s" x="528" y="548">图片 800 × 600 · PNG · 45.2 KB</text>
+  <rect class="s-field ln2" x="508" y="562" width="130" height="30" rx="6"/>
+  <text class="c s" x="573" y="577">导出为文件…</text>
+</svg>
+<figcaption><b>图 3-4</b>　快速查看的四种呈现方式。按 <kbd>Esc</kbd> 关闭。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>类型</th><th>呈现方式</th></tr></thead>
+<tbody>
+<tr><td>JSON</td><td>格式化并支持折叠展开</td></tr>
+<tr><td>长文本</td><td>等宽字体 + 行号 + 查找</td></tr>
+<tr><td>二进制 / BLOB</td><td>十六进制预览（前 64 KB）+ 文件类型识别 + 「导出为文件…」</td></tr>
+<tr><td>图片</td><td>直接显示图片 + 「导出为文件…」</td></tr>
+<tr><td>日期时间</td><td>原文 + 按本地时区解析出来的结果</td></tr>
+</tbody>
+</table>
+
+<h2>复制</h2>
+
+<figure>
+<svg viewBox="0 0 1000 420" role="img" aria-label="复制菜单">
+  <title>右键复制菜单</title>
+
+  <rect class="s-window ln2" x="40" y="20" width="230" height="200" rx="9"/>
+  <text x="58" y="42">快速查看</text>
+  <line class="ln" x1="40" y1="58" x2="270" y2="58"/>
+  <text class="acc" x="58" y="76">复制为</text>
+  <text x="244" y="76">▸</text>
+  <line class="ln" x1="40" y1="92" x2="270" y2="92"/>
+  <text x="58" y="110">按此值筛选</text>
+  <text x="58" y="138">排除此值</text>
+  <line class="ln" x1="40" y1="154" x2="270" y2="154"/>
+  <text x="58" y="172">复制行</text>
+  <text x="58" y="200">删除行</text>
+
+  <rect class="s-window ln2" x="272" y="20" width="290" height="380" rx="9"/>
+  <text x="290" y="42">复制单元格值</text>
+  <text x="290" y="70">复制行</text>
+  <text x="290" y="98">复制选中行</text>
+  <text x="290" y="126">复制整列的值</text>
+  <text x="290" y="154">复制列名</text>
+  <line class="ln" x1="272" y1="170" x2="562" y2="170"/>
+  <text x="290" y="188">复制为 JSON</text>
+  <text x="290" y="216">复制为 Markdown 表格</text>
+  <text x="290" y="244">复制为 CSV</text>
+  <text x="290" y="272">复制为 CSV（含表头）</text>
+  <line class="ln" x1="272" y1="288" x2="562" y2="288"/>
+  <text x="290" y="306">复制为 SQL INSERT</text>
+  <text x="290" y="334">复制表结构</text>
+
+  <text class="fnt s" x="290" y="376">复制超过 100 行时会给出「已复制 12,480 行（2.1 MB）」的轻提示</text>
+
+  <!-- 右侧示例 -->
+  <rect class="s-sunken ln" x="600" y="20" width="380" height="180" rx="9"/>
+  <text class="b s" x="620" y="42">复制为 Markdown 表格 →</text>
+  <text class="mono s" x="620" y="66">| id | name | email |</text>
+  <text class="mono s" x="620" y="86">| -- | ---- | ----- |</text>
+  <text class="mono s" x="620" y="106">| 1  | 张三 | zs@… |</text>
+  <text class="mono s" x="620" y="126">| 2  | 李四 | ls@… |</text>
+
+  <rect class="s-sunken ln" x="600" y="212" width="380" height="188" rx="9"/>
+  <text class="b s" x="620" y="234">复制为 SQL INSERT →</text>
+  <text class="mono s" x="620" y="258">INSERT INTO `app_dev`.`users`</text>
+  <text class="mono s" x="620" y="278">  (`id`,`name`,`email`)</text>
+  <text class="mono s" x="620" y="298">VALUES</text>
+  <text class="mono s" x="620" y="318">  (1,'张三','zs@example.com'),</text>
+  <text class="mono s" x="620" y="338">  (2,'李四','ls@example.com');</text>
+  <text class="mut mono s" x="620" y="366">二进制写成 0x… 十六进制</text>
+  <text class="mut mono s" x="620" y="384">NULL 写成 NULL</text>
+</svg>
+<figcaption><b>图 3-5</b>　右键的「复制为」子菜单。下面两种格式是实际输出的样子。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>菜单项</th><th>输出内容</th></tr></thead>
+<tbody>
+<tr><td>复制单元格值</td><td>纯文本</td></tr>
+<tr><td>复制行</td><td>一行，制表符分隔</td></tr>
+<tr><td>复制选中行</td><td>多行，制表符分隔</td></tr>
+<tr><td>复制整列的值</td><td>每行一个值</td></tr>
+<tr><td>复制列名</td><td>逗号分隔</td></tr>
+<tr><td>复制为 JSON</td><td>JSON 数组对象</td></tr>
+<tr><td>复制为 Markdown 表格</td><td>带表头与分隔线</td></tr>
+<tr><td>复制为 CSV</td><td>按偏好设置的分隔符</td></tr>
+<tr><td>复制为 CSV（含表头）</td><td>同上 + 首行表头</td></tr>
+<tr><td>复制为 SQL INSERT</td><td>可直接执行的插入语句</td></tr>
+<tr><td>复制表结构</td><td>建表语句</td></tr>
+</tbody>
+</table>
+
+<h2>选择与键盘导航</h2>
+
+<table>
+<thead><tr><th>操作</th><th>效果</th></tr></thead>
+<tbody>
+<tr><td>单击单元格</td><td>选中这个格子</td></tr>
+<tr><td>拖动 / <kbd>⇧</kbd> + 点击</td><td>选中一个矩形区域</td></tr>
+<tr><td>点行号</td><td>选中整行</td></tr>
+<tr><td><kbd>⌘</kbd> + 点行号</td><td>多选不连续的行</td></tr>
+<tr><td><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></td><td>移动选中的单元格</td></tr>
+<tr><td><kbd>⌘←</kbd> / <kbd>⌘→</kbd></td><td>跳到首列 / 末列</td></tr>
+<tr><td><kbd>⌘↑</kbd> / <kbd>⌘↓</kbd></td><td>跳到当前页的首行 / 末行</td></tr>
+<tr><td><kbd>⌘C</kbd></td><td>按上一节的格式复制</td></tr>
+<tr><td><kbd>Space</kbd></td><td>快速查看当前单元格</td></tr>
+<tr><td><kbd>⌘=</kbd> / <kbd>⌘-</kbd></td><td>增大 / 减小字号</td></tr>
+</tbody>
+</table>
+
+<h2>列宽与列显隐</h2>
+
+<ul>
+  <li>拖列头之间的分隔线可以改列宽，宽度会记住，下次打开同一张表恢复。</li>
+  <li>第一次打开时按内容自动估算列宽，上限 400pt。</li>
+  <li>显示哪些列由列过滤器控制（<kbd>⌥⌘F</kbd>），见<a href="05-filtering.html">第 5 章</a>。</li>
+  <li>列的鼠标悬停提示里会显示完整类型，例如 <code>`content` LONGTEXT NULL</code>。</li>
+</ul>
+
+<h2>没有主键的表</h2>
+
+<div class="callout danger">
+  <span class="tag">直接置为只读</span>
+  <p>
+    如果一张表既没有主键也没有可用的唯一键，那么每一行都无法被可靠地定位。
+    此时数据<b>仍然可以浏览</b>，但表格进入只读状态：
+  </p>
+  <ul>
+    <li>不能编辑单元格、不能插入、不能删除</li>
+    <li>双击单元格改为打开快速查看（而不是进入编辑）</li>
+    <li>超长内容一直保持截断（因为无法定位行去取完整值）</li>
+    <li>状态栏写明原因：<code>该表没有主键或唯一键，分页顺序不保证，且不可编辑</code></li>
+  </ul>
+</div>
+
+<h2>刷新</h2>
+
+<ul>
+  <li><kbd>⌘R</kbd> 重新加载当前页。</li>
+  <li>刷新会把大字段的临时缓存清掉——之前点开看过的完整内容会重新变回截断状态。</li>
+  <li>刷新<b>不会</b>丢弃未提交的改动；如果有未提交改动，刷新前会先问你。</li>
+</ul>
+
+<h2>性能预期</h2>
+
+<table>
+<thead><tr><th>场景</th><th>目标</th></tr></thead>
+<tbody>
+<tr><td>打开一张 100 万行的表（默认分页）</td><td>500 毫秒内显示首屏</td></tr>
+<tr><td>滚动</td><td>稳定流畅</td></tr>
+<tr><td>切换分页</td><td>1 秒内（受服务器与网络影响）</td></tr>
+<tr><td>单元格编辑到界面反馈</td><td>立刻，无等待</td></tr>
+</tbody>
+</table>
+
+<div class="pager"></div>
+
+</main>
+</div>
+<script src="assets/manual.js"></script>
+</body>
+</html>
