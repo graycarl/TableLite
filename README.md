@@ -69,3 +69,7 @@ TableLite/
 ## 已知限制
 
 见 [`docs/tech-designs/13-open-questions.md`](docs/tech-designs/13-open-questions.md)。
+
+## 许可证
+
+[MIT](LICENSE) © 2026 Hongbo He
