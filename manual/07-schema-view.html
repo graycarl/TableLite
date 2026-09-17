@@ -395,7 +395,7 @@
   <text class="mono s" x="40" y="376">　<tspan class="kw">PRIMARY KEY</tspan> (<tspan class="bqi">`id`</tspan>), <tspan class="kw">UNIQUE KEY</tspan> <tspan class="bqi">`uniq_email`</tspan> (<tspan class="bqi">`email`</tspan>)</text>
   <text class="mono s" x="40" y="396">) <tspan class="kw">ENGINE</tspan>=InnoDB <tspan class="kw">DEFAULT CHARSET</tspan>=utf8mb4;</text>
 
-  <text class="fnt s" x="20" y="418">如果当前对象是视图，这一页显示的是创建视图的语句。</text>
+  <text class="fnt s" x="20" y="418">对象是视图时，这个页签叫「定义」，显示的是创建视图的语句。</text>
 </svg>
 <figcaption><b>图 7-3</b>　触发器页与建表语句页。建表语句用等宽字体 + 语法高亮。</figcaption>
 </figure>
@@ -410,7 +410,7 @@
 </tbody>
 </table>
 
-<h2>视图、函数、存储过程</h2>
+<h2>视图</h2>
 
 <p>不是所有对象都有五页。不同对象显示的内容不一样：</p>
 
@@ -418,17 +418,16 @@
 <thead><tr><th>对象类型</th><th>显示的子页签</th></tr></thead>
 <tbody>
 <tr><td>表</td><td>列 / 索引 / 外键 / 触发器 / 建表语句（全部五页）</td></tr>
-<tr><td>视图</td><td>列 / 定义（两页）</td></tr>
-<tr><td>函数 / 存储过程</td><td>定义（一页），内容是完整定义语句</td></tr>
+<tr><td>视图</td><td>列 / 定义（两页），定义页就是创建该视图的完整语句</td></tr>
 </tbody>
 </table>
 
 <figure>
-<svg viewBox="0 0 1000 340" role="img" aria-label="函数的定义页">
-  <title>函数的定义页</title>
+<svg viewBox="0 0 1000 340" role="img" aria-label="视图的定义页">
+  <title>视图的定义页</title>
 
   <rect class="s-chrome ln" x="20" y="20" width="960" height="34"/>
-  <text class="mut s" x="36" y="37">app_dev.sp_recalc</text>
+  <text class="mut s" x="36" y="37">app_dev.v_active_users</text>
   <rect class="s-field ln2" x="740" y="26" width="80" height="24" rx="6"/>
   <text class="c s" x="780" y="38">复制</text>
   <rect class="s-field ln2" x="828" y="26" width="136" height="24" rx="6"/>
@@ -440,20 +439,15 @@
   <text class="fnt mono s r" x="56" y="106">2</text>
   <text class="fnt mono s r" x="56" y="128">3</text>
   <text class="fnt mono s r" x="56" y="150">4</text>
-  <text class="fnt mono s r" x="56" y="172">5</text>
-  <text class="fnt mono s r" x="56" y="194">6</text>
-  <text class="fnt mono s r" x="56" y="216">7</text>
 
-  <text class="mono s" x="82" y="84"><tspan class="kw">CREATE PROCEDURE</tspan> <tspan class="bqi">`sp_recalc`</tspan>()</text>
-  <text class="mono s" x="82" y="106"><tspan class="kw">BEGIN</tspan></text>
-  <text class="mono s" x="82" y="128">　<tspan class="kw">UPDATE</tspan> <tspan class="bqi">`orders`</tspan></text>
-  <text class="mono s" x="82" y="150">　<tspan class="kw">SET</tspan> <tspan class="bqi">`total`</tspan> = (<tspan class="kw">SELECT</tspan> <tspan class="fnc">SUM</tspan>(<tspan class="bqi">`amount`</tspan>) …)</text>
-  <text class="mono s" x="82" y="172">　<tspan class="kw">WHERE</tspan> <tspan class="bqi">`status`</tspan> = <tspan class="str">'paid'</tspan>;</text>
-  <text class="mono s" x="82" y="194"><tspan class="kw">END</tspan></text>
+  <text class="mono s" x="82" y="84"><tspan class="kw">CREATE VIEW</tspan> <tspan class="bqi">`v_active_users`</tspan> <tspan class="kw">AS</tspan></text>
+  <text class="mono s" x="82" y="106"><tspan class="kw">SELECT</tspan> <tspan class="bqi">`id`</tspan>, <tspan class="bqi">`name`</tspan>, <tspan class="bqi">`email`</tspan> <tspan class="kw">FROM</tspan> <tspan class="bqi">`users`</tspan></text>
+  <text class="mono s" x="82" y="128"><tspan class="kw">WHERE</tspan> <tspan class="bqi">`status`</tspan> = <tspan class="str">'active'</tspan></text>
+  <text class="mono s" x="82" y="150"><tspan class="kw">ORDER BY</tspan> <tspan class="bqi">`id`</tspan>;</text>
 
   <text class="fnt s" x="20" y="316">只读文本视图，用和查询编辑器同一套高亮。「在新查询标签中编辑」把定义原文填进一个新查询标签，你改完自己执行。</text>
 </svg>
-<figcaption><b>图 7-4</b>　函数 / 存储过程的定义页。</figcaption>
+<figcaption><b>图 7-4</b>　视图的定义页。</figcaption>
 </figure>
 
 <h2>结构可能过期时</h2>

@@ -527,14 +527,6 @@
   <text x="70" y="396">v_active_users</text>
   <text x="70" y="426">v_order_summary</text>
 
-  <!-- 函数（空） -->
-  <text class="b" x="52" y="462">▾ 函数 (0)</text>
-  <text class="fnt" x="70" y="490">（空）</text>
-
-  <!-- 存储过程 -->
-  <text class="b" x="52" y="526">▾ 存储过程 (2)</text>
-  <text x="70" y="554">sp_recalc</text>
-
   <!-- 底部 -->
   <line class="ln" x1="30" y1="578" x2="430" y2="578"/>
   <text x="52" y="598">🕘</text>
@@ -575,9 +567,9 @@
 <tr data-hot="2"><td class="num">2</td><td class="wide">对象搜索框</td>
   <td>输入即过滤，大小写不敏感，按子串匹配。搜索时自动展开所有分组，只显示命中的对象。<kbd>⌘F</kbd> 可以直接聚焦到这里。</td></tr>
 <tr data-hot="3"><td class="num">3</td><td class="wide">分组标题</td>
-  <td>表 / 视图 / 函数 / 存储过程四组，标题上带数量。可以折叠，折叠状态会记住。分组内容只在展开时才去加载，加载期间显示占位行。</td></tr>
+  <td>表 / 视图两组，标题上带数量。可以折叠，折叠状态会记住。分组内容只在展开时才去加载，加载期间显示占位行。</td></tr>
 <tr data-hot="4"><td class="num">4</td><td class="wide">对象项</td>
-  <td><b>单击表</b>打开数据视图（已打开则切过去）；<b>双击</b>在新标签打开；<b>单击视图</b>在新标签打开只读定义；<b>单击函数 / 存储过程</b>同理。<b>右键</b>展开菜单。</td></tr>
+  <td><b>单击表</b>打开数据视图（已打开则切过去）；<b>双击</b>在新标签打开；<b>单击视图</b>在新标签打开只读定义。<b>右键</b>展开菜单。</td></tr>
 <tr data-hot="5"><td class="num">5</td><td class="wide">右键菜单</td>
   <td>见下表。注意最后两项是<b>红色</b>的，因为它们直接生效、不进暂存区。</td></tr>
 <tr data-hot="6"><td class="num">6</td><td class="wide">查询历史 / Console Log</td>
@@ -710,7 +702,7 @@
 <tbody>
 <tr><td>表数据</td><td><code>users</code></td><td>只读的数据网格 + 右侧字段栏</td><td>网格<b>只读</b>；在右侧字段栏里编辑（有主键且非只读连接）</td></tr>
 <tr><td>表结构</td><td><code>users · 结构</code></td><td>列 / 索引 / 外键 / 触发器 / 建表语句</td><td>否（也没有字段栏）</td></tr>
-<tr><td>对象定义</td><td><code>v_active_users</code></td><td>视图、函数、存储过程的定义语句</td><td>否（也没有字段栏）</td></tr>
+<tr><td>对象定义</td><td><code>v_active_users</code></td><td>视图的定义语句</td><td>否（也没有字段栏）</td></tr>
 <tr><td>查询</td><td><code>查询 1</code>、<code>查询 2</code>…</td><td>SQL 编辑器 + 只读的结果网格</td><td>编辑器里可写；结果网格<b>只读</b>（也没有字段栏）</td></tr>
 <tr><td>查询历史</td><td><code>查询历史</code></td><td>历史记录列表</td><td>否</td></tr>
 <tr><td>Console Log</td><td><code>Console Log</code></td><td>语句日志</td><td>否</td></tr>
@@ -869,7 +861,7 @@
   <text class="c fnt s" x="166" y="230">「没有数据」和「有数据但被过滤掉了」会分开说明</text>
 
   <rect class="s-sunken ln" x="336" y="160" width="300" height="120" rx="9"/>
-  <text class="c mut" x="486" y="200">▾ 函数 (0)</text>
+  <text class="c mut" x="486" y="200">▾ 视图 (0)</text>
   <text class="c fnt" x="486" y="226">（空）</text>
 
   <rect class="s-sunken ln" x="656" y="160" width="328" height="120" rx="9"/>

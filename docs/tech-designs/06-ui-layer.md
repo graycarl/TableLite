@@ -66,7 +66,7 @@ final class WorkspaceTab: Identifiable, ObservableObject {
 enum TabKind: Hashable {
     case tableData(schema: String, table: String)
     case tableStructure(schema: String, table: String)
-    case objectDefinition(kind: DatabaseObjectKind, schema: String, name: String)
+    case objectDefinition(schema: String, name: String)
     case query
     case history
     case consoleLog
@@ -88,7 +88,7 @@ enum TabContentModel {
 
 - 表数据：同 schema + 同表 → 复用
 - 表结构：同上
-- 对象定义：同 kind + schema + name → 复用
+- 对象定义（只有视图）：同 schema + name → 复用
 - 查询 / 历史 / Console Log：不匹配（查询总是新建；历史与 Console Log 各只允许一个）
 - 外键跳转例外：外键跳转即使目标表已打开也新建标签（因为过滤条件不同）
 
