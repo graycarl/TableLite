@@ -11,7 +11,7 @@
 | Console Log | 内存环形缓冲；可选落盘 `console.log`（默认关） | 文本 | 否 |
 | 偏好设置 | `UserDefaults`（`com.graycarl.tablelite`） | plist | 否 |
 | 窗口 / Tab 状态 | `UserDefaults`（`NSWindow` frame autosave + 自维护 JSON） | JSON | 否 |
-| 导出 / 导入 | 用户选择路径 | CSV / JSON / SQL | 否 |
+| 导出 / 导入 | 用户选择路径 | CSV | 否 |
 
 > 目录用 `FileManager.default.url(for: .applicationSupportDirectory, ...)` 解析，不要硬编码路径。
 

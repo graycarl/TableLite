@@ -199,6 +199,8 @@ struct CSVReader {
 
 ## 3. 导出
 
+导出只支持 CSV（见 [`13-open-questions.md`](13-open-questions.md) S9）。字段转义、`NULL` 表示、二进制输出见 §2.1。
+
 ### 3.1 流式实现
 
 导出**绝对不能**先把数据全读进内存。实现方式：用 `MySQLSession.query(sql, mode: .unbuffered)`，边收边写。
@@ -209,10 +211,9 @@ struct CSVReader {
    - 结果集导出：直接用原 SQL（但要剥掉 LIMIT，见下）
    - 选中行导出：用行定位键拼 WHERE
 2. 建文件（写到临时文件，成功后原子替换目标文件）
-3. 写入表头（CSV）或 "[\n"（JSON）
+3. 写入表头（转义规则见 §2.1）
 4. 流式消费每一行 → 写一行
-5. 收尾（JSON 写 "]\n"）
-6. fsync → rename 到目标路径
+5. flush → fsync → rename 到目标路径
 ```
 
 要点：
@@ -222,35 +223,7 @@ struct CSVReader {
 - 中断（网络断开）时：保留临时文件并改名为 `xxx.partial.csv`，提示用户文件不完整
 - 进度与取消通过 `AsyncStream<ExportProgress>` 上报
 
-### 3.2 各格式细节
-
-**CSV**：见 §2.1
-
-**JSON**：流式写数组，每行之间写逗号。每行序列化时用 `MySQLValue` + 列类型决定输出形态：
-
-| 列类型 | JSON 输出 |
-| --- | --- |
-| 整数 / 浮点 / `DECIMAL` | 数字（不进过浮点转换，直接把原始文本原样写出） |
-| 其余 | 字符串 |
-| `NULL` | `null` |
-| 二进制 | 字符串，内容为 `0x…` |
-
-注意：`DECIMAL` 直接原样输出文本可以避免精度丢失，但 JSON 里会变成字符串——这是刻意的取舍（记录在 `13-open-questions.md`）。
-
-**SQL INSERT**：
-
-```sql
-INSERT INTO `db`.`tbl` (`a`, `b`, `c`) VALUES
-  (1, 'x', NULL),
-  (2, 'y', 0xDEADBEEF);
-```
-
-- 值经由 `SQLValueLiteral`（见 `03-mysql-layer.md` §4.2）生成，与变更提交用的完全同一套逻辑
-- 批量大小可配置（默认 1，即每行一条语句）
-- 可选在文件开头加 `CREATE TABLE`（用 `SHOW CREATE TABLE` 获取）
-- 开始时加 `SET NAMES utf8mb4;` 与 `SET FOREIGN_KEY_CHECKS=0;`（可选，默认开）
-
-### 3.3 剥掉 LIMIT
+### 3.2 剥掉 LIMIT
 
 从查询结果集导出时，原始 SQL 可能带 `LIMIT 300`。做法：用 `SQLLexer` 找到最后一个顶层 `LIMIT` 子句并截断。如果解析不确定（例如 `LIMIT` 出现在子查询里、或含 `UNION`），**不修改 SQL**，并在导出面板里明确写出「将导出本次查询实际返回的 N 行」。
 
