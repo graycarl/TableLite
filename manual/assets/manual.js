@@ -1,8 +1,9 @@
 /* ==========================================================================
    TableLite 使用说明书 —— 页面脚本
-   两件事：
-     1. 根据下面的目录表生成左侧导航与上一页/下一页
+   三件事：
+     1. 根据下面的目录表生成左侧导航与上一页/下一页，并在导航顶部放外观切换按钮
      2. 鼠标移到「控件清单」的某一行时，高亮线框图上对应的编号圆点
+     3. 外观切换按钮：跟随系统 → 浅色 → 深色 循环，实际状态由 theme.js 管
    ========================================================================== */
 
 const MANUAL_PAGES = [
@@ -22,6 +23,65 @@ const MANUAL_PAGES = [
   { file: '13-feedback.html',        n: '13',  title: '提示与错误' }
 ];
 
+/* 外观三态，顺序就是点击的循环顺序 */
+const THEME_MODES = [
+  {
+    id: 'system',
+    label: '跟随系统',
+    next: '浅色',
+    icon: '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+          '<circle cx="12" cy="12" r="7.5"/>' +
+          '<path class="fill" d="M12 4.5a7.5 7.5 0 0 0 0 15z"/>' +
+          '</svg>'
+  },
+  {
+    id: 'light',
+    label: '浅色',
+    next: '深色',
+    icon: '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+          '<circle cx="12" cy="12" r="4.2"/>' +
+          '<path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6' +
+          'M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/>' +
+          '</svg>'
+  },
+  {
+    id: 'dark',
+    label: '深色',
+    next: '跟随系统',
+    icon: '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+          '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>' +
+          '</svg>'
+  }
+];
+
+function buildThemeToggle() {
+  const theme = window.ManualTheme;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'theme-toggle';
+
+  const render = () => {
+    const mode = theme ? theme.get() : 'system';
+    const i = THEME_MODES.findIndex((m) => m.id === mode);
+    const current = THEME_MODES[i < 0 ? 0 : i];
+    button.dataset.mode = current.id;
+    button.innerHTML = current.icon;
+    button.title = '外观：' + current.label + '（点击切换为' + current.next + '）';
+    button.setAttribute('aria-label', '外观：' + current.label);
+  };
+
+  button.addEventListener('click', () => {
+    if (!theme) return;
+    const i = THEME_MODES.findIndex((m) => m.id === theme.get());
+    theme.set(THEME_MODES[(i + 1) % THEME_MODES.length].id);
+  });
+  // theme.js 改完状态后会广播，这里跟着换图标
+  window.addEventListener('manual:themechange', render);
+
+  render();
+  return button;
+}
+
 (function buildNavigation() {
   const host = document.querySelector('nav.toc');
   if (!host) return;
@@ -29,11 +89,16 @@ const MANUAL_PAGES = [
 
   const here = location.pathname.split('/').pop() || 'index.html';
 
-  const brand = document.createElement('div');
-  brand.innerHTML =
-    '<div class="brand"><b>TableLite</b><span>使用说明书</span></div>' +
-    '<div class="sub">macOS 原生 MySQL / MariaDB 客户端</div>';
-  host.appendChild(brand);
+  const head = document.createElement('div');
+  head.className = 'brandrow';
+  head.innerHTML = '<div class="brand"><b>TableLite</b><span>使用说明书</span></div>';
+  head.appendChild(buildThemeToggle());
+  host.appendChild(head);
+
+  const sub = document.createElement('div');
+  sub.className = 'sub';
+  sub.textContent = 'macOS 原生 MySQL / MariaDB 客户端';
+  host.appendChild(sub);
 
   const list = document.createElement('ol');
   for (const page of MANUAL_PAGES) {

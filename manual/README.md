@@ -13,6 +13,9 @@
 open manual/index.html
 ```
 
+页面默认跟随系统的浅色 / 深色模式；左侧导航顶部的按钮可以在
+「跟随系统 → 浅色 → 深色」之间手动切换，选择记在浏览器的 localStorage 里。
+
 需要纸面版或 PDF 时，用浏览器的「打印 → 存储为 PDF」。打印样式已经排好：
 导航栏和页码会自动隐藏，线框图不会被切页。
 
@@ -49,8 +52,18 @@ manual/
 ├── 01-…13-*.html
 └── assets/
     ├── manual.css     页面排版 + 线框图的绘制约定
-    └── manual.js      生成左侧导航与上下页；编号热点与表格行联动
+    ├── theme.js       首屏前定下浅色 / 深色（html[data-theme]）；按钮由 manual.js 生成
+    └── manual.js      生成左侧导航与上下页；外观切换按钮；编号热点与表格行联动
 ```
+
+### 浅色 / 深色的写法
+
+- `manual.css` 里 `:root` 是浅色，深色同一份值写在**两个入口**：
+  `@media (prefers-color-scheme: dark)`（`html` 上没有 `data-theme` 时，即「跟随系统」）
+  与 `:root[data-theme="dark"]`（读者手工选的深色）。**改颜色时两处要一起改。**
+- 页面 `<head>` 里同步加载 `assets/theme.js`，它负责在首屏前把 `data-theme` 定下来，
+  读不到 localStorage 时退回跟随系统。新增页面时记得照着抄这一行。
+- 外观按钮由 `manual.js` 生成，所以禁用脚本时没有按钮，但页面仍然跟随系统。
 
 ### 线框图怎么写的
 
