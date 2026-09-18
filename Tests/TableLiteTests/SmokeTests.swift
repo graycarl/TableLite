@@ -3,7 +3,7 @@ import XCTest
 import CMySQLClient
 
 /// Phase 0 的占位测试：确认测试 target 能构建、能 import 到 C 模块。
-/// 真正的测试按各技术设计文档的「测试要点」小节来写：
+/// 真正的测试按各技术设计文档的硬约束与边界情况来写：
 ///   StatementSplitterTests / SQLLexerTests / SQLValueLiteralTests /
 ///   MySQLValueMappingTests / CSVCodecTests / SSHCommandBuilderTests /
 ///   PendingChangeStoreTests / FilterSQLBuilderTests

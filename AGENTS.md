@@ -75,5 +75,5 @@ make smoke
 - UI 状态一律 `@MainActor`；`MySQLSession` 是 actor。
 - 依赖方向严格向下：UI 层不得直接 `import CMySQLClient`，所有数据库访问经过 `MySQLSession` / `MetaRepository`。
 - 纯逻辑（语句拆分、语法扫描、字面量生成、CSV 编解码、SSH 参数拼装）必须写成可单元测试的纯函数。
-- 单元测试放在 `Tests/TableLiteTests/`，重点覆盖 `docs/tech-designs/` 里各文档「测试要点」小节列出的用例。
+- 单元测试放在 `Tests/TableLiteTests/`，重点覆盖 `docs/tech-designs/` 里各文档的硬约束与边界情况。
 - 界面文案统一用中文，SQL 关键字与类型名保持英文；术语表见 `specs/12-feedback.md` §8。
