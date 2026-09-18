@@ -17,7 +17,7 @@ tableView.columnAutoresizingStyle = .noColumnAutoresizing
 tableView.intercellSpacing = NSSize(width: 1, height: 1)
 tableView.gridStyleMask = []
 tableView.usesAutomaticRowHeights = false
-tableView.rowHeight = fontSize * 1.6      // 固定行高，不用自动行高（性能）
+tableView.rowHeight = prefs.grid.fontSize * 1.6      // 固定行高，不用自动行高（性能）
 tableView.headerView = NSTableHeaderView()
 ```
 
