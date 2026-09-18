@@ -92,7 +92,7 @@
     <li>「插入行」按钮直接<b>隐藏</b>，不是变灰</li>
     <li>「删除行」禁用</li>
     <li>右侧字段栏<b>仍然显示</b>这一行的字段和值，但所有编辑器禁用，栏顶写明原因</li>
-    <li>双击单元格改成打开快速查看（内容还是能看全的）</li>
+    <li>双击单元格改成打开快速查看。非大字段能看全；表没有主键或唯一键时，超长内容仍保持截断（因为无法定位行）。</li>
     <li>状态栏把原因写清楚，而不是留一堆灰按钮让你猜</li>
   </ul>
 </div>
@@ -505,7 +505,7 @@
 <tr data-hot="14"><td class="num">14</td><td class="wide">SET</td>
   <td>多选。勾中的值用逗号拼在一起写入；值必须来自列定义。</td></tr>
 <tr data-hot="15"><td class="num">15</td><td class="wide">布尔（<code>tinyint(1)</code>）</td>
-  <td>偏好里打开「把 <code>tinyint(1)</code> 显示为复选框」之后，这一列就是一个复选框；没打开时按普通数字手输。</td></tr>
+  <td>偏好里打开「把 <code>tinyint(1)</code> 显示为复选框」之后，这一列就是一个三态复选框；没打开时按普通数字手输。</td></tr>
 <tr data-hot="16"><td class="num">16</td><td class="wide">查看</td>
   <td>打开快速查看。大字段还没取完整值时，点它才去服务器取。</td></tr>
 <tr data-hot="17"><td class="num">17</td><td class="wide">从文件导入…</td>
@@ -1040,10 +1040,10 @@
 <ul>
   <li>关闭这个标签</li>
   <li>断开或切换连接</li>
-  <li>重载当前页（<kbd>⌘R</kbd>）</li>
-  <li>应用过滤器或改变排序</li>
   <li>退出 App</li>
 </ul>
+
+<p>另外两类操作不会丢改动，只提示一下、暂存原样保留：重载当前页（<kbd>⌘R</kbd>）、应用过滤器或改变排序。</p>
 
 <figure>
 <svg viewBox="0 0 1000 300" role="img" aria-label="有未提交修改时的确认弹窗">

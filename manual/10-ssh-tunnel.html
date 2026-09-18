@@ -99,7 +99,7 @@
     做本地端口转发（<code>-L</code>）。这样做有三个好处：
   </p>
   <ul>
-    <li>你的 <code>~/.ssh/config</code>、<code>known_hosts</code>、ssh-agent 全部直接生效，和在终端里连一模一样。</li>
+    <li>你的 <code>~/.ssh/config</code>、<code>known_hosts</code>、ssh-agent 直接生效。但隧道必需的连接超时、keepalive、首次自动接受主机指纹这几项由 TableLite 固定传入，会覆盖 config 里的同名项（见「三种认证方式」）。</li>
     <li>各种密钥类型、跳板机、代理，系统都已经处理好了。</li>
     <li>不用维护一份 SSH 实现。</li>
   </ul>
@@ -143,7 +143,7 @@
   <text x="214" y="222">使用 ~/.ssh/config 与 ssh-agent</text>
   <text class="acc s" x="480" y="222">（推荐）</text>
   <rect class="s-soft" x="180" y="234" width="760" height="26" rx="6"/>
-  <text class="s" x="196" y="247">主机、端口、用户、密钥、ProxyJump 全部交给系统 SSH 配置决定</text>
+  <text class="s" x="196" y="247">主机、端口、用户、密钥、ProxyJump 交给系统 SSH 配置决定</text>
 
   <!-- 2 -->
   <circle class="s-field ln2" cx="196" cy="282" r="8"/>
@@ -182,7 +182,7 @@
 <tr><td>SSH 端口</td><td>默认 22</td></tr>
 <tr><td>SSH 用户</td><td>登录跳板机的用户名</td></tr>
 <tr><td>认证方式</td><td>三选一，见下</td></tr>
-<tr><td>使用 ssh config 别名</td><td>勾选后完全交给系统 SSH 配置解析该主机（包括别名、端口、用户、密钥）</td></tr>
+<tr><td>使用 ssh config 别名</td><td>勾选后由系统 SSH 配置解析该主机（包括别名、端口、用户、密钥）</td></tr>
 <tr><td>跳板机</td><td>形如 <code>user@proxy:22</code>，用于「先连 A 再跳 B」的场景</td></tr>
 </tbody>
 </table>

@@ -213,25 +213,28 @@
 </table>
 
 <figure>
-<svg viewBox="0 0 1000 300" role="img" aria-label="只读拦截弹窗">
+<svg viewBox="0 0 1000 300" role="img" aria-label="只读模式拦截的结果标签与轻提示">
   <title>只读模式拦截提示</title>
 
-  <rect class="s-window ln2" x="200" y="30" width="600" height="230" rx="12"/>
-  <text class="b warn" x="232" y="66">只读模式</text>
-  <line class="ln" x1="200" y1="84" x2="800" y2="84"/>
+  <!-- 轻提示 -->
+  <rect class="s-soft ln" x="330" y="24" width="340" height="36" rx="8"/>
+  <text class="c s" x="500" y="47">只读模式：已跳过 1 条写操作语句</text>
 
-  <text x="232" y="112">语句 3 被拒绝执行：</text>
-  <rect class="s-sunken lnO" x="232" y="126" width="536" height="34" rx="6"/>
-  <text class="mono s" x="246" y="143">UPDATE users SET name = 'x' WHERE id = 1;</text>
+  <!-- 结果标签栏 -->
+  <text class="b s" x="40" y="104">结果标签</text>
+  <rect class="s-field ln2" x="40" y="118" width="120" height="34" rx="6"/>
+  <text class="c s" x="100" y="140">结果 1</text>
+  <rect class="s-field ln2" x="168" y="118" width="120" height="34" rx="6"/>
+  <text class="c s" x="228" y="140">结果 2</text>
+  <rect class="s-red lnR" x="296" y="118" width="132" height="34" rx="6" opacity="0.14"/>
+  <text class="err c s" x="362" y="140">只读拦截</text>
 
-  <text x="232" y="186">当前连接处于只读模式，只能执行查询语句。</text>
-  <text class="mut" x="232" y="210">如需修改，请在连接菜单中关闭只读模式。</text>
-
-  <line class="ln" x1="200" y1="228" x2="800" y2="228"/>
-  <rect class="s-field ln2" x="686" y="238" width="90" height="30" rx="6"/>
-  <text class="c s" x="731" y="253">关闭</text>
+  <!-- 被拒绝的语句 -->
+  <rect class="s-sunken lnO" x="40" y="176" width="920" height="70" rx="8"/>
+  <text class="err s" x="58" y="204">语句 3 被拒绝执行：</text>
+  <text class="mono s" x="58" y="230">UPDATE users SET name = 'x' WHERE id = 1;</text>
 </svg>
-<figcaption><b>图 9-2</b>　只读拦截提示。脚本里被挡下的语句会有一个标红的「只读拦截」结果标签。</figcaption>
+<figcaption><b>图 9-2</b>　只读拦截。被挡下的语句在结果标签里标红写「只读拦截」，并给一条轻提示，不打断脚本继续执行。</figcaption>
 </figure>
 
 <h3>混合脚本怎么处理</h3>

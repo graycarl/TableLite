@@ -12,13 +12,13 @@
 
 - `SessionManager` 是**唯一**持有连接的地方；视图不直接持有 `MySQLSession`。
 - `ConnectionSession` 聚合：连接配置、状态、MySQL 会话、可选隧道、元数据仓库、标签列表。
-- 连接上限 8；超出时拒绝并提示先断开。
+- 连接上限由偏好决定（默认 8，见 `specs/11-preferences.md` §2）；超出时拒绝并提示先断开。
 - **切换连接不关闭会话**；只有显式断开或空闲回收才关闭。
 - 每个 session 一个 `MetaRepository` —— 元数据缓存不能跨连接共享。
 
 ## 3. 连接流程
 
-分步推进并把步骤反映到 UI：SSH 隧道 → MySQL 连接 → 服务器信息 → 库列表。
+分步推进并把步骤反映到 UI，依次显示三条进度提示：SSH 隧道 → MySQL 连接 → 读取服务器信息（见 `specs/01-connections.md` §5）；库列表在服务器信息之后拉取，不单独作为一条进度提示。
 
 - SSH 隧道失败与 MySQL 失败用不同的错误类型与文案（`ConnectFailure.step` 区分）。
 - SSH 失败带上 stderr 的最后 4 KB，这是排查的唯一线索。

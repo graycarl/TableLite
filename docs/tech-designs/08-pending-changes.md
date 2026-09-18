@@ -65,7 +65,7 @@ UPDATE `db`.`t` SET `id` = 6 WHERE `id` = 5;
 - 提交期间 UI 锁定、显示进度，可取消（在语句之间发 `ROLLBACK`）。
 - 不改变会话的 autocommit 设置。
 - 含 DDL 的语句提前拒绝并提示用 SQL 编辑器执行。
-- Commit 超时 → `KILL QUERY`，并提示「事务状态未知，请手动检查」。
+- Commit 超时 → `KILL QUERY`，并提示「提交超时，事务状态未知，请在数据库中手动核对这几行的数据」。
 
 ## 6. Discard
 
