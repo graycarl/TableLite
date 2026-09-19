@@ -159,7 +159,7 @@
   <!-- 提示 -->
   <text class="fnt s" x="20" y="664">拖拽中间的分隔条可以调整编辑器与结果区的比例，比例会被记住。</text>
   <text class="fnt s" x="20" y="688">结果区可以排序、调列宽、列显隐、复制、快速查看、导出，但——不能编辑。</text>
-  <text class="warn s" x="20" y="712">只读模式下，工具栏会显示：只读模式：仅允许 SELECT / SHOW / EXPLAIN / DESC</text>
+  <text class="warn s" x="20" y="712">只读模式下，工具栏会显示：只读模式：写操作已被禁用</text>
 
   <!-- 热点 -->
   <g class="hot" data-hot="1"><circle cx="28" cy="29" r="11"/><text x="28" y="29">1</text></g>
@@ -577,7 +577,7 @@
   连接处于只读模式时，执行前会检查每条语句的类型。写操作被拒绝，工具栏上会常驻一行提示：
 </p>
 
-<p><code>只读模式：仅允许 SELECT / SHOW / EXPLAIN / DESC</code></p>
+<p><code>只读模式：写操作已被禁用</code></p>
 
 <p>
   混合脚本里，安全的语句正常执行，被拒绝的语句有一个标红的 <code>只读拦截</code> 标签，

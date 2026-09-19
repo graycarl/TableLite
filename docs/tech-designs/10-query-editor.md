@@ -75,5 +75,5 @@
 
 - **白名单拦截**：发送前只放行 `SELECT` / `SHOW` / `EXPLAIN` / `DESCRIBE` / `DESC`，以及最终为查询的 `WITH …`；其余一律拒绝（`INSERT` / `UPDATE` / `DELETE` / `REPLACE`、`CREATE` / `ALTER` / `DROP` / `TRUNCATE` / `RENAME`、`GRANT` / `REVOKE`、`LOAD DATA`、`CALL`、`SET`、`LOCK` / `UNLOCK` 等）。
 - 混合脚本只执行安全语句，被拒绝的语句在结果标签标红说明，且**不中断**后续安全语句。
-- UI 提示「只读模式：仅允许 SELECT / SHOW / EXPLAIN / DESC」。
+- UI 提示「只读模式：写操作已被禁用」（提示条不枚举白名单，清单以上面这一行为唯一真源）。
 - **注意以 CTE 开头的 INSERT**（`WITH … INSERT`）也必须拦得住 —— 类型判定要看首个真正的写关键字，不能只看第一个 token。

@@ -140,7 +140,7 @@
 
   <text class="fnt s" x="20" y="494">SQL 编辑器工具栏在只读模式下常驻一行提示：</text>
   <rect class="s-chrome ln" x="20" y="506" width="960" height="34" rx="8"/>
-  <text class="warn s" x="42" y="523">只读模式：仅允许 SELECT / SHOW / EXPLAIN / DESC</text>
+  <text class="warn s" x="42" y="523">只读模式：写操作已被禁用</text>
 </svg>
 <figcaption><b>图 9-1</b>　只读连接的五个标识位置，以及被禁用的变更操作组。</figcaption>
 </figure>
@@ -273,7 +273,7 @@
 <tbody>
 <tr><td>进入只读连接</td><td><code>该连接处于只读模式，所有写操作已被禁用。</code></td></tr>
 <tr><td>悬停被禁用的提交按钮</td><td><code>该连接处于只读模式，无法提交修改</code></td></tr>
-<tr><td>SQL 编辑器工具栏常驻</td><td><code>只读模式：仅允许 SELECT / SHOW / EXPLAIN / DESC</code></td></tr>
+<tr><td>SQL 编辑器工具栏常驻</td><td><code>只读模式：写操作已被禁用</code></td></tr>
 <tr><td>语句被拦下</td><td><code>当前连接处于只读模式，只能执行查询语句。如需修改，请在连接菜单中关闭只读模式。</code></td></tr>
 <tr><td>表数据视图不可编辑的原因</td><td>状态栏显示 <code>该连接处于只读模式</code>，同时字段栏顶部也写明这一句</td></tr>
 </tbody>

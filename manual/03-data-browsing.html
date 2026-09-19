@@ -61,20 +61,22 @@
   <text class="fnt s" x="946" y="35">▲</text>
 
   <!-- 行 -->
-  <rect class="s-sunken" x="20" y="50" width="38" height="160"/>
-  <line class="ln" x1="58" y1="50" x2="58" y2="210"/>
+  <rect class="s-sunken" x="20" y="50" width="38" height="192"/>
+  <line class="ln" x1="58" y1="50" x2="58" y2="242"/>
 
   <g class="ln">
     <line x1="20" y1="82" x2="968" y2="82"/>
     <line x1="20" y1="114" x2="968" y2="114"/>
     <line x1="20" y1="146" x2="968" y2="146"/>
     <line x1="20" y1="178" x2="968" y2="178"/>
-    <line x1="130" y1="50" x2="130" y2="210"/>
-    <line x1="250" y1="50" x2="250" y2="210"/>
-    <line x1="420" y1="50" x2="420" y2="210"/>
-    <line x1="600" y1="50" x2="600" y2="210"/>
-    <line x1="720" y1="50" x2="720" y2="210"/>
-    <line x1="860" y1="50" x2="860" y2="210"/>
+    <line x1="20" y1="210" x2="968" y2="210"/>
+    <line x1="20" y1="242" x2="968" y2="242"/>
+    <line x1="130" y1="50" x2="130" y2="242"/>
+    <line x1="250" y1="50" x2="250" y2="242"/>
+    <line x1="420" y1="50" x2="420" y2="242"/>
+    <line x1="600" y1="50" x2="600" y2="242"/>
+    <line x1="720" y1="50" x2="720" y2="242"/>
+    <line x1="860" y1="50" x2="860" y2="242"/>
   </g>
   <rect class="s-alt" x="58" y="82" width="910" height="32"/>
   <rect class="s-alt" x="58" y="146" width="910" height="32"/>
@@ -133,17 +135,22 @@
   <text class="mut s" x="870" y="194">2025-01-05</text>
 
   <!-- 滚动条 -->
-  <rect class="s-chrome2" x="970" y="50" width="10" height="160" rx="5"/>
+  <rect class="s-chrome2" x="970" y="50" width="10" height="192" rx="5"/>
   <rect class="s-gray" x="970" y="50" width="10" height="70" rx="5"/>
 
+  <!-- 底部常驻的「插入行」行（表不可编辑时整行隐藏） -->
+  <text class="fnt s c" x="39" y="230">＋</text>
+  <text class="acc s" x="70" y="230">插入行</text>
+  <text class="mut s" x="130" y="230">点这里新增一行，等于 ⌘I</text>
+
   <!-- 底部说明 -->
-  <text class="fnt s" x="20" y="238">↓ 行号列　·　主键列加粗且带钥匙图标　·　外键列带 ↗ 可跳转</text>
+  <text class="fnt s" x="20" y="256">↓ 行号列　·　主键列加粗且带钥匙图标　·　外键列带 ↗ 可跳转</text>
 
   <!-- 提示气泡 -->
-  <rect class="s-window ln2" x="460" y="258" width="520" height="52" rx="8"/>
-  <text class="s" x="476" y="276">`content` LONGTEXT NULL · 原始内容 1.2 MB</text>
-  <text class="fnt s" x="476" y="296">点开可查看完整内容（当前只取了前 4 KB）</text>
-  <line class="lnD" x1="560" y1="74" x2="560" y2="258"/>
+  <rect class="s-window ln2" x="460" y="276" width="520" height="52" rx="8"/>
+  <text class="s" x="476" y="294">`content` LONGTEXT NULL · 原始内容 1.2 MB</text>
+  <text class="fnt s" x="476" y="314">点开可查看完整内容（当前只取了前 4 KB）</text>
+  <line class="lnD" x1="560" y1="74" x2="560" y2="276"/>
 
   <!-- 热点 -->
   <g class="hot" data-hot="1"><circle cx="39" cy="20" r="11"/><text x="39" y="20">1</text></g>
@@ -155,6 +162,7 @@
   <g class="hot" data-hot="7"><circle cx="176" cy="194" r="11"/><text x="176" y="194">7</text></g>
   <g class="hot" data-hot="8"><circle cx="946" cy="20" r="11"/><text x="946" y="20">8</text></g>
   <g class="hot" data-hot="9"><circle cx="982" cy="20" r="11"/><text x="982" y="20">9</text></g>
+  <g class="hot" data-hot="10"><circle cx="600" cy="226" r="11"/><text x="600" y="226">10</text></g>
 </svg>
 <figcaption><b>图 3-1</b>　数据网格。鼠标悬停在超长内容的单元格上，会弹出它到底有多大。</figcaption>
 </figure>
@@ -180,6 +188,8 @@
   <td>点列头排序：第一次 ▲ 升序，第二次 ▼ 降序，第三次取消。</td></tr>
 <tr data-hot="9"><td class="num">9</td><td class="wide">滚动条</td>
   <td>按偏好可以自动隐藏。滚到表格底部就是当前页的最后一行，不是整张表的最后一行。</td></tr>
+<tr data-hot="10"><td class="num">10</td><td class="wide">插入行</td>
+  <td>数据行下方常驻这一行，点一下就等于按 <kbd>⌘I</kbd> 新增一行。表或连接不可编辑时，这一行<b>整行隐藏</b>；表里没有数据时，这一行的文案是「插入第一行」。</td></tr>
 </tbody>
 </table>
 
@@ -385,7 +395,7 @@
   <line class="ln" x1="610" y1="492" x2="980" y2="492"/>
 
   <text class="fnt s" x="626" y="510">字段按表定义列顺序排列，不受网格列显隐影响</text>
-  <text class="fnt s" x="626" y="528">宽度可拖拽（260–560pt），按表记住</text>
+  <text class="fnt s" x="626" y="528">宽度可拖拽（260–560pt），全局记住</text>
 
   <!-- 热点 -->
   <g class="hot" data-hot="1"><circle cx="624" cy="60" r="11"/><text x="624" y="60">1</text></g>
@@ -422,7 +432,7 @@
 <tr data-hot="8"><td class="num">8</td><td class="wide">焦点行</td>
   <td>字段栏始终跟随网格的焦点行：点哪个单元格，字段栏就显示它所在的那一行。</td></tr>
 <tr data-hot="9"><td class="num">9</td><td class="wide">拖拽边界</td>
-  <td>字段栏宽度可拖拽（260–560pt，默认 320pt），按表记住。用工具栏最右的 <code>▤</code> 按钮或菜单「视图 → 显示 / 隐藏右侧字段栏」开关。</td></tr>
+  <td>字段栏宽度可拖拽（260–560pt，默认 320pt），全局记住。用工具栏最右的 <code>▤</code> 按钮或菜单「视图 → 显示 / 隐藏右侧字段栏」开关。</td></tr>
 </tbody>
 </table>
 
@@ -473,7 +483,7 @@
 
 <ul>
   <li>默认显示。用工具栏最右的 <code>▤</code> 按钮，或菜单「视图 → 显示 / 隐藏右侧字段栏」切换；没有快捷键。</li>
-  <li>宽度可拖拽（260–560pt，默认 320pt），按表记住。</li>
+  <li>宽度可拖拽（260–560pt，默认 320pt），全局记住。</li>
   <li>字段栏只在表数据标签里出现；查询结果、表结构、对象定义标签没有它。</li>
 </ul>
 

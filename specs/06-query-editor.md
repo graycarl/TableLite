@@ -176,7 +176,7 @@
 
 - 执行前会检查语句类型，写操作（增删改、DDL、授权等）被拒绝
 - 混合脚本里只执行安全语句，被拒绝的语句在结果标签中标红并说明原因
-- 工具栏提示：`只读模式：仅允许 SELECT / SHOW / EXPLAIN / DESC`
+- 工具栏提示：`只读模式：写操作已被禁用`（允许的语句类型清单见 [09-readonly-mode.md](09-readonly-mode.md) §4）
 
 详见 [09-readonly-mode.md](09-readonly-mode.md)。
 
