@@ -311,7 +311,7 @@
   <rect class="s-field ln2" x="700" y="326" width="90" height="30" rx="6"/>
   <text class="c s" x="745" y="341">关闭</text>
 
-  <text class="fnt s" x="208" y="376">TableLite 不会帮你改 known_hosts。这个决定应该由你在终端里做。</text>
+  <text class="fnt s" x="208" y="376">TableLite 只会记录新主机指纹，不会覆盖 known_hosts 里的旧记录。</text>
 </svg>
 <figcaption><b>图 10-4</b>　主机指纹变化时的警告。原始输出原样展示，不做删减。</figcaption>
 </figure>
@@ -401,7 +401,7 @@
     <li>不支持端口转发之外的其他 SSH 功能（远程执行命令、SFTP）</li>
     <li>不支持保存多个跳板机的层级——只支持一个「跳板机」字段</li>
     <li>不支持在 App 内编辑 <code>~/.ssh/config</code>，请用文本编辑器</li>
-    <li>不自动修改 <code>known_hosts</code></li>
+    <li>不覆盖 <code>known_hosts</code> 里已存在的主机记录——新主机指纹会自动记录，但指纹变化时绝不静默改写</li>
   </ul>
 </div>
 
