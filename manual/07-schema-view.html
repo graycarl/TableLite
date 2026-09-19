@@ -56,11 +56,16 @@
 <thead><tr><th>方式</th><th>行为</th></tr></thead>
 <tbody>
 <tr><td>对象树右键表 → <code>打开结构</code></td><td>在新标签打开一个独立的结构标签</td></tr>
-<tr><td>数据视图状态栏左边的 <code>数据 / 结构</code> 切换</td><td>在同一个标签内切到结构视图</td></tr>
 </tbody>
 </table>
 
-<p>两种方式都可以，看你想同时对比几样东西。</p>
+<p>
+  结构视图总是独立占一个标签，数据视图里没有切过去的按钮。
+  同一个表可以同时开着数据和结构两个标签，方便对着看。
+</p>
+<p>
+  结构不会自动刷新：按 <kbd>⌘R</kbd> 重新读一次；内容可能过期时，视图顶部会出现提示条（见本章后面「结构可能过期时」）。
+</p>
 
 <h2>列</h2>
 
@@ -189,9 +194,6 @@
   <rect class="s-chrome ln" x="20" y="396" width="960" height="40"/>
   <text class="s" x="36" y="416">● 本地开发 · app_dev</text>
   <text class="s" x="400" y="416">11 列 · 3 索引 · 1 外键 · 0 触发器</text>
-  <rect class="s-field ln2" x="700" y="403" width="120" height="26" rx="6"/>
-  <text class="c s" x="760" y="416">数据 / 结构</text>
-  <text class="acc s" x="860" y="416">刷新</text>
 
   <!-- 热点 -->
   <g class="hot" data-hot="1"><circle cx="28" cy="20" r="11"/><text x="28" y="20">1</text></g>
@@ -199,8 +201,6 @@
   <g class="hot" data-hot="3"><circle cx="196" cy="96" r="11"/><text x="196" y="96">3</text></g>
   <g class="hot" data-hot="4"><circle cx="404" cy="96" r="11"/><text x="404" y="96">4</text></g>
   <g class="hot" data-hot="5"><circle cx="608" cy="96" r="11"/><text x="608" y="96">5</text></g>
-  <g class="hot" data-hot="6"><circle cx="760" cy="403" r="11"/><text x="760" y="403">6</text></g>
-  <g class="hot" data-hot="7"><circle cx="972" cy="416" r="11"/><text x="972" y="416">7</text></g>
 </svg>
 <figcaption><b>图 7-1</b>　结构视图的「列」页。</figcaption>
 </figure>
@@ -218,10 +218,6 @@
   <td>没有默认值时显示 <code>—</code>；默认值就是 <code>NULL</code> 时显示 <code>NULL</code>。<b>这两者含义不同</b>，所以分开显示。</td></tr>
 <tr data-hot="5"><td class="num">5</td><td class="wide">主键 / 自增 / 字符集</td>
   <td>属于主键和自增的打勾；字符集与排序规则只对文本类型显示，其它类型显示 <code>—</code>。</td></tr>
-<tr data-hot="6"><td class="num">6</td><td class="wide">数据 / 结构 切换</td>
-  <td>在同一个标签内切换数据视图和结构视图。也可以让它俩各占一个标签。</td></tr>
-<tr data-hot="7"><td class="num">7</td><td class="wide">刷新</td>
-  <td>重新读取结构（<kbd>⌘R</kbd>）。在查询编辑器里执行过 DDL 之后，已经打开的结构视图会标上「可能过期」。</td></tr>
 </tbody>
 </table>
 
