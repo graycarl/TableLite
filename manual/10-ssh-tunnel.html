@@ -65,9 +65,9 @@
   <text class="c mono s" x="500" y="148">bastion.example.com</text>
   <text class="c fnt s" x="500" y="170">deploy@:22</text>
   <rect class="s-sunken ln" x="410" y="188" width="180" height="60" rx="7"/>
-  <text class="c s" x="500" y="208">系统 ssh 进程</text>
-  <text class="c fnt mono s" x="500" y="228">ssh -N -L 53142:…</text>
-  <text class="fnt s c" x="500" y="264">（TableLite 启动的子进程）</text>
+  <text class="c s" x="500" y="208">SSH 加密通道</text>
+  <text class="c fnt s" x="500" y="228">复用你本机的 SSH 配置</text>
+  <text class="fnt s c" x="500" y="264">（TableLite 自动建立，不用开终端）</text>
 
   <!-- 数据库 -->
   <rect class="s-window ln2" x="750" y="80" width="220" height="200" rx="10"/>
@@ -89,21 +89,20 @@
   <text class="fnt s c" x="500" y="322">这条路径对你完全不可见。你在 TableLite 里填的还是「主机 = 10.0.2.5，端口 = 3306」。</text>
   <text class="fnt s c" x="500" y="344">本地端口是随机挑的，不会显示在主界面上，只在悬停详情里能看到。</text>
 </svg>
-<figcaption><b>图 10-1</b>　SSH 隧道的连接路径。TableLite 启动一个系统 <code>ssh</code> 子进程做端口转发。</figcaption>
+<figcaption><b>图 10-1</b>　SSH 隧道的连接路径。本机与跳板机之间是一条加密的 SSH 通道，你不用在终端里手动开隧道。</figcaption>
 </figure>
 
 <div class="callout">
-  <span class="tag">用的是系统的 ssh</span>
+  <span class="tag">复用你本机的 SSH 配置</span>
   <p>
-    TableLite <b>不自己实现 SSH 协议</b>，而是调用 macOS 自带的 <code>/usr/bin/ssh</code>
-    做本地端口转发（<code>-L</code>）。这样做有三个好处：
+    隧道复用 macOS 上标准的 SSH 配置，所以你已有的 <code>~/.ssh/config</code>、
+    <code>known_hosts</code>、ssh-agent 直接生效：
   </p>
   <ul>
-    <li>你的 <code>~/.ssh/config</code>、<code>known_hosts</code>、ssh-agent 直接生效。但隧道必需的连接超时、keepalive、首次自动接受主机指纹这几项由 TableLite 固定传入，会覆盖 config 里的同名项（见「三种认证方式」）。</li>
-    <li>各种密钥类型、跳板机、代理，系统都已经处理好了。</li>
-    <li>不用维护一份 SSH 实现。</li>
+    <li>各种密钥类型、跳板机、代理都已经处理好了，不用额外配置。</li>
+    <li>隧道必需的连接超时、保活、首次自动接受主机指纹这几项由 TableLite 统一决定，会覆盖 SSH 配置里的同名项（见「三种认证方式」）。</li>
   </ul>
-  <p>代价是：需要在界面上管好这个子进程，退出时必须清理干净，不能留后台进程。</p>
+  <p>隧道只在你连接期间存在，关闭连接或退出 App 时会被清理干净。</p>
 </div>
 
 <h2>配置项</h2>
@@ -328,15 +327,12 @@
 <h2>断开与退出时的清理</h2>
 
 <div class="callout danger">
-  <span class="tag">不能留后台 ssh 进程</span>
+  <span class="tag">隧道不会残留</span>
   <ul>
-    <li>关闭连接时同时关掉隧道，<b>不残留后台进程</b>。</li>
+    <li>关闭连接时同时关掉隧道。</li>
     <li>退出 App 时清理所有隧道。</li>
   </ul>
-  <p>
-    这一点是要专门验证的：如果在终端里 <code>ps aux | grep ssh</code>
-    还能看到隧道进程，说明清理有 bug。
-  </p>
+  <p>不会出现「界面里已经断开、后台还留着隧道」的情况。</p>
 </div>
 
 <h2>错误提示</h2>
@@ -375,7 +371,7 @@
   <text x="70" y="314">跳板机上没有权限</text>
   <text class="mut mono s" x="70" y="332">原样展示 SSH 的错误输出，例如：listen [::1]:53142: bind: Permission denied</text>
 
-  <text class="fnt s" x="20" y="376">每一个错误面板里都有一项「查看详细输出」，显示 SSH 进程的原始错误文本，方便排查。</text>
+  <text class="fnt s" x="20" y="376">每一个错误面板里都有一项「查看详细输出」，显示 SSH 的原始错误文本，方便排查。</text>
 </svg>
 <figcaption><b>图 10-5</b>　SSH 相关的错误提示。第四种特别好用——说明隧道通了但目标端口不通。</figcaption>
 </figure>

@@ -210,8 +210,8 @@
 
   <text class="mono s" x="400" y="414">`email` IS NULL　/　IS NOT NULL</text>
 
-  <text class="fnt s" x="760" y="124">值里的 % 和 _ 会被转义，</text>
-  <text class="fnt s" x="760" y="144">所以「包含 %」查的就是百分号本身，</text>
+  <text class="fnt s" x="760" y="124">「包含」等操作符里输入的 % 和 _</text>
+  <text class="fnt s" x="760" y="144">按普通字符处理：查的就是字符本身，</text>
   <text class="fnt s" x="760" y="164">不是通配符。</text>
 
   <text class="fnt s" x="760" y="334">BETWEEN 含两端</text>
@@ -246,7 +246,7 @@
   <rect class="s-accent" x="870" y="198" width="90" height="30" rx="6"/>
   <text class="c s" x="915" y="213" fill="#fff">应用</text>
 </svg>
-<figcaption><b>图 5-3</b>　高级模式。SQL 片段直接拼进 <code>WHERE</code> 后面，不做引号包裹。</figcaption>
+<figcaption><b>图 5-3</b>　高级模式。自己写的条件原样用于过滤，请自行保证写法正确。</figcaption>
 </figure>
 
 <h2>列过滤器</h2>
