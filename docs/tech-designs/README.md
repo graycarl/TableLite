@@ -52,7 +52,7 @@
 | 编辑入口 | 网格只读，所有值修改在右侧字段栏 | [08](08-pending-changes.md) §8、[14](14-row-inspector.md) §1 |
 | 编辑器智能替换 | `NSTextView` 的智能引号 / 破折号 / 文本替换 / 拼写纠正必须全部关闭 | [10](10-query-editor.md) §2 |
 | 变更暂存 | 每个标签独立；提交包在一个事务里 | [08](08-pending-changes.md) §1、§5 |
-| 行定位与可编辑性 | 用修改前冻结的旧值定位；无主键且无唯一键的表整表只读 | [08](08-pending-changes.md) §2.1、§7 |
+| 行定位与可编辑性 | 用修改前冻结的旧值定位；没有主键的表整表只读（唯一索引不算数） | [08](08-pending-changes.md) §2.1、§7 |
 | 大数据列 | 默认只取前 4 KB，点开时再取完整值；截断值绝不写回 | [07](07-data-grid.md) §3.1、[08](08-pending-changes.md) §9 |
 | 元数据来源 | `information_schema` + TTL 缓存；行数用估算，不自动 `COUNT(*)` | [11](11-schema-and-import-export.md) §1、[07](07-data-grid.md) §3.4 |
 | 导出方式 | 只支持 CSV；流式写出、临时文件原子替换 | [11](11-schema-and-import-export.md) §3、[13](13-open-questions.md) S9 |
