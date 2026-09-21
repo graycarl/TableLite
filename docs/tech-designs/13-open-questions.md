@@ -42,6 +42,8 @@
 | S28 | LIKE 转义的 `ESCAPE` 子句按 `sql_mode` 适配 | `09-filtering.md` §1.4 的固定 `ESCAPE '\\'` 在 `NO_BACKSLASH_ESCAPES` 下非法；实现为默认 `ESCAPE '\\'`、该模式下 `ESCAPE '\'`。见 `Core/SQL/FilterSQLBuilder.swift` |
 | S29 | 预览 SQL 与正式下发共用同一条生成路径 | 字面量转义走「连接转义器」（`mysql_real_escape_string` 语义）注入，纯函数转义只作兜底，避免 Preview 与实际提交不一致。见 `03-mysql-layer.md` §4.2、`Core/SQL/SQLValueLiteral.swift` |
 | S30 | 语句分类从严 | `VALUES` / `TABLE` 语句归为 query 但不放进只读白名单（`specs/09-readonly-mode.md` §4 未列即不放行） |
+| S31 | 删除连接先清 Keychain，失败则不删 JSON | `02-persistence.md` §3 只要求「连带删除」未定顺序；选择不留无人认领的密码，代价是 Keychain 异常时需重试删除。见 `Core/Store/ConnectionStore.swift` |
+| S32 | SSH `BatchMode` 只用于 config/agent 认证 | `BatchMode=yes` 会禁用 `SSH_ASKPASS`，密码/私钥口令认证不能加。见 `Core/SSH/SSHCommand.swift` |
 
 ## 2. 已知限制
 
@@ -63,6 +65,10 @@
 | L14 | CI 不覆盖需要真库的路径 | 编译与单元测试有保障，冒烟与集成测试只在本地跑 | 合并前本地跑一次 `make smoke`。见 `15-testing.md` §5 |
 | L15 | CSV 读入一次性全量解析 | 超大 CSV 导入时内存随行数增长 | P8 导入向导实现增量解析；导出侧已是流式（11 §3.1） |
 | L16 | 纯文本复制（TSV 等）的 NULL 表示为文本 `NULL` | 与空串在粘贴后不可区分 | CSV 复制/导出走独立 `nullRepresentation`，不受影响 |
+| L17 | 语句级错误的 `statement` 只带整批 SQL 前 200 字符 | 多语句执行时错误定位不到具体哪条 | C 回调只有 `result_index` 没有语句偏移；语句拆分在编辑器侧可做精确映射 |
+| L18 | 连接转义器（`escape`）是同步的 | 正在执行大查询时调用转义会阻塞到查询结束 | Preview 生成避开查询执行窗口；查询串行执行本身是协议约束 |
+| L19 | SSH 健康检查单次探测失败即判死 | 网络抖动可能误报隧道断开 | `04-ssh-tunnel.md` §6 未定失败阈值；误报后用户手动重连（L7 不自动重连） |
+| L20 | 偏好 `gridLazyLargeColumns`（大字段两阶段加载开关）未在 `specs/11-preferences.md` 列出 | 实现按 `07-data-grid.md` §3.1 补了该键（默认开），specs 待用户拍板补写 | 功能上等价于「超长内容截断阈值」的开关版 |
 
 ## 3. 待定事项
 
@@ -98,5 +104,6 @@
 | 2026-09-21 | **去掉 MariaDB 支持，只做 MySQL**（`specs/00-scope.md` §1/§2.1/§2.2、`specs/README.md`、`manual/` 全站、`README.md`、`AGENTS.md`）；服务器版本范围定为 MySQL 8.0+，测试矩阵单档，见 S25 |
 | 2026-09-21 | 补齐测试与工程决策：新增 `15-testing.md`（测试分层、可测试性注入点、CI）、存储版本与迁移（`02-persistence.md` §9）、界面文案硬编码中文（`06-ui-layer.md` §8）、时区零处理（`03-mysql-layer.md` §4.3）、分发 `make dist`（`12-build-and-deps.md` §4.1）；新增 S22–S27、L13、L14、T12 |
 | 2026-09-22 | Core/Model + Core/SQL 落地（W1-T1）：登记 S28（LIKE ESCAPE 按 sql_mode 适配，修正 `09` §1.4 矛盾）、S29（Preview 与下发共用连接转义器）、S30（语句分类从严）、L15（CSV 读全量解析）、L16（TSV NULL 文本表示）；行定位键 `RowKeyValue` 携带 `fieldType`/`isBinary` 以生成正确字面量 |
+| 2026-09-22 | Core/MySQL + Core/Store + Core/SSH 落地（W1-T2/T3/T4）：冒烟 7/7 通过；登记 S31（删连接 Keychain 顺序）、S32（SSH BatchMode 策略）、L17–L20；`session.json` schema 由 Core/Store 首定（`SessionStateFile`），W2 的 SessionManager 对接时可调整；SSH 别名模式下 `Connection.validationIssues()` 仍强制要求 `ssh.user`，待 W2 连接表单放宽 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。
