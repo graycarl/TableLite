@@ -183,6 +183,19 @@ final class ExportViewModel: ObservableObject {
         destination != nil && !isExporting && !isPreparing && prepareError == nil
     }
 
+    /// 与 `header` 一一对应的「是否二进制家族」标记。
+    ///
+    /// 流式行值不带列元数据，必须在这里从导出源拿到列类型，否则字节恰好是合法 UTF-8 的
+    /// 二进制列会被当成文本写出（docs/11 §2.1 要求二进制输出 `0x…` hex）。
+    private var binaryColumnFlags: [Bool] {
+        switch source {
+        case .queryResult(_, let columns, _):
+            return columns.map { $0.kind.isBinaryLike }
+        case .table, .selectedRows:
+            return structure?.columns.map { $0.kind.isBinaryLike || $0.isBinary } ?? []
+        }
+    }
+
     // MARK: 准备
 
     /// 注入轻提示中心。导出完成时由本对象直接提示，因此「后台导出」勾选后面板
@@ -284,7 +297,8 @@ final class ExportViewModel: ObservableObject {
                             self?.updateProgress(rows: rows, bytes: bytes)
                         }
                     },
-                    cancellation: { token.isCancelled }
+                    cancellation: { token.isCancelled },
+                    binaryColumnFlags: self.binaryColumnFlags
                 )
                 self.completion = Completion(rowCount: self.writtenRows,
                                              byteCount: self.writtenBytes,

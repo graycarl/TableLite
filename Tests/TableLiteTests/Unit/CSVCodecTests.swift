@@ -59,6 +59,13 @@ final class CSVCodecTests: XCTestCase {
         XCTAssertEqual(CSVCodec.exportText(value, column: nil, nullStyle: .empty), "0xFFFE")
     }
 
+    /// 合法 UTF-8 但属于二进制列时也必须 hex（docs/11 §2.1）。
+    func testExportTextExplicitBinaryFlagBeatsValidUTF8() {
+        let value = CellValue.bytes([0x41, 0x42, 0x00])
+        XCTAssertEqual(CSVCodec.exportText(value, isBinary: true, nullStyle: .empty), "0x414200")
+        XCTAssertEqual(CSVCodec.exportText(value, isBinary: false, nullStyle: .empty), "AB\0")
+    }
+
     func testExportTextKeepsServerFloatText() {
         let value = CellValue.text("3.1400000000000001")
         XCTAssertEqual(CSVCodec.exportText(value, column: column(.floating), nullStyle: .empty),
@@ -269,6 +276,23 @@ final class CSVExporterTests: XCTestCase {
 
         let data = try fileSystem.readData(at: destination)
         XCTAssertEqual(Array(data.prefix(3)), [0xEF, 0xBB, 0xBF])
+    }
+
+    /// 带二进制标记的列必须 hex 输出，即使字节恰好是合法 UTF-8。
+    func testWriteHexEncodesFlaggedBinaryColumn() async throws {
+        let fileSystem = makeFileSystem()
+        let destination = fileSystem.root.appendingPathComponent("Out/bin.csv")
+        let exporter = CSVExporter(fileSystem: fileSystem, options: CSVCodec.Options())
+
+        try await exporter.write(to: destination,
+                                 header: ["payload"],
+                                 rows: simpleStream([[.bytes([0x41, 0x42, 0x00])]]),
+                                 onProgress: { _, _ in },
+                                 cancellation: { false },
+                                 binaryColumnFlags: [true])
+
+        let data = try fileSystem.readData(at: destination)
+        XCTAssertEqual(String(decoding: data, as: UTF8.self), "payload\n0x414200\n")
     }
 
     func testCancellationLeavesPartialFile() async throws {

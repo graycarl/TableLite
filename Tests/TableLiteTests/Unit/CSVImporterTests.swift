@@ -141,6 +141,30 @@ final class CSVImporterTests: XCTestCase {
         XCTAssertTrue(statements.isEmpty)
     }
 
+    // MARK: - 二进制 hex 往返
+
+    func testInsertBatchesDecodesHexForBinaryColumn() {
+        let table = TableRef(database: "db", table: "t")
+        let columns = [TableColumn(name: "payload", dataType: "varbinary",
+                                   rawTypeText: "varbinary(32)", isBinary: true, kind: .blob)]
+        let mapping = [CSVImporter.ColumnMapping(sourceIndex: 0, targetColumn: "payload")]
+        let statements = CSVImporter.insertBatches(
+            table: table, targetColumns: columns, mapping: mapping,
+            rows: [["0x001BFF"], ["ABC"]],
+            literalizer: literalizer, batchSize: 500)
+        // 第一行是导出端写出的 hex，应还原为字节；第二行普通文本按二进制列处理。
+        XCTAssertEqual(statements,
+                       ["INSERT INTO `db`.`t` (`payload`) VALUES (0x001BFF), (0x414243)"])
+    }
+
+    func testDecodeBinaryHex() {
+        XCTAssertEqual(CSVImporter.decodeBinaryHex("0x001BFF"), [0x00, 0x1B, 0xFF])
+        XCTAssertEqual(CSVImporter.decodeBinaryHex("0x"), [])
+        XCTAssertNil(CSVImporter.decodeBinaryHex("0x0"), "奇数长度不是合法 hex")
+        XCTAssertNil(CSVImporter.decodeBinaryHex("0xZZ"))
+        XCTAssertNil(CSVImporter.decodeBinaryHex("hello"))
+    }
+
     // MARK: - 校验
 
     func testValidateRejectsBadInteger() {

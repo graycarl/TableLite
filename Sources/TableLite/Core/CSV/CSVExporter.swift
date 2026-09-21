@@ -29,13 +29,17 @@ final class CSVExporter: @unchecked Sendable {
     /// 流式写入目标文件。
     ///
     /// - `rows`：逐行值；调用方负责用 unbuffered 查询喂入。
+    /// - `binaryColumnFlags`：与投影列一一对应的「是否二进制家族」，用于把二进制列
+    ///   （即使字节恰好是合法 UTF-8）稳定输出为 `0x…` hex（docs/11 §2.1）。
+    ///   缺省 / 长度不足的位置按非二进制处理。
     /// - `onProgress(已写入行数, 已写入字节数)`。
     /// - `cancellation`：定期轮询；返回 true 则转 `.partial` 并抛 `incomplete`。
     func write(to destination: URL,
                header: [String],
                rows: AsyncThrowingStream<[CellValue], Error>,
                onProgress: @Sendable (Int, Int) -> Void,
-               cancellation: @Sendable () -> Bool) async throws {
+               cancellation: @Sendable () -> Bool,
+               binaryColumnFlags: [Bool] = []) async throws {
 
         // 目标可写性（文件本身或所在目录）
         let parent = destination.deletingLastPathComponent()
@@ -107,8 +111,9 @@ final class CSVExporter: @unchecked Sendable {
                     closeHandle()
                     throw CSVExportError.incomplete(partialURL: try moveToPartial())
                 }
-                let fields = values.map {
-                    CSVCodec.exportText($0, column: nil, nullStyle: options.nullStyle)
+                let fields = values.enumerated().map { index, value in
+                    let isBinary = index < binaryColumnFlags.count ? binaryColumnFlags[index] : false
+                    return CSVCodec.exportText(value, isBinary: isBinary, nullStyle: options.nullStyle)
                 }
                 try writeLine(CSVCodec.encodeRow(fields, delimiter: options.delimiter))
                 writtenRows += 1

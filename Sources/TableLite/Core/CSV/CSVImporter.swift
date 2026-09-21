@@ -91,8 +91,8 @@ enum CSVImporter {
         let active = mapping.filter { $0.targetColumn != nil }
         guard !active.isEmpty, !rows.isEmpty, batchSize > 0 else { return [] }
 
-        var kindByName: [String: ColumnKind] = [:]
-        for column in targetColumns { kindByName[column.name] = column.kind }
+        var columnByName: [String: TableColumn] = [:]
+        for column in targetColumns { columnByName[column.name] = column }
 
         let columnList = active.compactMap(\.targetColumn)
         let prefix = "INSERT INTO \(SQLIdentifier.qualified(table.database, table.table)) "
@@ -106,8 +106,9 @@ enum CSVImporter {
                 let row = rows[rowIndex]
                 let values = active.map { map -> String in
                     let text = map.sourceIndex < row.count ? row[map.sourceIndex] : ""
-                    let value: CellValue = text.isEmpty ? .null : .text(text)
-                    let kind = map.targetColumn.flatMap { kindByName[$0] } ?? .text
+                    let column = map.targetColumn.flatMap { columnByName[$0] }
+                    let value = importValue(text, column: column)
+                    let kind = column?.kind ?? .text
                     return SQLValueLiteral.literal(value, kind: kind, using: literalizer)
                 }
                 return "(" + values.joined(separator: ", ") + ")"
@@ -116,6 +117,40 @@ enum CSVImporter {
             start = end
         }
         return statements
+    }
+
+    // MARK: - 单元格文本 → CellValue
+
+    /// 导入单元格文本 → `CellValue`。
+    ///
+    /// - 空字段 → `NULL`（S28）；
+    /// - 二进制家族列若文本是导出产生的 `0x…` hex，则还原为真实字节，保证导出 / 导入往返；
+    /// - 其余按文本。
+    static func importValue(_ text: String, column: TableColumn?) -> CellValue {
+        guard !text.isEmpty else { return .null }
+        if let column, column.kind.isBinaryLike || column.isBinary,
+           let bytes = decodeBinaryHex(text) {
+            return .bytes(bytes)
+        }
+        return .text(text)
+    }
+
+    /// 解析导出端写出的 `0x…` hex（`0x` 单独出现表示空字节串）。非法或长度为奇数时返回 nil。
+    static func decodeBinaryHex(_ text: String) -> [UInt8]? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2, trimmed.lowercased().hasPrefix("0x") else { return nil }
+        let digits = trimmed.dropFirst(2)
+        guard digits.count % 2 == 0, digits.allSatisfy({ $0.isHexDigit }) else { return nil }
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(digits.count / 2)
+        var index = digits.startIndex
+        while index < digits.endIndex {
+            let next = digits.index(index, offsetBy: 2)
+            guard let byte = UInt8(digits[index..<next], radix: 16) else { return nil }
+            bytes.append(byte)
+            index = next
+        }
+        return bytes
     }
 
     // MARK: - 类型校验

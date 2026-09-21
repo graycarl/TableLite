@@ -41,11 +41,19 @@ enum CSVCodec {
     /// - 二进制家族（或内容不是合法 UTF-8）→ `0x…` 大写 hex；
     /// - 其它原样输出，浮点沿用服务器返回的原始文本，不重新格式化。
     static func exportText(_ value: CellValue, column: ResultSetColumn?, nullStyle: CSVNullStyle) -> String {
+        exportText(value, isBinary: column?.kind.isBinaryLike == true, nullStyle: nullStyle)
+    }
+
+    /// 同 `exportText(_:column:nullStyle:)`，但二进制判定由调用方显式给出。
+    ///
+    /// 流式导出时逐行值不带列元数据，必须由导出源把列类型传进来，
+    /// 否则「字节恰好是合法 UTF-8」的二进制列会被当成文本输出（见 docs/11 §2.1）。
+    static func exportText(_ value: CellValue, isBinary: Bool, nullStyle: CSVNullStyle) -> String {
         switch value {
         case .null:
             return nullStyle == .literalNULL ? "NULL" : ""
         case .bytes(let bytes):
-            if column?.kind.isBinaryLike == true {
+            if isBinary {
                 return hexText(bytes)
             }
             guard let text = String(bytes: bytes, encoding: .utf8) else {
