@@ -1,0 +1,31 @@
+name: Build and test
+
+# macOS 27 的部署目标（见 docs/tech-designs/12-build-and-deps.md §3.3）决定了 runner 的选择：
+# `xcode-27` 镜像的基础系统就是 macOS 27，更早的镜像（macos-26 及以下）装不下这个目标。
+# 冒烟与集成测试不在 CI 里跑 —— 托管 macOS runner 没有 Docker，见 15-testing.md §5。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装依赖
+        run: brew install mysql-client xcodegen
+
+      - name: 生成工程
+        run: make deps gen
+
+      - name: 构建
+        run: make build
+
+      - name: 单元测试
+        run: make test

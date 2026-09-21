@@ -1,15 +1,16 @@
 # 冒烟验证用的 MySQL 服务器。
 #
-# 由 scripts/smoke/run.sh 起停；也可以用 `docker-compose -f scripts/smoke/docker-compose.yml up -d --wait`
-# 单独拉起来，给 P1 的集成测试复用。
+# 由 scripts/smoke/run.sh 起停；也可以单独拉起来，给 P1 的集成测试复用：
+#   docker-compose -p tablelite-smoke -f scripts/smoke/docker-compose.yml up -d --wait
 #
-# 端口默认 13306，避免和本机已有的 3306 冲突；改端口用 SMOKE_MYSQL_PORT。
+# 端口默认 13306，避开本机已有的 3306；改端口用 SMOKE_MYSQL_PORT。
+# 支持的服务器版本见 docs/tech-designs/15-testing.md §1。
 services:
   mysql:
     image: mysql:8.4
     container_name: tablelite-smoke-mysql
     command:
-      # 冒烟用例里会有 300ms 级的长查询与 KILL，关掉 DNS 反查能让连接更快、更稳定
+      # 冒烟里有 KILL QUERY 的中断用例，关掉 DNS 反查能让连接更快、更稳定
       - --skip-name-resolve
       - --local-infile=0
     environment:

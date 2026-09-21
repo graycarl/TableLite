@@ -29,11 +29,11 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>TableLite — 自用工具，未发布</string>
 
-	<!-- 中文界面；SQL 关键字与类型名保持英文 -->
+	<!-- 界面文案硬编码中文，没有本地化资源（docs/tech-designs/06-ui-layer.md §8）；
+	     SQL 关键字与类型名保持英文。声明 en 会声称一个并不存在的英文界面。 -->
 	<key>CFBundleLocalizations</key>
 	<array>
 		<string>zh-Hans</string>
-		<string>en</string>
 	</array>
 </dict>
 </plist>

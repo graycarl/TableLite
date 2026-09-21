@@ -4,7 +4,7 @@ SCHEME := TableLite
 BUILD_DIR := $(CURDIR)/.build
 CONFIG ?= Debug
 
-.PHONY: help deps gen build run test smoke clean distclean doctor
+.PHONY: help deps gen build run test smoke dist clean distclean doctor
 
 help: ## 显示可用目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -32,6 +32,7 @@ run: build ## 构建并启动
 	@open "$(BUILD_DIR)/Build/Products/$(CONFIG)/TableLite.app"
 
 test: gen ## 跑单元测试
+	@./scripts/check-imports.sh
 	@echo "==> xcodebuild test"
 	@xcodebuild \
 		-project "$(PROJECT)" \
@@ -41,8 +42,11 @@ test: gen ## 跑单元测试
 		-quiet \
 		test
 
-smoke: build ## 访问层端到端冒烟验证（需要一个本地 MySQL）
+smoke: build ## 访问层端到端冒烟验证（自动起 Docker MySQL）
 	@./scripts/smoke/run.sh
+
+dist: ## 构建 Release 并打包成可分发的 zip
+	@./scripts/package-dist.sh
 
 doctor: deps ## 打印依赖与链接情况，排查构建问题
 	@echo "== otool -L libmysqlclient =="
