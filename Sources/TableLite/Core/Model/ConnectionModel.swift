@@ -217,8 +217,9 @@ enum MySQLError: Error, Hashable, Sendable {
 /// 见 docs/tech-designs/03-mysql-layer.md §1、§4.2。
 struct SQLValueLiteralizer: Sendable {
     var charsetName: String
-    /// 转义字符串内容（不含首尾引号）
-    var escape: @Sendable (String) async -> String
+    /// 转义字符串内容（不含首尾引号）。实现内部把调用投递到连接的串行队列上执行
+    ///（`mysql_real_escape_string` 不是线程安全的），因此这里保持同步签名。
+    var escape: @Sendable (String) -> String
 
     /// 没有连接时（单测 / 预览占位）的保守实现：转义 `'` `"` `\` 与 `\0`。
     static let conservative = SQLValueLiteralizer(

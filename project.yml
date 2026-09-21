@@ -79,7 +79,7 @@ targets:
           - $(MYSQL_CLIENT_PREFIX)/lib
           - $(OPENSSL_PREFIX)/lib
           - $(ZSTD_PREFIX)/lib
-        OTHER_LDFLAGS: $(inherited) -lmysqlclient -lssl -lcrypto -lz -lzstd -lresolv
+        OTHER_LDFLAGS: $(inherited) -lmysqlclient -lssl -lcrypto -lz -lzstd -lresolv -lsqlite3
         LD_RUNPATH_SEARCH_PATHS:
           - $(inherited)
           - $(MYSQL_CLIENT_PREFIX)/lib
