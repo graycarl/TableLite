@@ -3,8 +3,8 @@ import SwiftUI
 
 // MARK: - 结果展示
 //
-// 结果网格是**只读**的：本地排序、列宽、列显隐、复制（快速查看从简）。
-// 见 specs/06-query-editor.md §4、docs/tech-designs/10-query-editor.md §6。
+// 结果网格是**只读**的：本地排序、列宽、列显隐、复制、快速查看（Space / 中键 / 右键）。
+// 见 specs/06-query-editor.md §4、specs/02-workspace.md §9、docs/tech-designs/10-query-editor.md §6。
 //
 // 网格用精简只读 `NSTableView`（不复用表数据视图，避免与并行开发耦合）。
 
@@ -41,6 +41,7 @@ private struct ResultSetView: View {
 
     @EnvironmentObject private var toasts: ToastCenter
     @State private var hiddenColumns: Set<Int> = []
+    @State private var quickLookController = QuickLookPanelController()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -63,9 +64,22 @@ private struct ResultSetView: View {
                 hiddenColumns: hiddenColumns,
                 onCopied: { count in
                     toasts.show("已复制 \(QueryTabLogic.grouped(count)) 行", actionTitle: nil, action: nil)
-                }
+                },
+                onQuickLook: presentQuickLook
             )
         }
+    }
+
+    /// 结果集已全部在内存里，无需两阶段加载，直接展示完整单元格。
+    private func presentQuickLook(value: CellValue, columnIndex: Int, row: Int) {
+        guard set.header.columns.indices.contains(columnIndex) else { return }
+        let column = set.header.columns[columnIndex]
+        let name = column.name.isEmpty ? "列 \(columnIndex + 1)" : column.name
+        quickLookController.show(title: "\(name) · 第 \(row + 1) 行",
+                                 kind: column.kind,
+                                 value: value,
+                                 isLoading: false,
+                                 error: nil)
     }
 
     private var columnMenu: some View {
@@ -96,6 +110,7 @@ private struct ReadOnlyResultTable: NSViewRepresentable {
     let rows: [[CellValue]]
     let hiddenColumns: Set<Int>
     let onCopied: (Int) -> Void
+    let onQuickLook: (CellValue, Int, Int) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -138,6 +153,7 @@ private struct ReadOnlyResultTable: NSViewRepresentable {
         context.coordinator.appliedHeader = header
         context.coordinator.onCopied = onCopied
         context.coordinator.configureCopy()
+        context.coordinator.configureQuickLook()
         context.coordinator.applyHiddenColumns(hiddenColumns)
 
         let scrollView = NSScrollView()
@@ -205,6 +221,19 @@ private struct ReadOnlyResultTable: NSViewRepresentable {
 
         func configureCopy() {
             tableView?.onCopy = { [weak self] in self?.copySelectedRows() }
+        }
+
+        func configureQuickLook() {
+            tableView?.onQuickLook = { [weak self] row, column in
+                self?.quickLook(row: row, column: column)
+            }
+        }
+
+        /// 把当前展示行（可能已本地排序）/ 列映射回单元格值，交给 SwiftUI 侧打开面板。
+        func quickLook(row: Int, column: Int) {
+            guard row >= 0, row < sortedRows.count else { return }
+            guard column >= 0, column < sortedRows[row].count else { return }
+            parent.onQuickLook(sortedRows[row][column], column, row)
         }
 
         private func applySort() {
@@ -317,21 +346,63 @@ private struct ReadOnlyResultTable: NSViewRepresentable {
     }
 }
 
-/// 支持 `⌘C` 与右键复制的只读表格。
+/// 支持 `⌘C`、复制、快速查看（`Space` / 中键 / 右键）的只读表格。
 @MainActor
 private final class ResultTableView: NSTableView, NSMenuItemValidation {
     var onCopy: (() -> Void)?
+    /// (展示行, 列索引)；由 Coordinator 映射到 `sortedRows`。
+    var onQuickLook: ((_ row: Int, _ column: Int) -> Void)?
 
     @objc func copy(_ sender: Any?) {
         onCopy?()
     }
 
+    @objc func quickLook(_ sender: Any?) {
+        onQuickLook?(clickedRow, clickedColumn)
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        true
+        if menuItem.action == #selector(quickLook(_:)) {
+            return clickedRow >= 0 && clickedColumn >= 0
+        }
+        return true
+    }
+
+    override func keyDown(with event: NSEvent) {
+        // 纯 `Space`：快速查看光标所在的单元格（specs/02-workspace.md §9）。
+        let modifiers: NSEvent.ModifierFlags = [.command, .option, .control, .shift]
+        if event.keyCode == 49,
+           event.modifierFlags.intersection(modifiers).isEmpty,
+           selectedRow >= 0, selectedColumn >= 0 {
+            onQuickLook?(selectedRow, selectedColumn)
+            return
+        }
+        super.keyDown(with: event)
+    }
+
+    override func otherMouseDown(with event: NSEvent) {
+        // 中键点击：先选中单元格，再快速查看。
+        if event.buttonNumber == 2 {
+            let point = convert(event.locationInWindow, from: nil)
+            let row = self.row(at: point)
+            let column = self.column(at: point)
+            if row >= 0, column >= 0 {
+                selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                onQuickLook?(row, column)
+                return
+            }
+        }
+        super.otherMouseDown(with: event)
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = NSMenu()
+        let quickLookItem = NSMenuItem(title: "快速查看", action: #selector(quickLook(_:)), keyEquivalent: "")
+        quickLookItem.target = self
+        menu.addItem(quickLookItem)
+
+        menu.addItem(.separator())
+
         let copyItem = NSMenuItem(title: "复制", action: #selector(copy(_:)), keyEquivalent: "")
         copyItem.target = self
         menu.addItem(copyItem)

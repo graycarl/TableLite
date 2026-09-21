@@ -221,8 +221,8 @@ final class ConnectionSession: ObservableObject, Identifiable {
         do {
             try await loadDatabasesAndSelect()
         } catch {
-            let mapped = Self.mappedError(error, step: .serverInfo)
-            appendConsoleError(mapped, sql: "SHOW DATABASES")
+            // 元数据语句已由 `MySQLSession` 的 query logger 记入 Console Log，这里不再重复（Wave 7-W §3）。
+            logger.error("加载数据库列表失败：\(String(describing: error), privacy: .public)")
         }
         await refreshObjects()
 
@@ -260,8 +260,8 @@ final class ConnectionSession: ObservableObject, Identifiable {
         do {
             try await loadObjects()
         } catch {
-            let mapped = Self.mappedError(error, step: .serverInfo)
-            appendConsoleError(mapped, sql: "information_schema.TABLES")
+            // `information_schema.TABLES` 已由 query logger 记录，不再重复写 Console Log。
+            logger.error("刷新对象树失败：\(String(describing: error), privacy: .public)")
         }
         noteActivity()
     }
@@ -273,8 +273,8 @@ final class ConnectionSession: ObservableObject, Identifiable {
             try await loadDatabasesAndSelect()
             try await loadObjects()
         } catch {
-            let mapped = Self.mappedError(error, step: .serverInfo)
-            appendConsoleError(mapped, sql: "SHOW DATABASES")
+            // `SHOW DATABASES` / `information_schema.TABLES` 已由 query logger 记录，不再重复。
+            logger.error("重新加载库列表失败：\(String(describing: error), privacy: .public)")
         }
         noteActivity()
     }

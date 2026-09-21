@@ -20,7 +20,10 @@ final class CSVRoundTripIntegrationTests: MySQLIntegrationTestCase {
     }
 
     override func tearDown() async throws {
-        try? FileManager.default.removeItem(at: root)
+        // setUp 在建库前跳过时 root 仍为 nil，不能直接强解包
+        if let root {
+            try? FileManager.default.removeItem(at: root)
+        }
         try await super.tearDown()
     }
 

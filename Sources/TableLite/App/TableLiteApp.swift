@@ -175,13 +175,30 @@ struct TableLiteCommands: Commands {
 
         CommandGroup(after: .pasteboard) {
             Divider()
-            Button("注释切换") { actions?.toggleComment?() }
-                .keyboardShortcut("/", modifiers: .command)
-                .disabled(actions?.toggleComment == nil)
-            Button("缩进") { actions?.indent?() }
-                .disabled(actions?.indent == nil)
-            Button("反缩进") { actions?.outdent?() }
-                .disabled(actions?.outdent == nil)
+            // 编辑器命令优先走响应链里的 `SQLEditorTextView`（`WorkspaceView` 若已上报动作则用它）。
+            // 缩进 / 反缩进不绑快捷键：`⌘[` / `⌘]` 在 `specs/02-workspace.md` §9 里属于标签导航。
+            Button("注释切换") {
+                if let action = actions?.toggleComment {
+                    action()
+                } else {
+                    _ = SQLEditorCommands.toggleComment()
+                }
+            }
+            .keyboardShortcut("/", modifiers: .command)
+            Button("缩进") {
+                if let action = actions?.indent {
+                    action()
+                } else {
+                    _ = SQLEditorCommands.indent()
+                }
+            }
+            Button("反缩进") {
+                if let action = actions?.outdent {
+                    action()
+                } else {
+                    _ = SQLEditorCommands.outdent()
+                }
+            }
             Divider()
             Button("查找") { actions?.find?() }
                 .keyboardShortcut("f", modifiers: .command)
