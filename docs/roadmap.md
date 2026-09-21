@@ -11,9 +11,18 @@
 | Wave 2 | `MetaRepository` / 表数据查询与加载 / 变更暂存与提交 / CSV 编解码与导入导出 | P1、P4、P5、P8（核心） |
 | Wave 3 | `AppEnvironment` / `SessionManager` / `ConnectionSession` / 标签与 ViewModel | P2、P3 |
 | Wave 4 | 连接界面 / 工作区外壳 / AppKit 数据网格 + 字段栏 + 快速查看 / SQL 编辑器与结果区 | P2–P5、P7 |
-| Wave 5a | 过滤器界面（行 / 列 / 快速过滤）与表结构视图 | P6、P9 |
+| Wave 5 | 过滤器界面、表结构视图、CSV 导入导出界面、菜单与快捷键接线、只读模式全链路 | P6、P8、P9、P11 |
+| Wave 6 | Console Log 全量记录、真库端到端集成测试、CSV 二进制往返修复 | P1、P8 收尾 |
 
-单元测试当前 378 项（`Tests/TableLiteTests/`，见 `15-testing.md` §2）；需要真库的 `make smoke` 与集成测试仍只在本地跑（L14）。SSH 隧道已实现（Wave 1），P10 的三种认证与指纹变化行为仍需真机确认。
+**验证结果（2026-09-22）**：
+
+- 单元 + 集成测试 **443 项全绿**（`Tests/TableLiteTests/`，见 `15-testing.md` §2）。给定 `MYSQL_HOST` 时集成测试会真连 `mysql:8.4`；
+  覆盖 `MySQLSession`（连接/多结果集/特殊字符往返/取消/错误映射）、`MetaRepository`（结构/TTL 失效）、
+  `TableDataLoader`（分页/排序/大字段两阶段/无主键）、`PendingChangeCommitter`（事务提交与回滚/截断列不写回）、CSV 往返、历史仓库。
+- `make smoke` 7/7 通过（C shim + libmysqlclient）。
+- 启动冒烟：App 可执行文件运行 5 秒无崩溃，`otool -L` 依赖齐全；`scripts/check-imports.sh` 通过。
+- 仍需人工确认：所有需要点击的 UI 路径（按 `15-testing.md` §2，不做 UI 自动化）、SSH 真机（三种认证、指纹变化、退出不残留 ssh 进程）。
+
 
 ## 阶段划分
 
