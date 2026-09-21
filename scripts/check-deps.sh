@@ -58,14 +58,37 @@ else
   miss "mysql-client 未安装" "brew install mysql-client"
 fi
 
-# ---- mysql-client 的传递依赖 ----
+# ---- 构建期链接依赖（App 显式 -lssl / -lcrypto / -lzstd，链接器必须能找到）----
 for dep in openssl@3 zstd; do
   if brew list --formula "$dep" >/dev/null 2>&1; then
     ok "$dep ($(brew --prefix "$dep"))"
   else
-    note "$dep 未作为独立 formula 安装，可能是随 mysql-client 一起装的；如构建报缺库再装"
+    miss "$dep 未安装" "brew install $dep"
   fi
 done
+
+# ---- libmysqlclient 的运行期依赖 ----
+# 直接读 dylib 的依赖表，而不是硬编码 formula 名单：Homebrew 换依赖时不会漏检。
+# 背景见 docs/tech-designs/12-build-and-deps.md §2、§3.1。
+MYSQL_DYLIB="${MYSQL_PREFIX:-}/lib/libmysqlclient.dylib"
+if [[ -f "$MYSQL_DYLIB" ]]; then
+  if command -v otool >/dev/null 2>&1; then
+    while IFS= read -r lib; do
+      case "$lib" in
+        /opt/homebrew/*)
+          formula="$(printf '%s' "$lib" | sed -n 's|^/opt/homebrew/opt/\([^/]*\)/.*|\1|p')"
+          if [[ -f "$lib" ]]; then
+            ok "运行期依赖 $(basename "$lib")"
+          else
+            miss "运行期依赖缺失：$lib" "brew reinstall ${formula:-$lib}"
+          fi
+          ;;
+      esac
+    done < <(otool -L "$MYSQL_DYLIB" | tail -n +2 | awk '{print $1}')
+  else
+    note "找不到 otool，跳过 libmysqlclient 的运行期依赖检查"
+  fi
+fi
 
 printf "\n"
 if [[ $fail -ne 0 ]]; then

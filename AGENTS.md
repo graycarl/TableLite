@@ -4,7 +4,7 @@
 
 ## 项目是什么
 
-`TableLite` —— macOS 原生的 MySQL / MariaDB 客户端，参考 TablePlus 但只保留高频功能。自用工具，不签名、不公证、不开沙箱，最低 macOS 14。
+`TableLite` —— macOS 原生的 MySQL / MariaDB 客户端，参考 TablePlus 但只保留高频功能。自用工具，不签名、不公证、不开沙箱。最低 macOS 版本跟随构建机的 Homebrew（见 `docs/tech-designs/12-build-and-deps.md` §3.3）。
 
 ## 当前状态
 
