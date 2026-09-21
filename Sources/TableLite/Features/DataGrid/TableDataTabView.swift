@@ -13,7 +13,7 @@ import os
 // 08-pending-changes.md；specs/02-workspace.md、03-data-browsing.md、04-data-editing.md。
 struct TableDataTabView: View {
 
-    let session: ConnectionSession
+    @ObservedObject var session: ConnectionSession
     let tab: Tab
     let environment: AppEnvironment
 
@@ -132,6 +132,16 @@ struct TableDataTabView: View {
             Button("取消", role: .cancel) {}
         } message: {
             Text("当前标签有 \(model.pendingStats.total) 处未提交的修改。")
+        }
+        // 只读模式实时生效：菜单 / 连接配置切换后重算可编辑性（specs/09-readonly-mode.md §6）。
+        .onChange(of: session.isReadOnly) { _, newValue in
+            model.setReadOnly(newValue)
+        }
+        // 提交期间锁住整个标签内容（specs/12-feedback.md §1、docs/08-pending-changes.md §5）。
+        .overlay {
+            if model.isCommitting {
+                CommitLockOverlay(progress: model.commitProgress)
+            }
         }
     }
 
@@ -346,4 +356,30 @@ struct CommitFailurePresentation: Identifiable {
     let failure: CommitFailure
     /// 失败语句对应的行身份（用于网格红色高亮）。
     let row: RowIdentity?
+}
+
+// MARK: - 提交锁定遮罩
+
+/// 提交期间盖住标签内容，阻止继续编辑；同时显示「正在提交 3/7…」。
+private struct CommitLockOverlay: View {
+
+    let progress: CommitProgress?
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.06)
+            VStack(spacing: 10) {
+                ProgressView()
+                    .controlSize(.large)
+                Text(progress.map { "正在提交 \($0.completed)/\($0.total)…" } ?? "正在提交…")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+        }
+        .contentShape(Rectangle())
+        .ignoresSafeArea()
+    }
 }

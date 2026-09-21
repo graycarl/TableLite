@@ -262,8 +262,27 @@ struct TableLiteCommands: Commands {
     private var readOnlyBinding: Binding<Bool> {
         Binding(
             get: { env.sessionManager.activeSession?.isReadOnly ?? false },
-            set: { env.sessionManager.activeSession?.setReadOnly($0) }
+            set: { newValue in
+                guard let session = env.sessionManager.activeSession else { return }
+                // 关闭只读模式前给一次轻确认（specs/09-readonly-mode.md §6）。
+                if !newValue, session.isReadOnly {
+                    guard Self.confirmDisableReadOnly(name: session.displayName.isEmpty
+                                                        ? session.connection.mysql.host
+                                                        : session.displayName) else { return }
+                }
+                session.setReadOnly(newValue)
+            }
         )
+    }
+
+    private static func confirmDisableReadOnly(name: String) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "确定要关闭「\(name)」的只读模式吗？"
+        alert.informativeText = "关闭后可以修改数据、执行写操作。"
+        alert.addButton(withTitle: "关闭只读模式")
+        alert.addButton(withTitle: "取消")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     private func reconnectActiveSession() {
@@ -272,8 +291,21 @@ struct TableLiteCommands: Commands {
     }
 
     private func disconnectActiveSession() {
-        guard let id = env.sessionManager.activeSessionID else { return }
-        Task { await env.sessionManager.disconnect(id: id) }
+        guard let session = env.sessionManager.activeSession else { return }
+        let dirty = WorkspacePendingChangeGuard.dirtyTabs(in: session)
+        guard !dirty.isEmpty else {
+            Task { await env.sessionManager.disconnect(id: session.id) }
+            return
+        }
+        let name = session.displayName.isEmpty ? session.connection.mysql.host : session.displayName
+        let decision = WorkspacePendingChangeGuard.askToDisconnect(sessionName: name,
+                                                                  dirtyCount: dirty.count)
+        if case .cancel = decision { return }
+        Task {
+            let proceed = await WorkspacePendingChangeGuard.resolve(decision, tabs: dirty)
+            guard proceed else { return }
+            await env.sessionManager.disconnect(id: session.id)
+        }
     }
 
     private func openDataDirectory() {

@@ -1,5 +1,20 @@
 # 实现路线图
 
+## 实现进度
+
+> 最近更新：2026-09-22。以下是**实现进度**（代码写到了哪），不等于**验收通过**。下面各阶段的验收项仍按 `make smoke` 与 `manual/` 的 14 页人工过一遍后逐项确认，未确认前保持未勾选。
+
+| 波次 | 内容 | 对应阶段 |
+| --- | --- | --- |
+| Wave 0 | 冻结 Core 共享模型与基础设施契约 | P0 / P1 前置 |
+| Wave 1 | SQL 纯逻辑 / Store 持久化 / SSH 隧道 / `MySQLSession` 数据访问层 | P1、P10（核心） |
+| Wave 2 | `MetaRepository` / 表数据查询与加载 / 变更暂存与提交 / CSV 编解码与导入导出 | P1、P4、P5、P8（核心） |
+| Wave 3 | `AppEnvironment` / `SessionManager` / `ConnectionSession` / 标签与 ViewModel | P2、P3 |
+| Wave 4 | 连接界面 / 工作区外壳 / AppKit 数据网格 + 字段栏 + 快速查看 / SQL 编辑器与结果区 | P2–P5、P7 |
+| Wave 5a | 过滤器界面（行 / 列 / 快速过滤）与表结构视图 | P6、P9 |
+
+单元测试当前 378 项（`Tests/TableLiteTests/`，见 `15-testing.md` §2）；需要真库的 `make smoke` 与集成测试仍只在本地跑（L14）。SSH 隧道已实现（Wave 1），P10 的三种认证与指纹变化行为仍需真机确认。
+
 ## 阶段划分
 
 | 阶段 | 内容 | 产出 | 预估 |

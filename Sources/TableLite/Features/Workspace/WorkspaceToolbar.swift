@@ -4,6 +4,16 @@ import os
 
 private let logger = Logger(subsystem: "com.graycarl.tablelite", category: "ui")
 
+// MARK: - 表数据变更操作入口
+
+/// 工作区级表数据操作入口。工具栏按钮与菜单共用同一套实现，
+/// 避免 sheet / alert / 快捷键重复（`docs/tech-designs/06-ui-layer.md` §5）。
+struct WorkspaceTableDataCommands {
+    var preview: (TableDataViewModel) -> Void
+    var commit: (TableDataViewModel) -> Void
+    var discard: (TableDataViewModel) -> Void
+}
+
 // MARK: - 工作区工具栏
 
 /// 工具栏：连接切换器 → 标签前进后退 → 新建查询 / 打开表 → 变更操作组 → 字段栏开关。
@@ -13,6 +23,8 @@ struct WorkspaceToolbar: View {
     @ObservedObject var session: ConnectionSession
     @ObservedObject var sessionManager: SessionManager
     @ObservedObject var preferences: PreferencesStore
+    /// 变更操作由工作区（菜单）与本工具栏共用。
+    let tableDataCommands: WorkspaceTableDataCommands
 
     @State private var showingOpenTable = false
 
@@ -29,7 +41,6 @@ struct WorkspaceToolbar: View {
             Button { session.newQueryTab() } label: {
                 Text("+ 新建查询")
             }
-            .keyboardShortcut("t", modifiers: .command)
             .help("新建查询标签（⌘T）")
 
             Button { showingOpenTable = true } label: {
@@ -40,7 +51,7 @@ struct WorkspaceToolbar: View {
 
             Spacer(minLength: 12)
 
-            ChangeOperationsView(session: session)
+            ChangeOperationsView(session: session, commands: tableDataCommands)
 
             Divider().frame(height: 20)
 
@@ -61,14 +72,12 @@ struct WorkspaceToolbar: View {
             Button { selectRelative(offset: -1) } label: {
                 Image(systemName: "chevron.left")
             }
-            .keyboardShortcut("[", modifiers: .command)
             .disabled(!canGoBack)
             .help("上一个标签（⌘[）")
 
             Button { selectRelative(offset: 1) } label: {
                 Image(systemName: "chevron.right")
             }
-            .keyboardShortcut("]", modifiers: .command)
             .disabled(!canGoForward)
             .help("下一个标签（⌘]）")
         }
@@ -130,7 +139,7 @@ private struct WorkspaceConnectionSwitcher: View {
         Menu {
             ForEach(sessionManager.sessions) { candidate in
                 Button {
-                    sessionManager.activeSessionID = candidate.id
+                    switchTo(candidate)
                 } label: {
                     // Menu 项内用文字承载，状态点用符号表达。
                     Text(menuTitle(candidate))
@@ -187,8 +196,36 @@ private struct WorkspaceConnectionSwitcher: View {
         }
     }
 
-    private func disconnect() {
+    /// 切换连接：当前连接还有未提交改动时先三选一（提交 / 放弃 / 取消）。
+    private func switchTo(_ candidate: ConnectionSession) {
+        guard candidate.id != session.id else { return }
+        let dirty = WorkspacePendingChangeGuard.dirtyTabs(in: session)
+        guard !dirty.isEmpty else {
+            sessionManager.activeSessionID = candidate.id
+            return
+        }
+        let decision = WorkspacePendingChangeGuard.askToDisconnect(sessionName: displayName,
+                                                                  dirtyCount: dirty.count)
         Task {
+            let proceed = await WorkspacePendingChangeGuard.resolve(decision, tabs: dirty)
+            if proceed { sessionManager.activeSessionID = candidate.id }
+        }
+    }
+
+    private func disconnect() {
+        let dirty = WorkspacePendingChangeGuard.dirtyTabs(in: session)
+        guard !dirty.isEmpty else {
+            Task {
+                await sessionManager.disconnect(id: session.id)
+                toasts.show("连接已断开")
+            }
+            return
+        }
+        let decision = WorkspacePendingChangeGuard.askToDisconnect(sessionName: displayName,
+                                                                  dirtyCount: dirty.count)
+        Task {
+            let proceed = await WorkspacePendingChangeGuard.resolve(decision, tabs: dirty)
+            guard proceed else { return }
             await sessionManager.disconnect(id: session.id)
             toasts.show("连接已断开")
         }
@@ -200,6 +237,7 @@ private struct WorkspaceConnectionSwitcher: View {
 private struct ChangeOperationsView: View {
 
     @ObservedObject var session: ConnectionSession
+    let commands: WorkspaceTableDataCommands
 
     var body: some View {
         HStack(spacing: 6) {
@@ -211,7 +249,7 @@ private struct ChangeOperationsView: View {
             }
 
             if let tab = session.activeTab {
-                ActiveChangeOperations(tab: tab, session: session)
+                ActiveChangeOperations(tab: tab, session: session, commands: commands)
                     .id(tab.id)
             } else {
                 DisabledChangeOperations()
@@ -224,6 +262,7 @@ private struct ActiveChangeOperations: View {
 
     @ObservedObject var tab: Tab
     @ObservedObject var session: ConnectionSession
+    let commands: WorkspaceTableDataCommands
 
     private var viewModel: TableDataViewModel? {
         tab.tableData as? TableDataViewModel
@@ -231,7 +270,7 @@ private struct ActiveChangeOperations: View {
 
     var body: some View {
         if let viewModel {
-            ChangeOperationsButtons(viewModel: viewModel, session: session)
+            ChangeOperationsButtons(viewModel: viewModel, session: session, commands: commands)
         } else {
             DisabledChangeOperations()
         }
@@ -254,77 +293,40 @@ private struct ChangeOperationsButtons: View {
 
     @ObservedObject var viewModel: TableDataViewModel
     @ObservedObject var session: ConnectionSession
-
-    @EnvironmentObject private var toasts: ToastCenter
-    @State private var showingDiscardConfirm = false
-    @State private var showingPreview = false
-    @State private var commitError: MySQLError?
+    let commands: WorkspaceTableDataCommands
 
     private var count: Int { viewModel.pendingStats.total }
     private var isDirty: Bool { !viewModel.pending.isEmpty }
     private var isReadOnly: Bool { session.isReadOnly }
+    private var isBusy: Bool { viewModel.isCommitting }
 
     var body: some View {
         HStack(spacing: 6) {
-            Button("放弃") { requestDiscard() }
-                .keyboardShortcut(.delete, modifiers: [.command, .shift])
-                .disabled(!isDirty)
-                .help("放弃全部未提交的修改（⇧⌘⌫）")
-                .alert("放弃未提交的修改？", isPresented: $showingDiscardConfirm) {
-                    Button("取消", role: .cancel) {}
-                    Button("放弃修改", role: .destructive) {
-                        Task { await viewModel.discardAll() }
-                    }
-                } message: {
-                    Text("将丢弃 \(count) 处修改：\(viewModel.pendingStats.summary)。此操作不可撤销。")
-                }
+            // 提交进度：`正在提交 3/7…`（specs/12-feedback.md §1）。
+            if let progress = viewModel.commitProgress {
+                ProgressView()
+                    .controlSize(.small)
+                Text("正在提交 \(progress.completed)/\(progress.total)…")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
 
-            Button("预览(\(count))") { showingPreview = true }
-                .keyboardShortcut("p", modifiers: [.command, .shift])
-                .disabled(!isDirty)
+            Button("放弃(\(count))") { commands.discard(viewModel) }
+                .disabled(!isDirty || isBusy)
+                .help("放弃全部未提交的修改（⇧⌘⌫）")
+
+            Button("预览(\(count))") { commands.preview(viewModel) }
+                .disabled(!isDirty || isBusy)
                 .help("预览将要执行的 SQL（⇧⌘P）")
 
-            Button("提交(\(count))") { Task { await commit() } }
-                .keyboardShortcut("s", modifiers: .command)
-                .disabled(!isDirty || isReadOnly)
+            Button("提交(\(count))") { commands.commit(viewModel) }
+                .disabled(!isDirty || isReadOnly || isBusy)
                 .help(isReadOnly
                       ? "该连接处于只读模式，无法提交修改"
                       : (isDirty ? "提交 \(count) 处修改（⌘S）" : "没有待提交的修改"))
-                .alert("提交失败", isPresented: commitErrorPresented) {
-                    Button("关闭", role: .cancel) { commitError = nil }
-                } message: {
-                    Text(commitError.map { $0.serverError?.formatted ?? $0.title } ?? "")
-                }
         }
         .buttonStyle(.bordered)
-        .sheet(isPresented: $showingPreview) {
-            WorkspacePendingSQLSheet(viewModel: viewModel, isPresented: $showingPreview)
-        }
-    }
-
-    private var commitErrorPresented: Binding<Bool> {
-        Binding(get: { commitError != nil },
-                set: { if !$0 { commitError = nil } })
-    }
-
-    private func requestDiscard() {
-        let stats = viewModel.pendingStats
-        // 放弃多于 5 条，或包含删除 / 新增时先确认（specs/12-feedback.md §4）。
-        if stats.total > 5 || stats.deletes > 0 || stats.inserts > 0 {
-            showingDiscardConfirm = true
-        } else {
-            Task { await viewModel.discardAll() }
-        }
-    }
-
-    private func commit() async {
-        do {
-            let outcome = try await viewModel.commit()
-            toasts.show("已提交 \(outcome.executedCount) 处修改 · \(QueryTabLogic.elapsedText(outcome.elapsed))")
-        } catch {
-            logger.error("提交失败：\(String(describing: error), privacy: .public)")
-            commitError = (error as? MySQLError) ?? .internalError(String(describing: error))
-        }
     }
 }
 

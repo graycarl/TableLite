@@ -3,6 +3,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 import os
 
+private let logger = Logger(subsystem: "com.graycarl.tablelite", category: "ui")
+
 // MARK: - 查询标签
 //
 // 工具栏（执行 / 执行全部 / 停止 / 打开 / 另存为）+ 编辑器 + 可拖拽分隔条 + 结果区。
@@ -12,7 +14,7 @@ import os
 // `QueryTabViewModel` 由本视图用 `@StateObject` 创建，并回填 `tab.query`。
 
 struct QueryTabView: View {
-    let session: ConnectionSession
+    @ObservedObject var session: ConnectionSession
     let tab: Tab
     let environment: AppEnvironment
 
@@ -24,7 +26,6 @@ struct QueryTabView: View {
     @State private var dragStartRatio: Double?
 
     private static let dividerHeight: CGFloat = 6
-    private let logger = Logger(subsystem: "com.graycarl.tablelite", category: "ui")
 
     init(session: ConnectionSession, tab: Tab, environment: AppEnvironment) {
         self.session = session
@@ -90,6 +91,10 @@ struct QueryTabView: View {
         }
         .onAppear { tab.query = model }
         .task { await model.loadDraft() }
+        // 只读模式实时生效（specs/09-readonly-mode.md §6）。
+        .onChange(of: session.isReadOnly) { _, newValue in
+            model.setReadOnly(newValue)
+        }
     }
 
     // MARK: 工具栏
@@ -102,7 +107,6 @@ struct QueryTabView: View {
                 } label: {
                     Label("停止", systemImage: "stop.fill")
                 }
-                .keyboardShortcut(".", modifiers: .command)
             } else {
                 Button {
                     runCurrent()
@@ -134,18 +138,16 @@ struct QueryTabView: View {
             Divider().frame(height: 16)
 
             Button {
-                openScript()
+                QueryScriptActions.open(session: session, toasts: toasts)
             } label: {
                 Label("打开", systemImage: "folder")
             }
-            .keyboardShortcut("o", modifiers: .command)
 
             Button {
-                saveAs()
+                QueryScriptActions.saveAs(model: model, tab: tab, toasts: toasts)
             } label: {
                 Label("另存为", systemImage: "square.and.arrow.down")
             }
-            .keyboardShortcut("s", modifiers: [.command, .shift])
 
             Spacer(minLength: 8)
 
@@ -241,55 +243,6 @@ struct QueryTabView: View {
         Task { await model.executeAll() }
     }
 
-    // MARK: 脚本文件
-
-    private func openScript() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.allowedContentTypes = Self.scriptContentTypes
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            let content = try String(contentsOf: url, encoding: .utf8)
-            session.newQueryTab(initialSQL: content)
-        } catch {
-            logger.error("打开脚本失败：\(String(describing: error), privacy: .public)")
-            toasts.show("打开脚本失败：\(error.localizedDescription)", actionTitle: nil, action: nil)
-        }
-    }
-
-    private func saveAs() {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = Self.scriptContentTypes
-        panel.nameFieldStringValue = suggestedFileName
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            try model.sql.write(to: url, atomically: true, encoding: .utf8)
-            model.setFile(url)
-            model.markFileSaved()
-            tab.customTitle = url.lastPathComponent
-            toasts.show("已保存到 \(url.lastPathComponent)", actionTitle: nil, action: nil)
-        } catch {
-            logger.error("另存为失败：\(String(describing: error), privacy: .public)")
-            toasts.show("保存失败：\(error.localizedDescription)", actionTitle: nil, action: nil)
-        }
-    }
-
-    private var suggestedFileName: String {
-        if let fileURL = model.fileURL {
-            return fileURL.lastPathComponent
-        }
-        return tab.queryNumber > 0 ? "查询 \(tab.queryNumber).sql" : "查询.sql"
-    }
-
-    private static var scriptContentTypes: [UTType] {
-        var types: [UTType] = [.plainText]
-        if let sql = UTType(filenameExtension: "sql") {
-            types.append(sql)
-        }
-        return types
-    }
-
     // MARK: 格式化
 
     private static func byteText(_ bytes: Int) -> String {
@@ -309,5 +262,71 @@ struct QueryTabView: View {
         let components = duration.components
         let seconds = Double(components.seconds) + Double(components.attoseconds) / 1e18
         return String(format: "%.1f 秒", seconds)
+    }
+}
+
+// MARK: - 脚本文件动作
+
+/// 打开 / 另存为 / 查找的共享实现。
+///
+/// 工具栏按钮与菜单（`@FocusedValue`）走同一条路径，避免两份快捷键与重复逻辑。
+/// 见 `specs/02-workspace.md` §8 §9、`docs/tech-designs/06-ui-layer.md` §5。
+@MainActor
+enum QueryScriptActions {
+
+    static func open(session: ConnectionSession, toasts: ToastCenter) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = scriptContentTypes
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let content = try String(contentsOf: url, encoding: .utf8)
+            session.newQueryTab(initialSQL: content)
+        } catch {
+            logger.error("打开脚本失败：\(String(describing: error), privacy: .public)")
+            toasts.show("打开脚本失败：\(error.localizedDescription)", actionTitle: nil, action: nil)
+        }
+    }
+
+    static func saveAs(model: QueryTabViewModel, tab: Tab, toasts: ToastCenter) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = scriptContentTypes
+        panel.nameFieldStringValue = suggestedFileName(model: model, tab: tab)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try model.sql.write(to: url, atomically: true, encoding: .utf8)
+            model.setFile(url)
+            model.markFileSaved()
+            tab.customTitle = url.lastPathComponent
+            toasts.show("已保存到 \(url.lastPathComponent)", actionTitle: nil, action: nil)
+        } catch {
+            logger.error("另存为失败：\(String(describing: error), privacy: .public)")
+            toasts.show("保存失败：\(error.localizedDescription)", actionTitle: nil, action: nil)
+        }
+    }
+
+    /// `⌘F`：把查找转给当前第一响应者（SQL 编辑器的 `NSTextView`）。
+    /// 查询标签激活时才由工作区上报给菜单（表数据标签的 `⌘F` 仍归状态栏的过滤器）。
+    static func find() {
+        let item = NSMenuItem()
+        // NSFindPanelAction.showFindPanel == 1；`usesFindBar = true` 时 NSTextView 会显示查找条。
+        item.tag = 1
+        NSApp.sendAction(#selector(NSTextView.performFindPanelAction(_:)), to: nil, from: item)
+    }
+
+    private static func suggestedFileName(model: QueryTabViewModel, tab: Tab) -> String {
+        if let fileURL = model.fileURL {
+            return fileURL.lastPathComponent
+        }
+        return tab.queryNumber > 0 ? "查询 \(tab.queryNumber).sql" : "查询.sql"
+    }
+
+    private static var scriptContentTypes: [UTType] {
+        var types: [UTType] = [.plainText]
+        if let sql = UTType(filenameExtension: "sql") {
+            types.append(sql)
+        }
+        return types
     }
 }

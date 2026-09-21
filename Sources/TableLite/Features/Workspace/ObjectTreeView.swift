@@ -16,7 +16,10 @@ struct ObjectTreeView: View {
     @ObservedObject var objectTree: ObjectTreeModel
 
     @EnvironmentObject private var toasts: ToastCenter
+    @EnvironmentObject private var env: AppEnvironment
     @State private var destructiveAction: DestructiveObjectAction?
+    @State private var exportRequest: ExportSheetRequest?
+    @State private var importRequest: ImportSheetRequest?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,6 +36,18 @@ struct ObjectTreeView: View {
                 },
                 onCancel: { destructiveAction = nil }
             )
+        }
+        .sheet(item: $exportRequest) { request in
+            ExportPanelView(source: request.source,
+                            session: session,
+                            fileSystem: env.fileSystem,
+                            preferences: env.preferences)
+        }
+        .sheet(item: $importRequest) { request in
+            ImportWizardView(initialRef: request.ref,
+                             session: session,
+                             preferences: env.preferences,
+                             fileSystem: env.fileSystem)
         }
     }
 
@@ -165,9 +180,14 @@ struct ObjectTreeView: View {
         case .copyName:
             copyName(object.name)
         case .export:
-            notImplemented("导出")
+            // 对象树入口 = 整表，不受当前过滤条件影响（specs/08 §1）。
+            exportRequest = ExportSheetRequest(source: .table(ref: ref, filter: FilterSet(), sort: []))
         case .importCSV:
-            notImplemented("导入 CSV")
+            guard !session.isReadOnly else {
+                toasts.show("只读模式：写操作已被禁用")
+                return
+            }
+            importRequest = ImportSheetRequest(ref: ref)
         case .truncate:
             destructiveAction = DestructiveObjectAction(kind: .truncate, ref: ref)
         case .drop:
@@ -180,11 +200,6 @@ struct ObjectTreeView: View {
         pasteboard.clearContents()
         pasteboard.setString(name, forType: .string)
         toasts.show("已复制 \(name)")
-    }
-
-    private func notImplemented(_ feature: String) {
-        // TODO(Wave 5)：导出 / 导入面板由后续 wave 提供，这里先只给轻提示。
-        toasts.show("\(feature)功能即将实现")
     }
 
     private func perform(_ action: DestructiveObjectAction) async {

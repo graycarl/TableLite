@@ -39,6 +39,14 @@
 | S25 | 不支持 MariaDB | 只支持 MySQL 8.0+；测试矩阵单档（`mysql:8.4`）。见 `15-testing.md` §1、`specs/00-scope.md` §2.2 |
 | S26 | 不做依赖注入框架 | 手写协议 + `AppEnvironment` 注入；只抽 `Clock` / `CredentialStore` / `FileSystemLocator`。见 `15-testing.md` §3 |
 | S27 | 不做时区处理 | 日期时间值原样读、原样写，不解析不换算，也不读 `@@session.time_zone`。见 `03-mysql-layer.md` §4.3 |
+| S28 | CSV 导入时空字段一律按 `NULL` 写入 | CSV 没有区分空字符串与 `NULL` 的通用约定，要区分需要额外规则（例如引号包裹表示空串）。见 `11-schema-and-import-export.md` §4、`specs/08-import-export.md` |
+| S29 | 预览 / 提交的语句不带结尾分号 | `PendingSQLStatement.text` 不含 `;`；下发走单条 `mysql_real_query`，Preview 与提交共用同一份文本，只是预览不显示分号。见 `08-pending-changes.md` §3 |
+| S30 | `/*! … */` 版本注释按可执行语句处理 | 语句拆分时不把它当纯注释跳过；只读模式下取不到可执行关键字会被拒绝，偏保守。见 `10-query-editor.md` §4、§10 |
+| S31 | 过滤横条的可见性放在 UI 层的 `FilterPanelCoordinator` | 按标签 id 分桶，只存「横条是否展开 / 焦点请求」这类纯 UI 状态；数据真源仍是 `TableDataViewModel.filter`。见 `09-filtering.md` §1.1 |
+| S32 | `PendingChangeStore` 在表结构加载完成后重建 | `init` 时先用空结构占位，结构到手后再构造可用的暂存区；无用户可见影响。见 `08-pending-changes.md` §2 |
+| S33 | 查询历史 / Console Log 不记录被只读拦截的语句 | 被拦截的语句从未下发，因此不写入历史，也不进 Console Log。见 `10-query-editor.md` §10 |
+| S34 | `objectDefinition` 标签恢复时默认按视图处理 | `session.json` 的 `TabSnapshot` 没有区分表 / 视图，恢复后的对象定义一律按视图（只读）处理。见 `05-session-management.md` §8、`02-persistence.md` §7 |
+| S35 | 列过滤浮层里 ENUM 列「按此列筛选」的焦点不落在下拉控件上 | 值输入是 `Picker` 时无法套用 `TextField` 的焦点绑定；功能可用，只是焦点可见性弱。见 `09-filtering.md` §1.2 |
 
 ## 2. 已知限制
 
@@ -58,6 +66,11 @@
 | L12 | 字段栏自动加载大字段的上限是 8 MB | 一行里的大字段合计超过该值时，不会自动取完整值 | 字段旁提供「加载完整内容…」按钮，点开才取 |
 | L13 | `make dist` 的产物依赖目标机器的 Homebrew | 换一台机器要先 `brew install mysql-client` 等项目，否则启动即缺库 | 自用工具，接受；真要做到自包含就回到 `12-build-and-deps.md` §3.1 的内嵌 dylib 方案（T1 已否） |
 | L14 | CI 不覆盖需要真库的路径 | 编译与单元测试有保障，冒烟与集成测试只在本地跑 | 合并前本地跑一次 `make smoke`。见 `15-testing.md` §5 |
+| L15 | 页面索引（`pageIndex`）不持久化 | 会话恢复只带回每页行数、排序、过滤、隐藏列，页码一律从第 1 页开始 | 位置靠后的页需要重新翻；恢复的其余呈现状态都不丢。见 `05-session-management.md` §8 |
+| L16 | 复制行时跳过「未加载完整值的大字段列」 | 复制出的新增行里这些列取列默认值或 `NULL`，需要用户自己补 | 大字段的截断前缀绝不会被写回；要连大字段一起复制，先在字段栏点「加载完整内容…」。见 `08-pending-changes.md` §9 |
+| L17 | 字段栏自动加载大字段的 8 MB 上限按字符长度（`CHAR_LENGTH`）近似 | 多字节文本（中文、emoji 等）会低估实际字节数，可能一次取回超过 8 MB 的值 | 上限只约束「自动加载」；单列可手动点「加载完整内容…」，加载过程分页 / 流式读取，不会一次全塞进内存 |
+| L18 | 过滤条件编辑后只有点「应用 / 重置 / 快速过滤」才重查 | 未点「应用」时新条件不立即生效；此时翻页 / 排序反而会带上最新条件重查，行为不一致 | 以「应用」为明确分界；编辑完条件后点「应用」再翻页 / 排序。见 `09-filtering.md` §3 |
+| L19 | 外键跳转的定位过滤通过 `TableStateStore`（按表记忆的过滤）实现 | 目标表已记住过滤条件时直接生效；用户关闭「记住每张表的过滤条件」时退化为打开后轮询设置，可能来不及在首次加载前预置 | 保持该偏好默认开启；关闭时可能弹「未能自动应用外键过滤条件」提示。见 `specs/11-preferences.md` §3、`07-data-grid.md` §2 |
 
 ## 3. 待定事项
 
@@ -92,5 +105,6 @@
 | 2026-09-21 | T1 定案：实测依赖全部指向 `/opt/homebrew/opt/<formula>/lib/…` 稳定符号链接，不改写 rpath、不内嵌 dylib（`12-build-and-deps.md` §3.1/§3.2）；T11 定案：部署目标改为跟随构建机系统版本（当前 macOS 27），不声称支持更低 macOS |
 | 2026-09-21 | **去掉 MariaDB 支持，只做 MySQL**（`specs/00-scope.md` §1/§2.1/§2.2、`specs/README.md`、`manual/` 全站、`README.md`、`AGENTS.md`）；服务器版本范围定为 MySQL 8.0+，测试矩阵单档，见 S25 |
 | 2026-09-21 | 补齐测试与工程决策：新增 `15-testing.md`（测试分层、可测试性注入点、CI）、存储版本与迁移（`02-persistence.md` §9）、界面文案硬编码中文（`06-ui-layer.md` §8）、时区零处理（`03-mysql-layer.md` §4.3）、分发 `make dist`（`12-build-and-deps.md` §4.1）；新增 S22–S27、L13、L14、T12 |
+| 2026-09-22 | 实现阶段补充「刻意简化 / 有边界的取舍」：新增 S28–S35（CSV 导入空字段按 `NULL`、预览语句不含分号、`/*! … */` 按可执行语句、过滤横条可见性归属 UI 层、暂存区随表结构重建、只读拦截语句不入历史 / 日志、对象定义恢复按视图、ENUM 焦点不落下拉）与 L15–L19（页码不持久化、复制行跳过大字段列、8 MB 上限按字符长度近似、过滤编辑需手动应用、外键跳转依赖按表记忆过滤）；结果集导出剥离 `LIMIT` 失败只导本次返回行已由 L2 覆盖，未新增条目 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

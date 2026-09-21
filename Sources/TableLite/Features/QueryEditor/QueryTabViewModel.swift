@@ -207,7 +207,9 @@ final class QueryTabViewModel: ObservableObject {
 
     let connectionID: UUID
     let draftID: UUID
-    let isReadOnly: Bool
+    /// 连接是否处于只读模式。菜单切换后由 `setReadOnly(_:)` 实时更新，
+    /// 编辑器提示条与写操作拦截都读它。
+    @Published private(set) var isReadOnly: Bool
 
     private let session: MySQLSession
     private let preferences: PreferencesStore
@@ -289,6 +291,14 @@ final class QueryTabViewModel: ObservableObject {
         self.sql = initialSQL
         self.fileURL = fileURL
         self.savedFileContents = fileURL != nil ? initialSQL : nil
+    }
+
+    // MARK: 只读模式
+
+    /// 连接只读状态变化时由视图调用；影响写操作拦截与只读提示条。
+    func setReadOnly(_ value: Bool) {
+        guard value != isReadOnly else { return }
+        isReadOnly = value
     }
 
     // MARK: 执行入口

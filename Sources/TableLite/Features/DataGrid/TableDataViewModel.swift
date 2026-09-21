@@ -56,7 +56,8 @@ final class TableDataViewModel: ObservableObject {
     private let loader: TableDataLoader
     private let preferences: PreferencesStore
     private let tableState: TableStateStore
-    private let isReadOnlyConnection: Bool
+    /// 连接只读状态。由 `setReadOnly(_:)` 实时更新（`specs/09-readonly-mode.md` §6）。
+    private var isReadOnlyConnection: Bool
     /// 暂存区状态变化回调。参数按契约传 `pending.isEmpty`：
     /// `true` 表示当前没有未提交改动，`false` 表示有。
     private let onPendingChangeStateChanged: @MainActor (Bool) -> Void
@@ -231,6 +232,19 @@ final class TableDataViewModel: ObservableObject {
     var deepOffsetWarning: String? {
         guard TableDataViewModelLogic.isDeepOffset(pageIndex: pageIndex, pageSize: pageSize) else { return nil }
         return "偏移量很大，翻页会越来越慢；建议用过滤器缩小范围后再翻页"
+    }
+
+    // MARK: - 只读模式实时切换
+
+    /// 连接只读状态变化时由视图调用（菜单「连接 → 只读模式」/ 连接配置）。
+    ///
+    /// 只重算 `editability`，**不清空暂存**：已经积累的修改仍可用「放弃」回退。
+    /// 优先级不变（视图 → 无主键 → 只读连接），见 `docs/tech-designs/08-pending-changes.md` §7。
+    func setReadOnly(_ value: Bool) {
+        guard value != isReadOnlyConnection else { return }
+        isReadOnlyConnection = value
+        updateEditability()
+        objectWillChange.send()
     }
 
     // MARK: - 加载

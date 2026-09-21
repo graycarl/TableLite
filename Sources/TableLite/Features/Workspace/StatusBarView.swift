@@ -53,7 +53,7 @@ struct StatusBarView: View {
     private func rightStatus(_ tab: Tab) -> some View {
         switch tab.kind {
         case .tableData:
-            TableDataStatusRight(tab: tab)
+            TableDataStatusRight(tab: tab, session: session)
         case .query:
             QueryStatusRight(tab: tab)
         default:
@@ -126,12 +126,14 @@ private struct PendingChangesBar: View {
 private struct TableDataStatusRight: View {
 
     @ObservedObject var tab: Tab
+    let session: ConnectionSession
     @EnvironmentObject private var toasts: ToastCenter
 
     var body: some View {
         if let model = tab.tableData as? TableDataViewModel {
             TableDataStatusActions(tabID: tab.id,
                                    model: model,
+                                   session: session,
                                    onToast: { toasts.show($0) })
         }
     }
@@ -142,13 +144,20 @@ private struct TableDataStatusRight: View {
 private struct TableDataStatusActions: View {
 
     let tabID: UUID
+    let session: ConnectionSession
     let onToast: (String) -> Void
     @ObservedObject var model: TableDataViewModel
     @ObservedObject var panelState: FilterPanelState
+    @EnvironmentObject private var env: AppEnvironment
     @State private var showsColumnFilter = false
+    @State private var exportRequest: ExportSheetRequest?
 
-    init(tabID: UUID, model: TableDataViewModel, onToast: @escaping (String) -> Void) {
+    init(tabID: UUID,
+         model: TableDataViewModel,
+         session: ConnectionSession,
+         onToast: @escaping (String) -> Void) {
         self.tabID = tabID
+        self.session = session
         self.onToast = onToast
         _model = ObservedObject(wrappedValue: model)
         _panelState = ObservedObject(wrappedValue: FilterPanelCoordinator.shared.state(for: tabID))
@@ -175,11 +184,20 @@ private struct TableDataStatusActions: View {
                 }
 
             Button("导出…") {
-                onToast("导出面板将在下一步接入")
+                // 数据视图入口 = 当前过滤条件下的全部数据（不是只导当前页）。
+                exportRequest = ExportSheetRequest(
+                    source: .table(ref: model.ref, filter: model.filter, sort: model.sort)
+                )
             }
             .help("导出当前数据（⇧⌘E）")
         }
         .buttonStyle(.link)
+        .sheet(item: $exportRequest) { request in
+            ExportPanelView(source: request.source,
+                            session: session,
+                            fileSystem: env.fileSystem,
+                            preferences: env.preferences)
+        }
     }
 }
 

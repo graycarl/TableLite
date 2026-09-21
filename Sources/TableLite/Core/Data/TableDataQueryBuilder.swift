@@ -81,6 +81,49 @@ enum TableDataQueryBuilder {
         return sql
     }
 
+    // MARK: 导出查询
+
+    /// 生成整表导出的 `SELECT`：与 ``pageSQL`` 相同的投影与 `ORDER BY`，但**不带 `LIMIT` / `OFFSET`**。
+    ///
+    /// 导出必须拿到当前过滤条件下的**全部**数据，见
+    /// docs/tech-designs/11-schema-and-import-export.md §3.1。
+    /// 导出走完整值（不做大字段截断），排序仍只依赖真实列名；
+    /// 无主键表仍**不写** `ORDER BY`（见 docs/tech-designs/07-data-grid.md §3.3）。
+    static func exportSQL(ref: TableRef,
+                          structure: TableStructure,
+                          filter: FilterSet,
+                          sort: [SortDescriptor],
+                          literalizer: SQLValueLiteralizer) throws -> String {
+        let filterResult = FilterSQLBuilder.build(
+            filter,
+            columns: structure.columns,
+            using: literalizer
+        )
+        if let issue = filterResult.issues.first {
+            throw MySQLError.unsupported(issue.message)
+        }
+        // `FilterSQLBuilder` 已把 raw 里的分号转成 issue，这里再兜一层，防呆。
+        if filter.useRawSQL, filter.rawSQL.contains(";") {
+            throw MySQLError.unsupported("高级条件不能包含分号「;」")
+        }
+
+        let projections = projection(
+            structure: structure,
+            lazyLarge: false,
+            largeThreshold: defaultLargeThreshold
+        )
+        var sql = "SELECT \(selectList(ref: ref, projections: projections, largeThreshold: defaultLargeThreshold))"
+        sql += " FROM \(SQLIdentifier.qualified(ref.database, ref.table))"
+
+        if let whereSQL = filterResult.sql, !whereSQL.isEmpty {
+            sql += " WHERE \(whereSQL)"
+        }
+        if let orderBy = orderByClause(ref: ref, structure: structure, sort: sort) {
+            sql += " ORDER BY \(orderBy)"
+        }
+        return sql
+    }
+
     /// `SELECT` 列表：先是数据列（含截断表达式），最后追加长度列。
     static func selectList(ref: TableRef,
                            projections: [TableColumnProjection],
