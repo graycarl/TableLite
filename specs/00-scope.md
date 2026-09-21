@@ -2,7 +2,7 @@
 
 ## 1. 产品定位
 
-一个**自用**的 macOS 原生 MySQL / MariaDB 客户端，用于日常查看数据、改数据、跑 SQL。
+一个**自用**的 macOS 原生 MySQL 客户端，用于日常查看数据、改数据、跑 SQL。
 
 - 使用方式：本地安装的桌面 App，双击即用
 - 目标用户：作者本人（熟悉 TablePlus，也熟悉 SQL）
@@ -13,7 +13,7 @@
 ### 2.1 做什么
 
 **连接**
-- 连接 MySQL / MariaDB
+- 连接 MySQL
 - 配置项：主机、端口、用户、密码、数据库、字符集、SSL 开关
 - 通过 SSH 隧道连接（支持 `~/.ssh/config`、私钥、密码、跳板机）
 - 保存多个连接，记住密码
@@ -58,7 +58,7 @@
 
 | 项 | 说明 |
 | --- | --- |
-| 其他数据库 | 只支持 MySQL / MariaDB，不做 PostgreSQL / SQLite / Redis 等 |
+| 其他数据库 | 只支持 MySQL，不做 PostgreSQL / MariaDB / SQLite / Redis 等 |
 | 函数 / 存储过程 | 对象树里不列出，也没有定义查看页；要看定义就在编辑器里跑 `SHOW CREATE PROCEDURE` / `SHOW CREATE FUNCTION` |
 | 表结构编辑 | 建表、改列、加索引只能手写 DDL |
 | SQL 自动补全 | 编辑器只做语法高亮 |

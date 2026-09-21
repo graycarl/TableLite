@@ -97,7 +97,7 @@ function buildThemeToggle() {
 
   const sub = document.createElement('div');
   sub.className = 'sub';
-  sub.textContent = 'macOS 原生 MySQL / MariaDB 客户端';
+  sub.textContent = 'macOS 原生 MySQL 客户端';
   host.appendChild(sub);
 
   const list = document.createElement('ol');

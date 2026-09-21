@@ -1,6 +1,6 @@
 # TableLite 需求设计
 
-TableLite 是一个 macOS 原生的 MySQL / MariaDB 客户端，功能和交互参考 TablePlus，但只保留高频功能。
+TableLite 是一个 macOS 原生的 MySQL 客户端，功能和交互参考 TablePlus，但只保留高频功能。
 
 **本目录只描述「用户能看到、能操作、能预期」的东西**——界面结构、交互规则、行为边界、错误提示的措辞。技术方案、数据结构、SQL 生成规则、构建方式等实现细节在 [`../docs/tech-designs/`](../docs/tech-designs/README.md)。
 
