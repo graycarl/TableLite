@@ -35,7 +35,8 @@ final class SessionManager: ObservableObject {
 
     private var idleReaperTask: Task<Void, Never>?
     private var persistTask: Task<Void, Never>?
-    private var cancellables: Set<AnyCancellable> = []
+    /// 每个会话一条观察订阅；删除连接时按 id 释放，避免已删会话被订阅链继续持有。
+    private var sessionObservations: [UUID: AnyCancellable] = [:]
 
     init(connections: ConnectionStore,
          credentials: CredentialStore,
@@ -114,6 +115,50 @@ final class SessionManager: ObservableObject {
         guard let session = session(id: id) else { return }
         await session.close()
         await persistSessionState()
+    }
+
+    /// 删除连接时清理会话：停止观察 → 断开 → 从 `sessions` 移除 → 修正当前连接 → 落盘。
+    ///
+    /// 其余删除清理（`TableStateStore.removeAll` / Keychain 三个条目）由 `ConnectionsView` 负责。
+    func removeSession(id: UUID) async {
+        guard let session = session(id: id) else { return }
+        sessionObservations[id] = nil
+        // 查询草稿在标签关闭时才会删除；连接整体删除时这里补一刀，避免留下孤儿草稿文件。
+        let draftIDs = session.tabs.compactMap(\.kind.draftID)
+        await session.close()
+        sessions.removeAll { $0.id == id }
+        if activeSessionID == id {
+            activeSessionID = sessions.first?.id
+        }
+        for draftID in draftIDs {
+            do {
+                try drafts.delete(draftID: draftID)
+            } catch {
+                storeLogger.error("删除连接时清理查询草稿失败：\(String(describing: error), privacy: .public)")
+            }
+        }
+        await persistSessionState()
+    }
+
+    // MARK: 只读模式
+
+    /// 切换只读模式并写回连接配置（`specs/09-readonly-mode.md` §6）。
+    ///
+    /// 关闭只读模式前的确认由调用方（菜单）负责；这里只负责会话状态与 `connections.json`
+    /// 的同步，并刷新 `updatedAt`。
+    func setReadOnly(connectionID: UUID, value: Bool) {
+        guard let session = session(id: connectionID) else { return }
+        session.setReadOnly(value)
+
+        guard var connection = connections.connection(id: connectionID) else { return }
+        guard connection.readOnly != value else { return }
+        connection.readOnly = value
+        connection.updatedAt = clock.now
+        do {
+            try connections.update(connection)
+        } catch {
+            storeLogger.error("只读状态写回连接配置失败：\(String(describing: error), privacy: .public)")
+        }
     }
 
     /// 退出清理：同步等待所有隧道停止（`SSHTunnel.stop()` 内含 2s + SIGKILL）。
@@ -247,13 +292,13 @@ final class SessionManager: ObservableObject {
 
     /// 订阅会话变化，防抖后落盘 `session.json`。
     private func observe(_ session: ConnectionSession) {
-        session.objectWillChange
+        let id = session.id
+        sessionObservations[id] = session.objectWillChange
             .sink { [weak self] _ in
                 Task { @MainActor in
                     self?.schedulePersist()
                 }
             }
-            .store(in: &cancellables)
     }
 
     private func schedulePersist() {

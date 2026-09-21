@@ -11,6 +11,94 @@ enum MySQLSessionEvent: Sendable {
     case connectionLost(MySQLServerError?)
 }
 
+// MARK: - Console Log 记录
+
+/// 语句类别：`data` 用户发起，`meta` 客户端自动发出（元数据 / 分页 / 事务 / 取消等）。
+/// 见 `docs/tech-designs/02-persistence.md` §5、`docs/tech-designs/10-query-editor.md` §8。
+enum QueryCategory: String, Sendable {
+    case data
+    case meta
+}
+
+/// 一次下发到服务器的语句的观察记录（Console Log 用）。
+/// 由 `MySQLSession` 在每次语句结束（成功或失败）时回调给上层。
+struct QueryLogRecord: Sendable {
+    var sql: String
+    var category: QueryCategory
+    /// 下发时 UI 选中的库；`MySQLSession` 只提供连接配置里的库作为兜底。
+    var database: String?
+    var elapsed: Duration
+    var rowCount: Int?
+    var affectedRows: Int?
+    var errorCode: UInt32?
+    var errorMessage: String?
+}
+
+/// 纯逻辑：把一次查询的事件流累计成 Console Log 所需的统计。
+/// 抽成独立类型以便单元测试（见 `Tests/TableLiteTests/Unit/QueryLogRecordTests.swift`）。
+struct QueryLogAccumulator: Sendable {
+    private(set) var rowCount = 0
+    private(set) var affectedRows: Int?
+    private(set) var errorCode: UInt32?
+    private(set) var errorMessage: String?
+
+    /// 观察一个查询事件；可重复调用以累计。
+    mutating func observe(_ event: QueryEvent) {
+        switch event {
+        case .row:
+            rowCount += 1
+        case .resultSet(let header):
+            // OK 包（无列）带影响行数；结果集头不带。
+            if !header.isResultSet {
+                affectedRows = Int(header.affectedRows)
+            }
+        case .statementError(_, let error):
+            if errorCode == nil {
+                errorCode = error.code
+                errorMessage = error.message
+            }
+        case .finished:
+            break
+        }
+    }
+
+    /// 记录被抛出、未表现为 `.statementError` 的错误（取消 / 超时 / 连接断开等）。
+    mutating func observe(thrown error: Error) {
+        guard errorCode == nil else { return }
+        guard let mysql = error as? MySQLError else {
+            errorMessage = String(describing: error)
+            return
+        }
+        errorCode = mysql.serverError?.code ?? Self.syntheticCode(for: mysql)
+        errorMessage = mysql.serverError?.message ?? mysql.title
+    }
+
+    func record(sql: String,
+                category: QueryCategory,
+                database: String?,
+                elapsed: Duration) -> QueryLogRecord {
+        QueryLogRecord(sql: sql,
+                       category: category,
+                       database: database,
+                       elapsed: elapsed,
+                       rowCount: rowCount,
+                       affectedRows: affectedRows,
+                       errorCode: errorCode,
+                       errorMessage: errorMessage)
+    }
+
+    /// 与 `QueryTabLogic.syntheticError` 保持一致的合成错误码，Console Log 与结果区口径统一。
+    private static func syntheticCode(for error: MySQLError) -> UInt32? {
+        switch error {
+        case .cancelled: return 1317
+        case .timeout: return 3024
+        case .connectionLost(nil), .notConnected: return 2006
+        case .connectionLost(let serverError): return serverError?.code
+        default: return nil
+        }
+    }
+}
+
 // MARK: - MySQLSession
 
 /// 数据库访问层的唯一入口（actor）。
@@ -45,6 +133,8 @@ actor MySQLSession {
     private var killControl: KillControlConnection?
     private var serverInfoStorage: ServerInfo?
     private var eventHandler: (@Sendable (MySQLSessionEvent) -> Void)?
+    /// Console Log 观察回调：每次语句结束（成功或失败）回调一次。
+    private var queryLogger: (@Sendable (QueryLogRecord) -> Void)?
 
     /// 连接已失效（心跳失败 / 2006 / 2013）。此时 `ensureConnected` 不会自动重建，
     /// 必须由上层显式 `open()`。
@@ -133,6 +223,12 @@ actor MySQLSession {
         eventHandler = handler
     }
 
+    /// 安装 Console Log 观察回调。传 `nil` 取消订阅。
+    /// 回调在 actor 上下文触发，不得阻塞查询路径。
+    func setQueryLogger(_ logger: (@Sendable (QueryLogRecord) -> Void)?) {
+        queryLogger = logger
+    }
+
     // MARK: 字面量转义
 
     /// 提供 `SQLValueLiteral` 需要的转义闭包。
@@ -159,7 +255,48 @@ actor MySQLSession {
     /// - `unbuffered == false`：`mysql_store_result`，适合分页。
     ///
     /// 取消消费者 Task 或调用 `cancelCurrentQuery()` 都会中断，流以 `.cancelled` 结束。
-    func query(_ sql: String, unbuffered: Bool) -> AsyncThrowingStream<QueryEvent, Error> {
+    ///
+    /// `category` 只决定 Console Log 里的标签（用户发起 `.data` / 客户端自动 `.meta`），
+    /// 不改变查询行为与错误语义；每次执行结束（成功或失败）经 `setQueryLogger` 上报一次。
+    func query(_ sql: String,
+               unbuffered: Bool,
+               category: QueryCategory = .meta) -> AsyncThrowingStream<QueryEvent, Error> {
+        let raw = makeRawQueryStream(sql, unbuffered: unbuffered)
+        let start = clock.now
+        let database = configuration.mysql.database.isEmpty ? nil : configuration.mysql.database
+
+        return AsyncThrowingStream(bufferingPolicy: .unbounded) { continuation in
+            // 观察下游消费到的每个事件，统计实际收到的行数 / 影响行数 / 错误，
+            // 流结束后一次性上报。回调不阻塞查询路径。
+            let task = Task { [weak self] in
+                var accumulator = QueryLogAccumulator()
+                do {
+                    for try await event in raw {
+                        accumulator.observe(event)
+                        continuation.yield(event)
+                    }
+                    continuation.finish()
+                } catch {
+                    accumulator.observe(thrown: error)
+                    continuation.finish(throwing: error)
+                }
+                guard let self else { return }
+                await self.reportQuery(sql: sql,
+                                       category: category,
+                                       database: database,
+                                       start: start,
+                                       accumulator: accumulator)
+            }
+            continuation.onTermination = { @Sendable reason in
+                if case .cancelled = reason {
+                    task.cancel()
+                }
+            }
+        }
+    }
+
+    /// 未带 Console Log 观察的原始事件流。取消语义与原 `query` 完全一致。
+    private func makeRawQueryStream(_ sql: String, unbuffered: Bool) -> AsyncThrowingStream<QueryEvent, Error> {
         let attempt = QueryAttempt()
         return AsyncThrowingStream(bufferingPolicy: .unbounded) { [self] continuation in
             continuation.onTermination = { @Sendable reason in
@@ -178,13 +315,44 @@ actor MySQLSession {
         }
     }
 
+    /// 上报一次已结束的查询。仅在 actor 上下文调用。
+    private func reportQuery(sql: String,
+                             category: QueryCategory,
+                             database: String?,
+                             start: Date,
+                             accumulator: QueryLogAccumulator) {
+        guard let queryLogger else { return }
+        let elapsed = Duration.seconds(clock.now.timeIntervalSince(start))
+        queryLogger(accumulator.record(sql: sql,
+                                       category: category,
+                                       database: database,
+                                       elapsed: elapsed))
+    }
+
+    /// 记录不经主连接下发的控制语句（目前只有 `KILL QUERY`）。
+    private func reportControlQuery(sql: String, start: Date, error: (any Error)?) {
+        guard let queryLogger else { return }
+        var accumulator = QueryLogAccumulator()
+        if let error {
+            accumulator.observe(thrown: error)
+        }
+        let elapsed = Duration.seconds(clock.now.timeIntervalSince(start))
+        let database = configuration.mysql.database.isEmpty ? nil : configuration.mysql.database
+        queryLogger(accumulator.record(sql: sql,
+                                       category: .meta,
+                                       database: database,
+                                       elapsed: elapsed))
+    }
+
     /// 读全的结果集（元数据、分页查询用）。语句错误直接抛出。
-    func queryAll(_ sql: String, unbuffered: Bool) async throws -> [MaterializedResultSet] {
+    func queryAll(_ sql: String,
+                  unbuffered: Bool,
+                  category: QueryCategory = .meta) async throws -> [MaterializedResultSet] {
         var results: [MaterializedResultSet] = []
         var pendingHeader: ResultSetHeader?
         var pendingRows: [[CellValue]] = []
 
-        for try await event in query(sql, unbuffered: unbuffered) {
+        for try await event in query(sql, unbuffered: unbuffered, category: category) {
             switch event {
             case .resultSet(let header):
                 if let pendingHeader {
@@ -223,8 +391,8 @@ actor MySQLSession {
 
     /// 只需要影响行数时用（DML）。
     @discardableResult
-    func execute(_ sql: String) async throws -> ResultSetHeader {
-        let results = try await queryAll(sql, unbuffered: false)
+    func execute(_ sql: String, category: QueryCategory = .meta) async throws -> ResultSetHeader {
+        let results = try await queryAll(sql, unbuffered: false, category: category)
         guard let header = results.first?.header else {
             throw MySQLError.internalError("执行语句后没有返回结果头")
         }
@@ -246,11 +414,14 @@ actor MySQLSession {
 
         let threadID = bridge.threadID
         guard threadID > 0, let killControl else { return }
+        let killStart = clock.now
         do {
             try await killControl.killQuery(threadID: threadID)
+            reportControlQuery(sql: "KILL QUERY \(threadID)", start: killStart, error: nil)
         } catch {
             // 控制连接不可用 / 权限不足：不动原连接，明确记录
             logger.error("KILL QUERY \(threadID) 失败：\(String(describing: error), privacy: .public)")
+            reportControlQuery(sql: "KILL QUERY \(threadID)", start: killStart, error: error)
         }
     }
 

@@ -63,6 +63,11 @@ private struct WorkspaceSessionView: View {
     @State private var confirmDialog: WorkspaceConfirmDialog?
     @State private var showsSwitchDatabase = false
     @State private var quickLookController = QuickLookPanelController()
+    /// 列过滤器弹出层的唯一边真源：状态栏与菜单（`toggleColumnFilter`）共用，不复制两份。
+    @State private var showsColumnFilter = false
+    /// 菜单「文件 → 导入 CSV…」/「导出…」的 sheet。
+    @State private var importRequest: ImportSheetRequest?
+    @State private var exportRequest: ExportSheetRequest?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -96,7 +101,7 @@ private struct WorkspaceSessionView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             Divider()
-            StatusBarView(session: session)
+            StatusBarView(session: session, showsColumnFilter: $showsColumnFilter)
         }
         .frame(minWidth: 760, minHeight: 480)
         // 菜单动作从这里上报；查询标签的文件动作也走同一条路径。
@@ -133,6 +138,18 @@ private struct WorkspaceSessionView: View {
         }
         .sheet(isPresented: $showsSwitchDatabase) {
             WorkspaceDatabaseSwitcherSheet(session: session, isPresented: $showsSwitchDatabase)
+        }
+        .sheet(item: $importRequest) { request in
+            ImportWizardView(initialRef: request.ref,
+                             session: session,
+                             preferences: env.preferences,
+                             fileSystem: env.fileSystem)
+        }
+        .sheet(item: $exportRequest) { request in
+            ExportPanelView(source: request.source,
+                            session: session,
+                            fileSystem: env.fileSystem,
+                            preferences: env.preferences)
         }
         .confirmationDialog(confirmDialogTitle,
                             isPresented: confirmDialogPresented,
@@ -178,6 +195,13 @@ private struct WorkspaceSessionView: View {
         actions.toggleSidebar = { preferences.sidebarVisible.toggle() }
         actions.toggleConsoleLog = { session.openConsoleLogTab() }
 
+        // 菜单「文件 → 导入 CSV…」：对象树右键之外的第二入口。只读连接禁用（specs/09 §4）。
+        // 当前若是表数据标签，把它的表作为向导的初始目标；否则在向导里选目标 / 新表。
+        if !session.isReadOnly, session.state.isConnected {
+            let initialRef = (session.activeTab?.tableData as? TableDataViewModel)?.ref
+            actions.importCSV = { importRequest = ImportSheetRequest(ref: initialRef) }
+        }
+
         if let tab = session.activeTab {
             switch tab.kind {
             case .tableData:
@@ -217,6 +241,15 @@ private struct WorkspaceSessionView: View {
                     panel.isFilterBarVisible.toggle()
                     if panel.isFilterBarVisible { panel.focusToken += 1 }
                 }
+                // 列过滤器弹出层在状态栏里；菜单只翻转同一份绑定（不复制状态）。
+                actions.toggleColumnFilter = { showsColumnFilter.toggle() }
+                // 导出当前过滤 / 排序下的整表，不受分页影响（specs/08 §1）。
+                actions.exportData = {
+                    guard let model = tab.tableData as? TableDataViewModel else { return }
+                    exportRequest = ExportSheetRequest(source: .table(ref: model.ref,
+                                                                      filter: model.filter,
+                                                                      sort: model.sort))
+                }
 
             case .query:
                 actions.openScript = { QueryScriptActions.open(session: session, toasts: toasts) }
@@ -228,19 +261,28 @@ private struct WorkspaceSessionView: View {
                     if let model = tab.query as? QueryTabViewModel { model.stop() }
                 }
                 actions.find = { QueryScriptActions.find() }
+                // 导出当前选中结果集（specs/08 §1）；非结果集标签不提供导出。
+                actions.exportData = {
+                    guard let model = tab.query as? QueryTabViewModel,
+                          model.results.indices.contains(model.activeResultIndex) else { return }
+                    let result = model.results[model.activeResultIndex]
+                    guard case .rows(let set) = result.kind else { return }
+                    exportRequest = ExportSheetRequest(source: .queryResult(
+                        sql: ExportSQL.stripTopLevelLimit(result.statement).sql,
+                        columns: set.header.columns,
+                        knownRowCount: UInt64(set.rows.count)
+                    ))
+                }
 
             default:
                 break
             }
         }
 
-        // 注释 / 缩进 / 反缩进尚未在编辑器上接线；导入导出界面未就绪 → 保持禁用。
+        // 注释 / 缩进 / 反缩进尚未在编辑器上接线，保持禁用。
         actions.toggleComment = nil
         actions.indent = nil
         actions.outdent = nil
-        actions.toggleColumnFilter = nil
-        actions.importCSV = nil
-        actions.exportData = nil
         return actions
     }
 

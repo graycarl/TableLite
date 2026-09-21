@@ -435,7 +435,7 @@ final class QueryTabViewModel: ObservableObject {
         var streamingIndex: Int?
         var rowsTitle: String?
 
-        let stream = await session.query(sql, unbuffered: true)
+        let stream = await session.query(sql, unbuffered: true, category: .data)
         do {
             for try await event in stream {
                 switch event {
@@ -498,19 +498,16 @@ final class QueryTabViewModel: ObservableObject {
         var rowCount: Int?
         var affectedRows: Int?
         var errorCode: UInt32?
-        var errorMessage: String?
         let finalKind: QueryResult.Kind
 
         if let firstError {
             succeeded = false
             errorCode = firstError.code
-            errorMessage = firstError.message
             finalKind = .error(firstError)
         } else if let thrown {
             let synthetic = QueryTabLogic.syntheticError(for: thrown)
             succeeded = false
             errorCode = synthetic.code
-            errorMessage = synthetic.message
             if let header = firstHeader, thrown.isCancelled || thrown == .timeout {
                 // 停止 / 超时：保留已收到的部分结果。
                 rowCount = collectedRows.count
@@ -560,8 +557,6 @@ final class QueryTabViewModel: ObservableObject {
 
         recordHistory(sql: sql, succeeded: succeeded, elapsed: elapsed,
                       rowCount: rowCount, affectedRows: affectedRows, errorCode: errorCode)
-        recordConsole(sql: sql, elapsed: elapsed, rowCount: rowCount,
-                      affectedRows: affectedRows, errorCode: errorCode, errorMessage: errorMessage)
 
         return shouldContinue(after: thrown, statementError: firstError)
     }
@@ -617,7 +612,7 @@ final class QueryTabViewModel: ObservableObject {
         }
     }
 
-    // MARK: 历史 / Console Log
+    // MARK: 历史
 
     private func recordHistory(sql: String, succeeded: Bool, elapsed: Duration,
                                rowCount: Int?, affectedRows: Int?, errorCode: UInt32?) {
@@ -636,21 +631,5 @@ final class QueryTabViewModel: ObservableObject {
         } catch {
             logger.error("写入查询历史失败：\(String(describing: error), privacy: .public)")
         }
-    }
-
-    /// Console Log 记录**所有**下发语句；本 VM 只发 `[data]`（用户发起）。
-    private func recordConsole(sql: String, elapsed: Duration, rowCount: Int?,
-                               affectedRows: Int?, errorCode: UInt32?, errorMessage: String?) {
-        consoleLog.append(ConsoleLogStore.Entry(
-            timestamp: clock.now,
-            category: .data,
-            database: database,
-            sql: sql,
-            elapsed: elapsed,
-            rowCount: rowCount,
-            affectedRows: affectedRows,
-            errorCode: errorCode,
-            errorMessage: errorMessage
-        ))
     }
 }

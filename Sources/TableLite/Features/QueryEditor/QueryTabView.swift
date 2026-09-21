@@ -24,6 +24,8 @@ struct QueryTabView: View {
 
     @State private var splitRatio: Double
     @State private var dragStartRatio: Double?
+    /// 结果标签右键「导出结果…」的 sheet（specs/08 §1）。
+    @State private var exportRequest: ExportSheetRequest?
 
     private static let dividerHeight: CGFloat = 6
 
@@ -84,10 +86,16 @@ struct QueryTabView: View {
 
                     divider(total: total)
 
-                    ResultTabsView(model: model)
+                    ResultTabsView(model: model, onExportResult: exportResult)
                         .frame(maxHeight: .infinity)
                 }
             }
+        }
+        .sheet(item: $exportRequest) { request in
+            ExportPanelView(source: request.source,
+                            session: session,
+                            fileSystem: environment.fileSystem,
+                            preferences: environment.preferences)
         }
         .onAppear { tab.query = model }
         .task { await model.loadDraft() }
@@ -95,6 +103,19 @@ struct QueryTabView: View {
         .onChange(of: session.isReadOnly) { _, newValue in
             model.setReadOnly(newValue)
         }
+    }
+
+    // MARK: 导出结果
+
+    /// 结果集标签右键「导出结果…」：原 SQL 剥掉顶层 `LIMIT`，行数取结果集行数。
+    /// 非结果集（`完成` / `错误` / `只读拦截`）不提供导出。
+    private func exportResult(_ result: QueryResult) {
+        guard case .rows(let set) = result.kind else { return }
+        exportRequest = ExportSheetRequest(source: .queryResult(
+            sql: ExportSQL.stripTopLevelLimit(result.statement).sql,
+            columns: set.header.columns,
+            knownRowCount: UInt64(set.rows.count)
+        ))
     }
 
     // MARK: 工具栏

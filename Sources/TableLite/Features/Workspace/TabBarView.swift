@@ -72,10 +72,7 @@ struct TabBarView: View {
                 Button("") { session.selectTab(session.tabs[index]) }
                     .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
             }
-            Button("") {
-                if let tab = session.activeTab { requestClose(tab) }
-            }
-            .keyboardShortcut("w", modifiers: .command)
+            // ⌘W 由菜单「文件 → 关闭标签」唯一下发，这里不再放隐藏按钮，避免双触发。
         }
         .frame(width: 0, height: 0)
         .opacity(0)

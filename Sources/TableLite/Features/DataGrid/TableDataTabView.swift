@@ -33,6 +33,8 @@ struct TableDataTabView: View {
     @State private var commitFailure: CommitFailurePresentation?
     @State private var showsDiscardConfirm = false
     @State private var inspectorDragStart: Double?
+    /// 网格右键「导出选中行…」的 sheet（specs/08 §1）。
+    @State private var exportRequest: ExportSheetRequest?
 
     private let logger = Logger(subsystem: "com.graycarl.tablelite", category: "ui")
 
@@ -123,6 +125,12 @@ struct TableDataTabView: View {
                 onClose: {}
             )
         }
+        .sheet(item: $exportRequest) { request in
+            ExportPanelView(source: request.source,
+                            session: session,
+                            fileSystem: environment.fileSystem,
+                            preferences: environment.preferences)
+        }
         .confirmationDialog("放弃未提交的修改？",
                             isPresented: $showsDiscardConfirm,
                             titleVisibility: .visible) {
@@ -158,7 +166,7 @@ struct TableDataTabView: View {
             onToast: { message in toastCenter.show(message) },
             onFilterByValue: filterByValue,
             onFilterByColumn: filterByColumn,
-            onExportSelected: nil,
+            onExportSelected: exportSelectedRows,
             onRequestPreview: requestPreview,
             onRequestCommit: submitChanges,
             onRequestDiscard: requestDiscard,
@@ -193,6 +201,22 @@ struct TableDataTabView: View {
     }
 
     // MARK: 交互
+
+    /// 右键「导出选中行…」：把当前页已加载的选中行作为内存行导出。
+    ///
+    /// `TableDataViewModel` 未暴露行定位键，按任务约定走内存行路径（`locators: []` +
+    /// `fallbackRows`），不改 Core。
+    private func exportSelectedRows(_ identities: Set<RowIdentity>) {
+        guard let structure = model.structure else { return }
+        let rows = model.displayRows
+            .filter { identities.contains($0.identity) }
+            .map(\.values)
+        guard !rows.isEmpty else { return }
+        exportRequest = ExportSheetRequest(source: .selectedRows(ref: model.ref,
+                                                                 structure: structure,
+                                                                 locators: [],
+                                                                 fallbackRows: rows))
+    }
 
     private func beginEditing(row: RowIdentity, column: String) {
         model.focusedRow = row

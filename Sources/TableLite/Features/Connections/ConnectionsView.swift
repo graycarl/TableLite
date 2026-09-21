@@ -306,9 +306,8 @@ struct ConnectionsView: View {
 
     private func delete(_ connection: Connection) {
         Task {
-            if let session = env.sessionManager.session(id: connection.id) {
-                await session.close()
-            }
+            // 先断开并从 SessionManager 移除，避免已删连接仍在切换器 / 工作区里出现。
+            await env.sessionManager.removeSession(id: connection.id)
             do {
                 try env.connections.remove(id: connection.id)
             } catch {

@@ -10,6 +10,8 @@ private let logger = Logger(subsystem: "com.graycarl.tablelite", category: "ui")
 struct StatusBarView: View {
 
     @ObservedObject var session: ConnectionSession
+    /// 列过滤器弹出层的唯一边真源由工作区持有，这里只投影（菜单 / 状态栏共用）。
+    @Binding var showsColumnFilter: Bool
     @EnvironmentObject private var env: AppEnvironment
 
     var body: some View {
@@ -53,7 +55,7 @@ struct StatusBarView: View {
     private func rightStatus(_ tab: Tab) -> some View {
         switch tab.kind {
         case .tableData:
-            TableDataStatusRight(tab: tab, session: session)
+            TableDataStatusRight(tab: tab, session: session, showsColumnFilter: $showsColumnFilter)
         case .query:
             QueryStatusRight(tab: tab)
         default:
@@ -127,6 +129,7 @@ private struct TableDataStatusRight: View {
 
     @ObservedObject var tab: Tab
     let session: ConnectionSession
+    @Binding var showsColumnFilter: Bool
     @EnvironmentObject private var toasts: ToastCenter
 
     var body: some View {
@@ -134,6 +137,7 @@ private struct TableDataStatusRight: View {
             TableDataStatusActions(tabID: tab.id,
                                    model: model,
                                    session: session,
+                                   showsColumnFilter: $showsColumnFilter,
                                    onToast: { toasts.show($0) })
         }
     }
@@ -149,18 +153,20 @@ private struct TableDataStatusActions: View {
     @ObservedObject var model: TableDataViewModel
     @ObservedObject var panelState: FilterPanelState
     @EnvironmentObject private var env: AppEnvironment
-    @State private var showsColumnFilter = false
+    @Binding var showsColumnFilter: Bool
     @State private var exportRequest: ExportSheetRequest?
 
     init(tabID: UUID,
          model: TableDataViewModel,
          session: ConnectionSession,
+         showsColumnFilter: Binding<Bool>,
          onToast: @escaping (String) -> Void) {
         self.tabID = tabID
         self.session = session
         self.onToast = onToast
         _model = ObservedObject(wrappedValue: model)
         _panelState = ObservedObject(wrappedValue: FilterPanelCoordinator.shared.state(for: tabID))
+        _showsColumnFilter = showsColumnFilter
     }
 
     var body: some View {

@@ -12,6 +12,8 @@ import SwiftUI
 
 struct ResultTabsView: View {
     @ObservedObject var model: QueryTabViewModel
+    /// 右键「导出结果…」。为 nil 或非结果集时不显示该菜单项（向后兼容的默认值）。
+    var onExportResult: ((QueryResult) -> Void)? = nil
 
     @EnvironmentObject private var toasts: ToastCenter
 
@@ -171,6 +173,10 @@ struct ResultTabsView: View {
         Divider()
         Button("复制这条语句") { copy(result.statement, label: "语句") }
         Button("复制结果") { copy(text(for: result), label: "结果") }
+        if let onExportResult, result.rowCount != nil {
+            Divider()
+            Button("导出结果…") { onExportResult(result) }
+        }
     }
 
     private func copy(_ text: String, label: String) {

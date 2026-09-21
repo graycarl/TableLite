@@ -242,6 +242,12 @@ struct TableLiteCommands: Commands {
 
             Divider()
 
+            // 列过滤器开关：快捷键（⌥⌘F）归状态栏，菜单项不带快捷键，只提供第二入口。
+            Button("显示 / 隐藏列过滤器") { actions?.toggleColumnFilter?() }
+                .disabled(actions?.toggleColumnFilter == nil)
+
+            Divider()
+
             Button("上一个标签") { actions?.previousTab?() }
                 .keyboardShortcut("[", modifiers: .command)
                 .disabled(actions?.previousTab == nil)
@@ -270,7 +276,8 @@ struct TableLiteCommands: Commands {
                                                         ? session.connection.mysql.host
                                                         : session.displayName) else { return }
                 }
-                session.setReadOnly(newValue)
+                // 经 `SessionManager` 统一写回连接配置（specs/09-readonly-mode.md §6）。
+                env.sessionManager.setReadOnly(connectionID: session.id, value: newValue)
             }
         )
     }

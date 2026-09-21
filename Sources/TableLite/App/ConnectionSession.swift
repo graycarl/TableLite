@@ -234,13 +234,16 @@ final class ConnectionSession: ObservableObject, Identifiable {
     /// 断开连接：关 MySQL、停隧道。标签保留，状态置为未连接。
     /// 见 `specs/01-connections.md` §5。
     func close() async {
+        // 无论关闭过程中发生什么，都必须落到终态，不能卡在 `.connecting`（任务 Wave 6-V1 §6）。
+        defer {
+            tunnel = nil
+            state = .disconnected
+            noteActivity()
+        }
         await mysql.close()
         if let tunnel {
             await tunnel.stop()
         }
-        tunnel = nil
-        state = .disconnected
-        noteActivity()
         logger.info("已断开 \(self.connection.name, privacy: .public)")
     }
 
@@ -403,6 +406,14 @@ final class ConnectionSession: ObservableObject, Identifiable {
         meta = repository
         loader = TableDataLoader(session: session, meta: repository)
 
+        // Console Log：所有经本 session 下发的语句都在这里汇总（含元数据 / 分页 / 事务 / 导入导出）。
+        // 回调在 MySQLSession actor 上下文触发，这里非阻塞地投递到 MainActor。
+        await session.setQueryLogger { [weak self] record in
+            Task { @MainActor [weak self] in
+                self?.appendQueryLog(record)
+            }
+        }
+
         await session.setEventHandler { [weak self] event in
             Task { @MainActor [weak self] in
                 self?.handle(event: event)
@@ -493,6 +504,22 @@ final class ConnectionSession: ObservableObject, Identifiable {
     }
 
     // MARK: 私有 — Console Log
+
+    /// 把 `MySQLSession` 上报的一条语句写入 Console Log。
+    /// 标签由下发方给出；库名优先用当前选中的库（会话内可能已 `USE` 切换）。
+    private func appendQueryLog(_ record: QueryLogRecord) {
+        consoleLog.append(ConsoleLogStore.Entry(
+            timestamp: clock.now,
+            category: ConsoleLogStore.Category(rawValue: record.category.rawValue) ?? .meta,
+            database: selectedDatabase ?? record.database,
+            sql: record.sql,
+            elapsed: record.elapsed,
+            rowCount: record.rowCount,
+            affectedRows: record.affectedRows,
+            errorCode: record.errorCode,
+            errorMessage: record.errorMessage
+        ))
+    }
 
     private func appendConsoleError(_ error: MySQLError, sql: String) {
         consoleLog.append(.init(timestamp: clock.now,
