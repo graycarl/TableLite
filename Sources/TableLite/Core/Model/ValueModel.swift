@@ -342,9 +342,20 @@ struct TableColumn: Hashable, Sendable {
         dataType.lowercased() == "tinyint" && rawTypeText.lowercased().hasPrefix("tinyint(1)")
     }
 
-    /// 需要两阶段加载的大字段（TEXT / BLOB / JSON / GEOMETRY 系列）
+    /// 大字段（TEXT / BLOB / JSON / GEOMETRY 系列）需要两阶段加载。
+    /// `CHAR` / `VARCHAR` 不算：它们长度有上限，不会让一页数据膨胀。
+    /// 见 docs/tech-designs/07-data-grid.md §3.1。
     var isLargeObject: Bool {
-        kind.isLargeObjectFamily
+        switch dataType.lowercased() {
+        case "tinytext", "text", "mediumtext", "longtext",
+             "tinyblob", "blob", "mediumblob", "longblob",
+             "json",
+             "geometry", "point", "linestring", "polygon",
+             "multipoint", "multilinestring", "multipolygon", "geometrycollection":
+            return true
+        default:
+            return false
+        }
     }
 
     init(
