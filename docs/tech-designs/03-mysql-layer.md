@@ -72,9 +72,23 @@
 C shim 链路必须通过以下验证才能进入 P1：
 
 1. 能链接并加载 `libmysqlclient.dylib`。
-2. 能连上本机 MySQL。
+2. 能连上 MySQL。
 3. `SELECT 1` 返回一行一列。
-4. 一次下发多条语句（协议层能力验证）与单条 `CALL` 都能返回并取完全部结果集。
+4. 一次下发多条语句与单条 `CALL` 都能返回并取完全部结果集。
 5. 插入含单引号、反斜杠、emoji、HEX 的数据后读出与写入一致。
-6. `KILL QUERY` 能中断长查询。
+6. `KILL QUERY` 能中断长查询，且只杀语句、不杀连接；连接事后仍可继续使用。
 7. unbuffered 模式消费 10 万行时内存占用平稳。
+
+入口是 `make smoke`：`scripts/smoke/` 负责起停 Docker MySQL，验证本体在
+`Sources/TableLite/Core/MySQL/SmokeRunner.swift`（App 的 `--smoke` 模式，不启动 GUI）。
+P1 落地 `MySQLSession` 后，这份验证应当改写为由 `MySQLSession` 驱动 —— 那时它才同时盖住 Swift 封装层。
+
+### 8.1 第 6 项的坑：受害者查询不能用 `SLEEP()`
+
+`SELECT SLEEP(n)` 与 `BENCHMARK()` 被 `KILL QUERY` 后**会吞掉中断**：直接返回正常值、语句成功结束，
+客户端拿到 `rc == 0`。拿它们当受害者只会得到「取消链路正常」的假结论。
+
+`SELECT COUNT(*) FROM t, t` 不带条件时也不行 —— MySQL 8.4 直接用行数相乘返回，几百毫秒就跑完。
+
+可用的是**有真实执行计划的查询**，例如 `SELECT COUNT(*) FROM t a, t b WHERE a.id > b.id`：
+强制嵌套循环，无法被优化成常数乘法或哈希连接，被 KILL 后返回 `1317 ER_QUERY_INTERRUPTED`。

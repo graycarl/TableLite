@@ -4,85 +4,85 @@
 # 目标：在写任何 UI 之前，先证明「C 封装层 + libmysqlclient + 真实 MySQL 服务器」
 #       这条链路是通的。验收标准见 docs/tech-designs/03-mysql-layer.md §8。
 #
-# 用法：
-#   MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root MYSQL_PASSWORD=xxx \
-#     ./scripts/smoke/run.sh
+# 7 项验证由 App 可执行文件的 `--smoke` 模式完成（同一个二进制，见
+# Sources/TableLite/Core/MySQL/SmokeRunner.swift），本脚本只负责准备和清理数据库。
 #
-# 说明：本脚本是 Phase 0 的占位实现。等 Swift 侧的 MySQLSession 落地后，
-#       改成调用一个 `--smoke` 命令行模式（同一个可执行文件即可）。
+# 用法：
+#   make smoke                      # 自动起一个 Docker MySQL（默认端口 13306）
+#   make smoke SMOKE_KEEP=1         # 跑完保留容器，便于手工排查
+#   MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root MYSQL_PASSWORD=xxx \
+#     ./scripts/smoke/run.sh        # 用已有服务器，完全不碰 Docker
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+COMPOSE_FILE="$ROOT/scripts/smoke/docker-compose.yml"
+PROJECT_NAME="tablelite-smoke"
+BINARY="${SMOKE_BINARY:-$ROOT/.build/Build/Products/Debug/TableLite.app/Contents/MacOS/TableLite}"
 
-: "${MYSQL_HOST:=127.0.0.1}"
-: "${MYSQL_PORT:=3306}"
-: "${MYSQL_USER:=root}"
-: "${MYSQL_PASSWORD:=}"
-: "${MYSQL_DATABASE:=}"
+RED=$'\033[31m'; GREEN=$'\033[32m'; DIM=$'\033[2m'; RESET=$'\033[0m'
 
-printf "\n== TableLite 冒烟验证 ==\n"
-printf "  目标：%s@%s:%s\n\n" "$MYSQL_USER" "$MYSQL_HOST" "$MYSQL_PORT"
-
-if ! command -v mysql >/dev/null 2>&1; then
-  MYSQL_BIN="$(brew --prefix mysql-client 2>/dev/null || true)/bin/mysql"
-  if [[ ! -x "$MYSQL_BIN" ]]; then
-    echo "找不到 mysql 客户端。请先执行：brew install mysql-client" >&2
-    exit 1
-  fi
-else
-  MYSQL_BIN="$(command -v mysql)"
-fi
-
-MYSQL_ARGS=(-h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" --protocol=TCP)
-[[ -n "$MYSQL_PASSWORD" ]] && MYSQL_ARGS+=("-p$MYSQL_PASSWORD")
-[[ -n "$MYSQL_DATABASE" ]] && MYSQL_ARGS+=("$MYSQL_DATABASE")
-
-echo "==> 1/7 基础连通性"
-"$MYSQL_BIN" "${MYSQL_ARGS[@]}" -e "SELECT 1" >/dev/null
-echo "    OK"
-
-echo "==> 2/7 多结果集"
-"$MYSQL_BIN" "${MYSQL_ARGS[@]}" -e "SELECT 1; SELECT 2" >/dev/null
-echo "    OK"
-
-echo "==> 3/7 特殊字符往返"
-"$MYSQL_BIN" "${MYSQL_ARGS[@]}" <<'SQL'
-CREATE TEMPORARY TABLE tl_smoke (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  s  VARBINARY(255),
-  t  TEXT
-);
-INSERT INTO tl_smoke (s, t) VALUES
-  (0x00FF10, 'quote '' backslash \\ newline \n emoji 😀'),
-  (X'', '');
-SET @a = (SELECT t FROM tl_smoke WHERE id = 1);
-SET @b = (SELECT t FROM tl_smoke WHERE id = 1);
-SELECT IF(@a = @b, 'ROUNDTRIP_OK', 'ROUNDTRIP_FAIL') AS check_result;
-SQL
-echo "    OK（往返一致性由 C 层测试覆盖）"
-
-echo "==> 4/7 取消长查询（需要第二个连接发 KILL）"
-"$MYSQL_BIN" "${MYSQL_ARGS[@]}" -e "SELECT 1" >/dev/null
-echo "    SKIP（由 C 层 + 控制连接测试覆盖）"
-
-echo "==> 5/7 版本信息"
-"$MYSQL_BIN" "${MYSQL_ARGS[@]}" -e "SELECT VERSION()"
-echo "    OK"
-
-echo "==> 6/7 大结果集（10 万行，检查流式读取）"
-"$MYSQL_BIN" "${MYSQL_ARGS[@]}" -e "
-  SELECT COUNT(*) AS n FROM (
-    SELECT 1 FROM information_schema.COLUMNS a
-    CROSS JOIN information_schema.COLUMNS b LIMIT 100000
-  ) t;" 
-echo "    OK"
-
-echo "==> 7/7 退出后无残留 ssh 进程"
-if pgrep -fl "ssh -N -L .*tablelite" >/dev/null 2>&1; then
-  echo "    发现残留的 ssh 隧道进程：" >&2
-  pgrep -fl "ssh -N -L .*tablelite" >&2
+if [[ ! -x "$BINARY" ]]; then
+  printf "${RED}找不到可执行文件：${RESET}%s\n" "$BINARY" >&2
+  printf "请先执行：make build\n" >&2
   exit 1
 fi
-echo "    OK"
 
-printf "\n全部通过。\n\n"
+# ---------------------------------------------------------------- 用已有服务器
+started_container=0
+if [[ -n "${MYSQL_HOST:-}" ]]; then
+  : "${MYSQL_PORT:=3306}"
+  : "${MYSQL_USER:=root}"
+  : "${MYSQL_PASSWORD:=}"
+  printf "${DIM}使用已有服务器 %s@%s:%s，不启动 Docker。${RESET}\n" "$MYSQL_USER" "$MYSQL_HOST" "$MYSQL_PORT"
+else
+  # ------------------------------------------------------------ 起 Docker MySQL
+  if command -v docker-compose >/dev/null 2>&1; then
+    compose() { docker-compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" "$@"; }
+  elif docker compose version >/dev/null 2>&1; then
+    compose() { docker compose -p "$PROJECT_NAME" -f "$COMPOSE_FILE" "$@"; }
+  else
+    printf "${RED}找不到 docker-compose。${RESET}\n" >&2
+    printf "可以装：brew install docker-compose，或者用 MYSQL_HOST=... 指向已有的 MySQL。\n" >&2
+    exit 1
+  fi
+
+  cleanup() {
+    if [[ "$started_container" == "1" && "${SMOKE_KEEP:-0}" != "1" ]]; then
+      printf "\n${DIM}清理容器…${RESET}\n"
+      compose down --volumes --remove-orphans >/dev/null 2>&1 || true
+    elif [[ "$started_container" == "1" ]]; then
+      printf "\n${DIM}SMOKE_KEEP=1，保留容器：%s${RESET}\n" "$PROJECT_NAME"
+    fi
+  }
+  trap cleanup EXIT
+
+  : "${SMOKE_MYSQL_PORT:=13306}"
+  export SMOKE_MYSQL_PORT
+  MYSQL_HOST=127.0.0.1
+  MYSQL_PORT="$SMOKE_MYSQL_PORT"
+  MYSQL_USER=root
+  MYSQL_PASSWORD=tablelite
+
+  printf "${DIM}启动 Docker MySQL (mysql:8.4) 于 127.0.0.1:%s …${RESET}\n" "$MYSQL_PORT"
+  compose up -d --wait --wait-timeout 180
+  started_container=1
+fi
+
+# ---------------------------------------------------------------- 跑验证
+printf "\n"
+set +e
+MYSQL_HOST="$MYSQL_HOST" \
+MYSQL_PORT="$MYSQL_PORT" \
+MYSQL_USER="$MYSQL_USER" \
+MYSQL_PASSWORD="$MYSQL_PASSWORD" \
+MYSQL_DATABASE="${MYSQL_DATABASE:-tablelite_smoke}" \
+  "$BINARY" --smoke
+status=$?
+set -e
+
+if [[ $status -eq 0 ]]; then
+  printf "\n${GREEN}冒烟验证通过。${RESET}\n\n"
+else
+  printf "\n${RED}冒烟验证失败（退出码 %d）。${RESET}\n\n" "$status"
+fi
+exit $status

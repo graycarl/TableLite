@@ -2,7 +2,7 @@
 
 macOS 原生的 MySQL / MariaDB 客户端。功能和交互参考 [TablePlus](https://tableplus.com/)，但只保留高频功能。
 
-自用工具：不签名、不公证、不开沙箱，最低 macOS 14。
+自用工具：不签名、不公证、不开沙箱。最低 macOS 版本跟随构建机的 Homebrew（当前 macOS 27，见 [`docs/tech-designs/12-build-and-deps.md`](docs/tech-designs/12-build-and-deps.md) §3.3）。
 
 ## 文档
 
@@ -30,13 +30,22 @@ open manual/index.html
 
 依赖：[Homebrew](https://brew.sh/)、Xcode（含命令行工具）。
 
+首次在新机器上构建前，需要先接受 Xcode 许可并安装附加组件（两条都需要 sudo）：
+
 ```sh
-make deps      # 检查并安装依赖，生成 Configs/Local.xcconfig
+sudo xcodebuild -license accept
+xcodebuild -runFirstLaunch
+```
+
+```sh
+make deps      # 检查依赖（缺失时打印修复命令），生成 Configs/Local.xcconfig
 make gen       # 用 XcodeGen 生成 TableLite.xcodeproj
 make build     # 构建 .app
 make run       # 构建并启动
 make test      # 单元测试
-make smoke     # 访问层端到端冒烟验证（需要一个本地 MySQL）
+make smoke     # 访问层端到端冒烟验证（自动起一个 Docker MySQL，需要 docker-compose）
+#              用已有服务器：MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root \
+#                            MYSQL_PASSWORD=xxx make smoke
 make clean
 ```
 

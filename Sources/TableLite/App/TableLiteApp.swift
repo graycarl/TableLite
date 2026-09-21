@@ -13,6 +13,12 @@ import CMySQLClient
 struct TableLiteApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
+    init() {
+        // `--smoke` 时跑完 C shim 的端到端验证就直接退出，不启动 GUI。
+        // 见 Sources/TableLite/Core/MySQL/SmokeRunner.swift。
+        SmokeRunner.runIfRequested()
+    }
+
     var body: some Scene {
         WindowGroup {
             EnvironmentCheckView()
