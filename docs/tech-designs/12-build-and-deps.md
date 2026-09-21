@@ -74,6 +74,15 @@ xcodebuild -runFirstLaunch
 
 不做的报错分别是 `You have not agreed to the Xcode license agreements` 与 `IDESimulatorFoundation` 插件加载失败。
 
+### 4.1 分发（`make dist`）
+
+日常验证用 `make run`（Debug）；要归档时用 `make dist`。
+
+- Release 配置构建，产出 `dist/TableLite-<版本>.zip`；用 `ditto -c -k --keepParent` 打包，保留扩展属性。
+- 打包前逐个检查 `otool -L` 里的 Homebrew 依赖是否还在，缺一个就失败 —— 否则会得到一个看起来正常、换机就跑不起来的 zip。
+- **产物仍依赖目标机器的 Homebrew**（`mysql-client` / `openssl@3` / `zstd`，见 §3.1）。换机前先 `brew install mysql-client`（L13）。
+- 不签名、不公证（`specs/00-scope.md` 的 D3）。
+
 ## 5. 版本控制
 
 - **必须忽略**：构建产物、`*.xcodeproj`、`Configs/Local.xcconfig`、`xcuserdata/`、`*.xcworkspace`、`.DS_Store`。

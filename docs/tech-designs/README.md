@@ -20,6 +20,7 @@
 | [12-build-and-deps.md](12-build-and-deps.md) | 技术选型、Homebrew 依赖、链接与 rpath 风险、版本控制、Phase 0 |
 | [13-open-questions.md](13-open-questions.md) | 已知限制、刻意简化、待定事项 |
 | [14-row-inspector.md](14-row-inspector.md) | 右侧字段栏：技术选型、提交路径、大字段按需加载与暂存联动 |
+| [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI |
 
 ## 与需求文档的对应
 
@@ -44,6 +45,7 @@
 | 决策 | 结论 | 位置 |
 | --- | --- | --- |
 | 数据库访问 | libmysqlclient（Homebrew `mysql-client`）+ 薄 C shim | [12](12-build-and-deps.md) §1 |
+| 支持的数据库 | 只支持 MySQL 8.0+，不支持 MariaDB | [15](15-testing.md) §1 |
 | 依赖链接方式 | 直接用 Homebrew 的 `/opt/homebrew/opt/<formula>/lib/…` 路径；不改写 rpath，不把 dylib 内嵌进 `.app` | [12](12-build-and-deps.md) §3.1 |
 | 部署目标 | 与构建机系统版本一致（当前 27.0），不声称支持更低 macOS —— 依赖 bottle 的 `minos` 无法降低 | [12](12-build-and-deps.md) §3.3 |
 | 写入方式 | **不用 prepared statement**，生成 SQL 字面量下发 | [03](03-mysql-layer.md) §1 |
@@ -64,6 +66,11 @@
 | 工程组织 | XcodeGen，`TableLite.xcodeproj` 不进版本控制 | [12](12-build-and-deps.md) §1 |
 | 第三方依赖 | 零 Swift Package 依赖 | [12](12-build-and-deps.md) §1、[13](13-open-questions.md) T10 |
 | 沙箱与签名 | 不开沙箱、不签名、不公证 | [01](01-architecture.md) §5、[12](12-build-and-deps.md) §1 |
+| 时区 | 客户端零处理：日期时间原样读、原样写，不解析不换算 | [03](03-mysql-layer.md) §4.3 |
+| 存储版本 | 只做向前兼容读取；破坏性变更时备份重建，不写迁移代码 | [02](02-persistence.md) §9 |
+| 界面语言 | 文案硬编码中文，不引入本地化资源 | [06](06-ui-layer.md) §8 |
+| 可测试性 | 手写协议 + `AppEnvironment` 注入（`Clock` / `CredentialStore` / `FileSystemLocator`），不引入 DI 框架 | [15](15-testing.md) §3 |
+| 分发 | `make run` 日常验证、`make dist` 出 Release zip；产物依赖目标机 Homebrew | [12](12-build-and-deps.md) §4.1 |
 
 「无主键表置为只读」这类**用户可感知的行为**由 `specs/` 定义（见 [`../../specs/04-data-editing.md`](../../specs/04-data-editing.md) §2），
 实现侧的判定规则与文案见 [08-pending-changes.md](08-pending-changes.md) §7，不在这里重复。

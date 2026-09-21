@@ -17,7 +17,7 @@
 
 ## 2. 连接元数据
 
-- 存 `connections.json`，带 `version` 字段用于迁移。
+- 存 `connections.json`，带 `schemaVersion` 字段（版本与迁移策略见 §9）。
 - 只读标记 `readOnly` 存在这里，不进 Keychain。
 - **禁止**把 `password` / `passphrase` 写进 JSON；反序列化时若发现该字段直接丢弃并记录警告。
 
@@ -64,4 +64,13 @@
 ## 8. 日志
 
 - 用 `os.Logger`，subsystem `com.graycarl.tablelite`，分类 `mysql` / `ssh` / `ui` / `store`。
-- **禁止**把连接字符串、SQL 全文、密码打进日志（SQL 只出现在用户可见的 Console Log 里）。
+## 9. 版本与迁移（决策记录）
+
+**只做向前兼容读取，不做迁移框架。**
+
+- 落盘数据都带一个整数版本：JSON 用 `schemaVersion`，SQLite 用 `PRAGMA user_version`。当前都是 `1`。
+- 读取时未知字段忽略、缺失字段取默认值 —— 所以「加字段」通常不用升版本。
+- 只有**破坏性变更**（改语义、删字段并重新解释）才递增版本号。
+- 遇到不认识的版本：把原文件备份成 `<文件名>.bak-<版本>`，然后按默认值重建，并在界面上说明
+  —— 不静默丢数据，也不写迁移代码。
+- 不引入版本迁移库：这点旧数据不值得为它承担迁移代码的维护面。

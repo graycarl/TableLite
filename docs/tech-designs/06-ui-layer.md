@@ -55,3 +55,11 @@
 - 标签内容用 `ZStack` + `opacity` / `isHidden` 保持存活，**不要**用 `if` 切换，否则切回来会重建网格、丢滚动位置与选中状态。
 - 标签多时只保活最近活跃的若干个（策略待定，见 `13-open-questions.md` T3）。
 - 切换时把网格的滚动位置与选中状态快照进 ViewModel。
+
+## 8. 界面语言（决策记录）
+
+**界面文案硬编码中文**，不引入 `Localizable.strings` / `NSLocalizedString`。
+
+- 术语表以 `specs/12-feedback.md` §8 为准；SQL 关键字与类型名保持英文。
+- `Info.plist` 的 `CFBundleLocalizations` 只声明 `zh-Hans`，不声明没有资源支撑的 `en`。
+- 将来要做多语言时再补资源文件，那是纯增量改动；现在为它付出的抽象成本不值得（S24）。
