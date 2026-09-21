@@ -128,24 +128,58 @@ private struct TableDataStatusRight: View {
     @ObservedObject var tab: Tab
     @EnvironmentObject private var toasts: ToastCenter
 
-    private var hasViewModel: Bool {
-        tab.tableData is TableDataViewModel
+    var body: some View {
+        if let model = tab.tableData as? TableDataViewModel {
+            TableDataStatusActions(tabID: tab.id,
+                                   model: model,
+                                   onToast: { toasts.show($0) })
+        }
+    }
+}
+
+/// 表数据标签右侧操作：[筛选] [列] [导出…]。
+/// `⌘F` 切换行过滤器、`⌥⌘F` 打开列过滤器（specs/02-workspace.md §7 §9）。
+private struct TableDataStatusActions: View {
+
+    let tabID: UUID
+    let onToast: (String) -> Void
+    @ObservedObject var model: TableDataViewModel
+    @ObservedObject var panelState: FilterPanelState
+    @State private var showsColumnFilter = false
+
+    init(tabID: UUID, model: TableDataViewModel, onToast: @escaping (String) -> Void) {
+        self.tabID = tabID
+        self.onToast = onToast
+        _model = ObservedObject(wrappedValue: model)
+        _panelState = ObservedObject(wrappedValue: FilterPanelCoordinator.shared.state(for: tabID))
     }
 
     var body: some View {
-        if hasViewModel {
-            HStack(spacing: 8) {
-                // TODO(Wave 5)：过滤面板与列面板由数据浏览视图提供，这里先只给占位入口。
-                Button("筛选") { notImplemented("筛选") }
-                Button("列") { notImplemented("列") }
-                Button("导出…") { notImplemented("导出") }
+        HStack(spacing: 8) {
+            Button("筛选") {
+                panelState.isFilterBarVisible.toggle()
+                if panelState.isFilterBarVisible {
+                    panelState.focusToken += 1
+                }
             }
-            .buttonStyle(.link)
-        }
-    }
+            .keyboardShortcut("f", modifiers: .command)
+            .help("打开 / 关闭行过滤器（⌘F）")
 
-    private func notImplemented(_ feature: String) {
-        toasts.show("\(feature)功能即将实现")
+            Button("列") { showsColumnFilter.toggle() }
+                .keyboardShortcut("f", modifiers: [.command, .option])
+                .help("打开 / 关闭列过滤器（⌥⌘F）")
+                .popover(isPresented: $showsColumnFilter, arrowEdge: .top) {
+                    ColumnFilterPopover(model: model,
+                                        isPresented: $showsColumnFilter,
+                                        onToast: onToast)
+                }
+
+            Button("导出…") {
+                onToast("导出面板将在下一步接入")
+            }
+            .help("导出当前数据（⇧⌘E）")
+        }
+        .buttonStyle(.link)
     }
 }
 

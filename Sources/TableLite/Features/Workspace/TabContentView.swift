@@ -222,31 +222,7 @@ struct WorkspaceLoadErrorView: View {
     }
 }
 
-// MARK: - 表结构占位视图（Wave 5 会用同名文件覆盖）
-
-/// ⚠️ 临时占位。真正的表结构视图由后续 wave 提供（列 / 索引 / 外键 / 触发器 / 建表语句），
-/// 由后续 wave 用同名文件覆盖本定义。这里只为不阻塞集成，展示占位文案与过期提示条。
-struct TableStructureTabView: View {
-
-    let session: ConnectionSession
-    let tab: Tab
-    let environment: AppEnvironment
-
-    var body: some View {
-        VStack(spacing: 0) {
-            if tab.isStale {
-                WorkspaceStaleBanner { tab.isStale = false }
-            }
-            VStack(spacing: 10) {
-                Image(systemName: "tablecells")
-                    .font(.largeTitle)
-                    .foregroundStyle(.secondary)
-                Text("表结构视图（即将实现）")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
+// MARK: - 表结构 / 对象定义等只读内容
+//
+// 表结构视图（`TableStructureTabView`）在 Features/Schema/TableStructureTabView.swift，
+// 由上面的 `tabContent(for:)` 分发表引用。

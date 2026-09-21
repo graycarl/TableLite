@@ -168,6 +168,7 @@ enum ColumnKindClassifier {
               let close = rawTypeText.lastIndex(of: ")"),
               open < close else { return nil }
         let body = rawTypeText[rawTypeText.index(after: open)..<close]
+        guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         var values: [String] = []
         var current = ""
         var inQuote = false

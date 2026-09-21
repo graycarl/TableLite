@@ -17,11 +17,13 @@ struct TableDataTabView: View {
     let tab: Tab
     let environment: AppEnvironment
 
-    /// 过滤器横条插槽（Wave 5 注入）。默认空，本视图不实现过滤器。
+    /// 过滤器横条插槽（Wave 5 注入）。默认空；真实横条由本视图内部的 `FilterBarView` 提供。
     var filterBar: AnyView = AnyView(EmptyView())
 
     @StateObject private var model: TableDataViewModel
     @ObservedObject private var preferences: PreferencesStore
+    /// 过滤器横条可见性 / 焦点请求，与状态栏共享（按标签 id 分桶）。
+    @ObservedObject private var filterPanel: FilterPanelState
     @EnvironmentObject private var toastCenter: ToastCenter
 
     @State private var focusRequest: String?
@@ -43,6 +45,7 @@ struct TableDataTabView: View {
         self.environment = environment
         self.filterBar = filterBar
         self._preferences = ObservedObject(wrappedValue: environment.preferences)
+        self._filterPanel = ObservedObject(wrappedValue: FilterPanelCoordinator.shared.state(for: tab.id))
 
         let ref: TableRef
         if case .tableData(let value) = tab.kind {
@@ -70,6 +73,15 @@ struct TableDataTabView: View {
     var body: some View {
         VStack(spacing: 0) {
             filterBar
+            if filterPanel.isFilterBarVisible {
+                FilterBarView(
+                    model: model,
+                    isVisible: $filterPanel.isFilterBarVisible,
+                    focusToken: filterPanel.focusToken,
+                    focusConditionID: $filterPanel.focusConditionID,
+                    literalizerProvider: { await session.mysql.literalizer() }
+                )
+            }
             HStack(spacing: 0) {
                 grid
                 if preferences.showRowInspector {
@@ -135,6 +147,7 @@ struct TableDataTabView: View {
             onForeignKeyJump: jumpToForeignKey,
             onToast: { message in toastCenter.show(message) },
             onFilterByValue: filterByValue,
+            onFilterByColumn: filterByColumn,
             onExportSelected: nil,
             onRequestPreview: requestPreview,
             onRequestCommit: submitChanges,
@@ -202,9 +215,31 @@ struct TableDataTabView: View {
     }
 
     private func filterByValue(column: String, value: CellValue, exclude: Bool) {
-        // 过滤器横条由 Wave 5 注入 `filterBar` 插槽；网格只负责发起意图。
-        logger.notice("网格请求按值筛选：\(column, privacy: .public) exclude=\(exclude)")
-        _ = value
+        // 右键单元格 → 按此值筛选 / 排除此值：立即应用（specs/05 §1）。
+        var next = model.filter
+        if next.useRawSQL {
+            next = FilterPanelLogic.switchingToConditions(next)
+        }
+        let condition = FilterCondition(column: column,
+                                        op: exclude ? .notEqual : .equal,
+                                        value: value.displayText)
+        next.conditions.append(condition)
+        filterPanel.isFilterBarVisible = true
+        Task { await model.applyFilter(next) }
+    }
+
+    /// 右键列头 → 按此列筛选：加一条等于条件但值留空并聚焦（specs/05 §1）。
+    private func filterByColumn(_ column: String) {
+        var next = model.filter
+        if next.useRawSQL {
+            next = FilterPanelLogic.switchingToConditions(next)
+        }
+        let condition = FilterCondition(column: column, op: .equal, value: "")
+        next.conditions.append(condition)
+        model.filter = next
+        filterPanel.isFilterBarVisible = true
+        filterPanel.focusConditionID = condition.id
+        filterPanel.focusToken += 1
     }
 
     private func jumpToForeignKey(row: RowIdentity, column: String, value: CellValue) {
@@ -213,8 +248,48 @@ struct TableDataTabView: View {
             return
         }
         let ref = TableRef(database: constraint.referencedDatabase, table: constraint.referencedTable)
-        session.openTableData(ref, forceNew: true)
-        _ = value
+
+        // 被引用列：外键列在约束里的下标对应 referencedColumns 的同一下标。
+        let referencesIndex = constraint.columns.firstIndex(of: column)
+        let referencedColumn: String?
+        if let referencesIndex, referencesIndex < constraint.referencedColumns.count {
+            referencedColumn = constraint.referencedColumns[referencesIndex]
+        } else {
+            referencedColumn = constraint.referencedColumns.first
+        }
+        guard let referencedColumn else {
+            toastCenter.show("外键目标表缺少可用的主键列")
+            logger.error("外键跳转失败：约束 \(constraint.name, privacy: .public) 没有 referencedColumns")
+            return
+        }
+
+        let condition = FilterCondition(column: referencedColumn,
+                                        op: .equal,
+                                        value: value.displayText)
+        let desired = FilterSet(conditions: [condition])
+
+        // 新标签的 ViewModel 在 `onAppear` 里才装配；先写入表的呈现状态，
+        // `TableDataViewModel.init` 会读取 `saved.filter`，从而在 `load()` 前完成预置。
+        if preferences.rememberTableFilters {
+            var state = environment.tableState.state(connectionID: session.id, table: ref)
+            state.filter = desired
+            environment.tableState.save(state, connectionID: session.id, table: ref)
+            session.openTableData(ref, forceNew: true)
+        } else {
+            let newTab = session.openTableData(ref, forceNew: true)
+            // 该偏好关闭时无法在加载前预置，退化为「打开后应用」。
+            Task { @MainActor in
+                for _ in 0..<300 {
+                    if let model = newTab.tableData as? TableDataViewModel {
+                        await model.applyFilter(desired)
+                        return
+                    }
+                    try? await Task.sleep(nanoseconds: 10_000_000)
+                }
+                // TODO(Wave 5b)：偏好关闭时无法保证在首次加载前预置过滤条件。
+                toastCenter.show("已打开 \(ref.table)，但未能自动应用外键过滤条件")
+            }
+        }
     }
 
     // MARK: 预览 / 提交 / 放弃

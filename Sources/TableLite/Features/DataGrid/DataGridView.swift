@@ -16,6 +16,8 @@ struct DataGridView: NSViewRepresentable {
     var onForeignKeyJump: (RowIdentity, String, CellValue) -> Void
     var onToast: (String) -> Void
     var onFilterByValue: (String, CellValue, Bool) -> Void
+    /// 右键列头 → 按此列筛选（加条件、值留空）。
+    var onFilterByColumn: (String) -> Void = { _ in }
     var onExportSelected: ((Set<RowIdentity>) -> Void)?
     var onRequestPreview: () -> Void
     var onRequestCommit: () -> Void
@@ -39,6 +41,7 @@ struct DataGridView: NSViewRepresentable {
         controller.onForeignKeyJump = onForeignKeyJump
         controller.onToast = onToast
         controller.onFilterByValue = onFilterByValue
+        controller.onFilterByColumn = onFilterByColumn
         controller.onExportSelected = onExportSelected
         controller.onRequestPreview = onRequestPreview
         controller.onRequestCommit = onRequestCommit

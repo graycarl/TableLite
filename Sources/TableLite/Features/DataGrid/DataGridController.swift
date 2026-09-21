@@ -107,6 +107,17 @@ final class DataGridTableView: NSTableView {
     }
 }
 
+/// 表头：右键列头提供「按此列筛选」。
+final class DataGridHeaderView: NSTableHeaderView {
+    weak var interactionDelegate: DataGridController?
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let point = convert(event.locationInWindow, from: nil)
+        interactionDelegate?.prepareHeaderContextMenu(column: column(at: point))
+        return interactionDelegate?.makeHeaderContextMenu()
+    }
+}
+
 // MARK: - 单元格视图
 
 /// 只读单元格：文字 + 状态底色 + 焦点边框。
@@ -198,6 +209,8 @@ final class DataGridController: NSObject, NSTableViewDataSource, NSTableViewDele
     var onForeignKeyJump: ((RowIdentity, String, CellValue) -> Void)?
     var onToast: ((String) -> Void)?
     var onFilterByValue: ((String, CellValue, Bool) -> Void)?
+    /// 右键列头 → 按此列筛选。
+    var onFilterByColumn: ((String) -> Void)?
     var onExportSelected: ((Set<RowIdentity>) -> Void)?
     var onRequestPreview: (() -> Void)?
     var onRequestCommit: (() -> Void)?
@@ -226,6 +239,8 @@ final class DataGridController: NSObject, NSTableViewDataSource, NSTableViewDele
     // 右键菜单命中的位置
     private var menuRow = -1
     private var menuColumn = -1
+    /// 列头右键命中的列下标（含 `#` 行号列）。
+    private var headerMenuColumn = -1
 
     init(preferences: PreferencesStore) {
         self.preferences = preferences
@@ -258,7 +273,11 @@ final class DataGridController: NSObject, NSTableViewDataSource, NSTableViewDele
         tableView.interactionDelegate = self
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.headerView = NSTableHeaderView()
+        tableView.headerView = {
+            let header = DataGridHeaderView()
+            header.interactionDelegate = self
+            return header
+        }()
         tableView.usesAlternatingRowBackgroundColors = appearance.alternatingRows
         tableView.allowsMultipleSelection = true
         tableView.allowsEmptySelection = true
@@ -915,6 +934,29 @@ final class DataGridController: NSObject, NSTableViewDataSource, NSTableViewDele
     func prepareContextMenu(row: Int, column: Int) {
         menuRow = row
         menuColumn = column
+    }
+
+    func prepareHeaderContextMenu(column: Int) {
+        headerMenuColumn = column
+    }
+
+    /// 列头右键菜单：只放「按此列筛选」。
+    func makeHeaderContextMenu() -> NSMenu? {
+        guard onFilterByColumn != nil,
+              headerMenuColumn >= 1,
+              headerMenuColumn - 1 < specs.count else { return nil }
+        let menu = NSMenu()
+        let filter = NSMenuItem(title: "按此列筛选",
+                                action: #selector(headerFilterMenuItem(_:)),
+                                keyEquivalent: "")
+        filter.target = self
+        menu.addItem(filter)
+        return menu
+    }
+
+    @objc private func headerFilterMenuItem(_ sender: NSMenuItem) {
+        guard headerMenuColumn >= 1, headerMenuColumn - 1 < specs.count else { return }
+        onFilterByColumn?(specs[headerMenuColumn - 1].name)
     }
 
     func makeContextMenu() -> NSMenu? {
