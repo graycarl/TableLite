@@ -39,6 +39,9 @@
 | S25 | 不支持 MariaDB | 只支持 MySQL 8.0+；测试矩阵单档（`mysql:8.4`）。见 `15-testing.md` §1、`specs/00-scope.md` §2.2 |
 | S26 | 不做依赖注入框架 | 手写协议 + `AppEnvironment` 注入；只抽 `Clock` / `CredentialStore` / `FileSystemLocator`。见 `15-testing.md` §3 |
 | S27 | 不做时区处理 | 日期时间值原样读、原样写，不解析不换算，也不读 `@@session.time_zone`。见 `03-mysql-layer.md` §4.3 |
+| S28 | LIKE 转义的 `ESCAPE` 子句按 `sql_mode` 适配 | `09-filtering.md` §1.4 的固定 `ESCAPE '\\'` 在 `NO_BACKSLASH_ESCAPES` 下非法；实现为默认 `ESCAPE '\\'`、该模式下 `ESCAPE '\'`。见 `Core/SQL/FilterSQLBuilder.swift` |
+| S29 | 预览 SQL 与正式下发共用同一条生成路径 | 字面量转义走「连接转义器」（`mysql_real_escape_string` 语义）注入，纯函数转义只作兜底，避免 Preview 与实际提交不一致。见 `03-mysql-layer.md` §4.2、`Core/SQL/SQLValueLiteral.swift` |
+| S30 | 语句分类从严 | `VALUES` / `TABLE` 语句归为 query 但不放进只读白名单（`specs/09-readonly-mode.md` §4 未列即不放行） |
 
 ## 2. 已知限制
 
@@ -58,6 +61,8 @@
 | L12 | 字段栏自动加载大字段的上限是 8 MB | 一行里的大字段合计超过该值时，不会自动取完整值 | 字段旁提供「加载完整内容…」按钮，点开才取 |
 | L13 | `make dist` 的产物依赖目标机器的 Homebrew | 换一台机器要先 `brew install mysql-client` 等项目，否则启动即缺库 | 自用工具，接受；真要做到自包含就回到 `12-build-and-deps.md` §3.1 的内嵌 dylib 方案（T1 已否） |
 | L14 | CI 不覆盖需要真库的路径 | 编译与单元测试有保障，冒烟与集成测试只在本地跑 | 合并前本地跑一次 `make smoke`。见 `15-testing.md` §5 |
+| L15 | CSV 读入一次性全量解析 | 超大 CSV 导入时内存随行数增长 | P8 导入向导实现增量解析；导出侧已是流式（11 §3.1） |
+| L16 | 纯文本复制（TSV 等）的 NULL 表示为文本 `NULL` | 与空串在粘贴后不可区分 | CSV 复制/导出走独立 `nullRepresentation`，不受影响 |
 
 ## 3. 待定事项
 
@@ -92,5 +97,6 @@
 | 2026-09-21 | T1 定案：实测依赖全部指向 `/opt/homebrew/opt/<formula>/lib/…` 稳定符号链接，不改写 rpath、不内嵌 dylib（`12-build-and-deps.md` §3.1/§3.2）；T11 定案：部署目标改为跟随构建机系统版本（当前 macOS 27），不声称支持更低 macOS |
 | 2026-09-21 | **去掉 MariaDB 支持，只做 MySQL**（`specs/00-scope.md` §1/§2.1/§2.2、`specs/README.md`、`manual/` 全站、`README.md`、`AGENTS.md`）；服务器版本范围定为 MySQL 8.0+，测试矩阵单档，见 S25 |
 | 2026-09-21 | 补齐测试与工程决策：新增 `15-testing.md`（测试分层、可测试性注入点、CI）、存储版本与迁移（`02-persistence.md` §9）、界面文案硬编码中文（`06-ui-layer.md` §8）、时区零处理（`03-mysql-layer.md` §4.3）、分发 `make dist`（`12-build-and-deps.md` §4.1）；新增 S22–S27、L13、L14、T12 |
+| 2026-09-22 | Core/Model + Core/SQL 落地（W1-T1）：登记 S28（LIKE ESCAPE 按 sql_mode 适配，修正 `09` §1.4 矛盾）、S29（Preview 与下发共用连接转义器）、S30（语句分类从严）、L15（CSV 读全量解析）、L16（TSV NULL 文本表示）；行定位键 `RowKeyValue` 携带 `fieldType`/`isBinary` 以生成正确字面量 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

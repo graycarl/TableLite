@@ -18,7 +18,7 @@ final class SmokeTests: XCTestCase {
     }
 
     func testClientLibraryVersionIsAvailable() {
-        let version = String(cString: mtl_client_version())
+        let version = cString(mtl_client_version())
         XCTAssertFalse(version.isEmpty, "应当能取到 libmysqlclient 的版本字符串")
     }
 
@@ -34,8 +34,13 @@ final class SmokeTests: XCTestCase {
         let written = input.withCString { pointer in
             mtl_conn_escape(handle, pointer, strlen(pointer), &output, output.count)
         }
-        let escaped = String(cString: output)
+        let escaped = String(decoding: output.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
         XCTAssertEqual(written, 7)
         XCTAssertEqual(escaped, "a\\'b\\\\c")
+    }
+
+    /// 把以 NUL 结尾的 C 字符串转成 Swift 字符串（避免已废弃的 `String(cString:)`）。
+    private func cString(_ pointer: UnsafePointer<CChar>) -> String {
+        String(decoding: UnsafeRawBufferPointer(start: pointer, count: strlen(pointer)), as: UTF8.self)
     }
 }
