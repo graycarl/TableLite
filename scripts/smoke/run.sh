@@ -81,8 +81,62 @@ status=$?
 set -e
 
 if [[ $status -eq 0 ]]; then
-  printf "\n${GREEN}冒烟验证通过。${RESET}\n\n"
+  printf "\n${GREEN}冒烟验证通过。${RESET}\n"
+  # -------------------------------------------------------------- 编辑链路
+  if [[ "${SMOKE_EDIT:-1}" == "1" ]]; then
+    printf "\n${DIM}编辑链路端到端（--edit-smoke）：字段栏 → 暂存 → 预览 → 提交 …${RESET}\n"
+    set +e
+    MYSQL_HOST="$MYSQL_HOST" \
+    MYSQL_PORT="$MYSQL_PORT" \
+    MYSQL_USER="$MYSQL_USER" \
+    MYSQL_PASSWORD="$MYSQL_PASSWORD" \
+    MYSQL_DATABASE="${MYSQL_DATABASE:-tablelite_smoke}" \
+      "$BINARY" --edit-smoke
+    status=$?
+    set -e
+    if [[ $status -eq 0 ]]; then
+      printf "\n${GREEN}编辑冒烟验证通过。${RESET}\n"
+    else
+      printf "\n${RED}编辑冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
+    fi
+  fi
+  # -------------------------------------------------------------- 过滤链路
+  if [[ "${SMOKE_FILTER:-1}" == "1" ]]; then
+    printf "\n${DIM}过滤链路端到端（--filter-smoke）：行过滤器 / 条件叠加 / Raw / 列显隐 …${RESET}\n"
+    set +e
+    MYSQL_HOST="$MYSQL_HOST" \
+    MYSQL_PORT="$MYSQL_PORT" \
+    MYSQL_USER="$MYSQL_USER" \
+    MYSQL_PASSWORD="$MYSQL_PASSWORD" \
+    MYSQL_DATABASE="${MYSQL_DATABASE:-tablelite_smoke}" \
+      "$BINARY" --filter-smoke
+    status=$?
+    set -e
+    if [[ $status -eq 0 ]]; then
+      printf "\n${GREEN}过滤冒烟验证通过。${RESET}\n"
+    else
+      printf "\n${RED}过滤冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
+    fi
+  fi
+  # -------------------------------------------------------------- 查询编辑器链路
+  if [[ "${SMOKE_QUERY:-1}" == "1" ]]; then
+    printf "\n${DIM}查询编辑器端到端（--query-smoke）：多语句 / 错误 / 只读 / 取消 / 记录 …${RESET}\n"
+    set +e
+    MYSQL_HOST="$MYSQL_HOST" \
+    MYSQL_PORT="$MYSQL_PORT" \
+    MYSQL_USER="$MYSQL_USER" \
+    MYSQL_PASSWORD="$MYSQL_PASSWORD" \
+    MYSQL_DATABASE="${MYSQL_DATABASE:-tablelite_smoke}" \
+      "$BINARY" --query-smoke
+    status=$?
+    set -e
+    if [[ $status -eq 0 ]]; then
+      printf "\n${GREEN}查询编辑器冒烟验证通过。${RESET}\n"
+    else
+      printf "\n${RED}查询编辑器冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
+    fi
+  fi
 else
-  printf "\n${RED}冒烟验证失败（退出码 %d）。${RESET}\n\n" "$status"
+  printf "\n${RED}冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
 fi
 exit $status

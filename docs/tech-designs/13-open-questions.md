@@ -39,6 +39,14 @@
 | S25 | 不支持 MariaDB | 只支持 MySQL 8.0+；测试矩阵单档（`mysql:8.4`）。见 `15-testing.md` §1、`specs/00-scope.md` §2.2 |
 | S26 | 不做依赖注入框架 | 手写协议 + `AppEnvironment` 注入；只抽 `Clock` / `CredentialStore` / `FileSystemLocator`。见 `15-testing.md` §3 |
 | S27 | 不做时区处理 | 日期时间值原样读、原样写，不解析不换算，也不读 `@@session.time_zone`。见 `03-mysql-layer.md` §4.3 |
+| S28 | LIKE 转义的 `ESCAPE` 子句按 `sql_mode` 适配 | `09-filtering.md` §1.4 的固定 `ESCAPE '\\'` 在 `NO_BACKSLASH_ESCAPES` 下非法；实现为默认 `ESCAPE '\\'`、该模式下 `ESCAPE '\'`。见 `Core/SQL/FilterSQLBuilder.swift` |
+| S29 | 预览 SQL 与正式下发共用同一条生成路径 | 字面量转义走「连接转义器」（`mysql_real_escape_string` 语义）注入，纯函数转义只作兜底，避免 Preview 与实际提交不一致。见 `03-mysql-layer.md` §4.2、`Core/SQL/SQLValueLiteral.swift` |
+| S30 | 语句分类从严 | `VALUES` / `TABLE` 语句归为 query 但不放进只读白名单（`specs/09-readonly-mode.md` §4 未列即不放行） |
+| S31 | 删除连接先清 Keychain，失败则不删 JSON | `02-persistence.md` §3 只要求「连带删除」未定顺序；选择不留无人认领的密码，代价是 Keychain 异常时需重试删除。见 `Core/Store/ConnectionStore.swift` |
+| S32 | SSH `BatchMode` 只用于 config/agent 认证 | `BatchMode=yes` 会禁用 `SSH_ASKPASS`，密码/私钥口令认证不能加。见 `Core/SSH/SSHCommand.swift` |
+| S33 | 退出 App 不弹查询脚本保存确认 | 草稿已防抖落盘、重启可恢复；仅「关闭标签」弹保存确认。避免退出流程串联多个 sheet 死循环 |
+| S34 | CSV 导入空字段默认视为 `NULL` | 与导出默认「空串表示 NULL」形成往返；改默认只动 `ImportOptions.emptyFieldIsNull` 一处 |
+| S35 | 导入「事务模式」与「遇错继续」互斥 | 勾事务即全部成功或全部回滚，忽略 continueOnError；`TRUNCATE` 是 DDL 隐式提交，在事务外先执行 |
 
 ## 2. 已知限制
 
@@ -58,6 +66,26 @@
 | L12 | 字段栏自动加载大字段的上限是 8 MB | 一行里的大字段合计超过该值时，不会自动取完整值 | 字段旁提供「加载完整内容…」按钮，点开才取 |
 | L13 | `make dist` 的产物依赖目标机器的 Homebrew | 换一台机器要先 `brew install mysql-client` 等项目，否则启动即缺库 | 自用工具，接受；真要做到自包含就回到 `12-build-and-deps.md` §3.1 的内嵌 dylib 方案（T1 已否） |
 | L14 | CI 不覆盖需要真库的路径 | 编译与单元测试有保障，冒烟与集成测试只在本地跑 | 合并前本地跑一次 `make smoke`。见 `15-testing.md` §5 |
+| L15 | CSV 读入一次性全量解析 | 超大 CSV 导入时内存随行数增长 | P8 导入向导实现增量解析；导出侧已是流式（11 §3.1） |
+| L16 | 纯文本复制（TSV 等）的 NULL 表示为文本 `NULL` | 与空串在粘贴后不可区分 | CSV 复制/导出走独立 `nullRepresentation`，不受影响 |
+| L17 | 语句级错误的 `statement` 只带整批 SQL 前 200 字符 | 多语句执行时错误定位不到具体哪条 | C 回调只有 `result_index` 没有语句偏移；语句拆分在编辑器侧可做精确映射 |
+| L18 | 连接转义器（`escape`）是同步的 | 正在执行大查询时调用转义会阻塞到查询结束 | Preview 生成避开查询执行窗口；查询串行执行本身是协议约束 |
+| L19 | SSH 健康检查单次探测失败即判死 | 网络抖动可能误报隧道断开 | `04-ssh-tunnel.md` §6 未定失败阈值；误报后用户手动重连（L7 不自动重连） |
+| ~~L20~~ | ~~偏好 `gridLazyLargeColumns` 未在 `specs/11` 列出~~ | **已解决（2026-09-22）**：用户拍板写入 `specs/11-preferences.md` §3「超长内容延迟加载」 | — |
+| L21 | 左侧栏显隐与对象树分组折叠状态未持久化（**P11 已解决**：`WorkspaceStateStore` 新增 `sidebarVisible` / `collapsedObjectTreeGroups`） | 重启后恢复默认（侧栏显示、分组展开）；`specs/02` §5 要求记住，待 P11 补持久化 | 运行期内由 @State 记住；P11 加 PreferenceKey |
+| L22 | 标签中键点击关闭未实现 | 可用 ⌘W / 关闭按钮 / 右键菜单替代 | SwiftUI 无中键事件，需 AppKit 事件监控，收益低 |
+| L23 | 测试连接无实时分步进度、取消仅丢弃结果 | 等待时面板只转圈，拿到整份报告后渲染 ✓/✗；点取消后 Core 仍会把测试连接跑完再关 | 结果正确（不留痕），体验可接受；真取消需 Core 加中断点 |
+| L24 | 网格行号列不冻结 | 横向滚动时行号随内容滚出视野 | `07-data-grid.md` §4 要求固定最左；冻结需双表滚动同步，风险高收益低 |
+| L25 | 快速查看的 JSON 只 pretty-print、长文本无查找/行号 | 大 JSON 浏览不便 | 二进制 hex 与图片预览已做；按需再增强 |
+| L26 | 外键列的 ↗ 跳转未实现 | 不能一键跳到引用行 | `specs/03` §1/§10 有该入口；元数据已备好（`foreignKeyColumns`），待补 |
+| L27 | SQL INSERT 复制遇未加载的大字段会用截断值 | 复制出的 INSERT 语句数据不完整 | 复制结果附带警告提示（L27 已缓解）；写路径（复制行/编辑）先自动加载完整值 |
+| ~~L28~~ | ~~日期时间编辑器是纯文本框，与 specs 不一致~~ | **已解决（2026-09-22）**：用户拍板改 `specs/04` §3 为「单行输入框，原样显示与编辑」，`manual/04` 图 4-2 已同步 | — |
+| L29 | 字段栏长文本大窗口无行号与查找 | `14-row-inspector.md` §3 有该要求 | 查询编辑器组件（P7）落地后复用其文本视图再补 |
+| L30 | 预览 SQL 无语法高亮、悬停不高亮网格行 | `specs/04` §9 要求高亮 | 等宽纯文本已保证内容一致（S29）；高亮待 P7 词法扫描接入 |
+| L32 | 有未提交改动时改过滤器用非阻塞 toast | specs/05 §3「先提示」可作模态理解 | 与改排序行为一致；暂存区本身不受过滤影响 |
+| L33 | 查询编辑器走缓冲执行，单条大查询结果不可中途停止/流式显示 | 「结果较大，可随时停止」对大结果集实际不可用 | 属 L1/T2 范畴；执行中可 KILL 取消，只是结果一次性到达 |
+| L34 | CSV 导入把整个文件读进内存 | 超大 CSV 导入内存随行数增长 | 导出侧严格流式；导入流式化待后续（L15 同源） |
+| L35 | 表结构的「建表语句」页无语法高亮（**P11 已解决**：复用 `SQLHighlightedText`） | 纯等宽文本 + 行号 + 复制 | `SQLHighlightedText` 组件现成（L30 已解决预览高亮），随时可接 |
 
 ## 3. 待定事项
 
@@ -92,5 +120,16 @@
 | 2026-09-21 | T1 定案：实测依赖全部指向 `/opt/homebrew/opt/<formula>/lib/…` 稳定符号链接，不改写 rpath、不内嵌 dylib（`12-build-and-deps.md` §3.1/§3.2）；T11 定案：部署目标改为跟随构建机系统版本（当前 macOS 27），不声称支持更低 macOS |
 | 2026-09-21 | **去掉 MariaDB 支持，只做 MySQL**（`specs/00-scope.md` §1/§2.1/§2.2、`specs/README.md`、`manual/` 全站、`README.md`、`AGENTS.md`）；服务器版本范围定为 MySQL 8.0+，测试矩阵单档，见 S25 |
 | 2026-09-21 | 补齐测试与工程决策：新增 `15-testing.md`（测试分层、可测试性注入点、CI）、存储版本与迁移（`02-persistence.md` §9）、界面文案硬编码中文（`06-ui-layer.md` §8）、时区零处理（`03-mysql-layer.md` §4.3）、分发 `make dist`（`12-build-and-deps.md` §4.1）；新增 S22–S27、L13、L14、T12 |
+| 2026-09-22 | Core/Model + Core/SQL 落地（W1-T1）：登记 S28（LIKE ESCAPE 按 sql_mode 适配，修正 `09` §1.4 矛盾）、S29（Preview 与下发共用连接转义器）、S30（语句分类从严）、L15（CSV 读全量解析）、L16（TSV NULL 文本表示）；行定位键 `RowKeyValue` 携带 `fieldType`/`isBinary` 以生成正确字面量 |
+| 2026-09-22 | Core/MySQL + Core/Store + Core/SSH 落地（W1-T2/T3/T4）：冒烟 7/7 通过；登记 S31（删连接 Keychain 顺序）、S32（SSH BatchMode 策略）、L17–L20；`session.json` schema 由 Core/Store 首定（`SessionStateFile`），W2 的 SessionManager 对接时可调整；SSH 别名模式下 `Connection.validationIssues()` 仍强制要求 `ssh.user`，待 W2 连接表单放宽 |
+| 2026-09-22 | Core/Meta + Core/Session 落地（W2-T5）：MetaRepository（information_schema + TTL 缓存 + DDL 失效）、SessionManager/ConnectionSession/Tab/AppEnvironment；`MySQLSessionProtocol`/`SSHTunnelProtocol` 抽协议供测试替身（S26 手写协议）；SSH 别名模式校验已放宽（`Connection.validationIssues()` 不再强制 `ssh.user`/私钥）；保活用固定 30s 周期（未按连接各自间隔）；退出前的未提交确认待编辑 wave 补 |
+| 2026-09-22 | Features/Connections + Features/Workspace 落地（W2-T6/T7）：菜单快捷键走 `Commands + @FocusedValue`（`WorkspaceActions`/`AppActions`，后续 wave 在 WorkspaceView 里把 nil 换成真实现，nil 自动禁用）；对象树用 SwiftUI LazyVStack 不下沉 AppKit；登记 L21–L23；窗口最小尺寸取 860×560（specs 未定）；ConnectionColor 的 SwiftUI 颜色映射有两处（`swatchColor`/`swiftUIColor`）待收敛 |
+| 2026-09-22 | DataGrid 数据网格落地（W3-T8，P4）：NSTableView 桥接 + `GridCell` 区分首屏值/截断值/完整值/编辑中值（截断值不写回的安全闸门）；`SessionTab.content` 去掉 `@ObservationIgnored`（否则字段栏不重绘）；列重排禁用（`07` §2 列顺序=结果集顺序）；字段栏不设快捷键（S15）；登记 L24–L27 |
+| 2026-09-22 | 编辑与提交落地（W3-T9，P5，M1 达成）：字段栏编辑器 + 暂存 + 预览==提交（S29）+ 事务提交/回滚保留暂存 + 关标签/断开/删除连接/退出四处确认；**修复两个真库才暴露的 bug**：`MySQLValueMapping` 把数值/时间列（charset 63）误判为二进制导致主键定位失效、提交路径忽略语句级错误导致唯一键冲突被当成功；冒烟新增 `--edit-smoke` 编辑链路 e2e（5/5）；登记 L28–L30；`⌘I`/`⌘D`/`⌫` 仅在网格焦点时生效 |
+| 2026-09-22 | 过滤器落地（W3-T10，P6）：行过滤器 14 操作符/Raw 模式互斥/列过滤浮层/右键快速筛选/250ms 防抖快速过滤/WorkspaceStateStore 持久化；冒烟新增 `--filter-smoke`（8/8）；⌘F 改为上下文分派（表数据标签=过滤横条，否则=对象树搜索）；`FilterState` 持久化草稿态保证 Esc 后保留；登记 L31–L32；外键 ↗ 跳转仍未实现（L26） |
+| 2026-09-22 | SQL 编辑器 + 导入导出 + 表结构落地（W4-T11/T12/T13，P7/P8/P9）：冒烟新增 `--query-smoke`（6/6）；L29（字段栏大窗口换 SQLTextView 带行号查找）与 L30（预览高亮）已解决；登记 S33–S35、L33–L35；⌘S 加入 File 菜单（与网格提交按上下文启用）；结构视图列页顶部多了行数估算（超出 specs/07，待用户拍板）；`GridRow` 与 SwiftUI 撞名处统一写 `SwiftUI.GridRow`；当前工具链已移除 `func f(): T` 旧语法，必须写 `-> T` |
+| 2026-09-22 | 收尾（W4-T15，P11，M3 达成）：偏好设置面板 7 组全部落地并即时生效；只读模式补「关闭前确认」并写回连接配置；SSH 指纹变化单独高亮、隧道断开时心跳先探隧道再报「SSH 隧道已断开」；**L21**（侧栏显隐 / 对象树折叠持久化）与 **L35**（建表语句语法高亮）已解决；`ConnectionColor` 的 `swatchColor` / `swiftUIColor` 两处映射收敛为一处；表数据状态栏接入 `导出…`（`.filteredTable`，带过滤条件）；首次加载用骨架占位、翻页叠加加载遮罩；App 图标落地；README 更新为当前状态。Core/Session 有改动：`ConnectionSession.ping()` 先探隧道、`ConnectFailure.underlyingMessage` 的 MySQL 分支补 SQLSTATE 格式、`SessionManager` 保活周期改用偏好「心跳间隔」 |
+| 2026-09-22 | 用户拍板收尾分歧：`specs/11` §3 补「超长内容延迟加载」（L20 关闭）；`specs/04` §3 日期时间编辑器改为单行文本框、`manual/04` 图 4-2 同步（L28 关闭）；跨列快速过滤框定为不必要功能，建清理 todo（L31 届时关闭）；`manual/01` 图 1-1 摘要按 `specs/01` §1 对齐为「经 ssh-主机」；结构视图列页顶部的行数估算已移除（超出 `specs/07`） |
+| 2026-09-22 | 移除跨列快速过滤框（W3-T10 自加）：删掉 FilterBar 输入框、`FilterState.quickFilter`、防抖与 `quickFilterClause`/`combine` 组合逻辑及对应测试，冒烟第 8 项改为只验证条件叠加 + 列显隐；`FilterState` 旧持久化 JSON 里的 `quickFilter` 字段按向前兼容忽略；**⌘F 回归 `specs/05` §1**：表数据标签前台 = 开关行过滤器面板，否则聚焦对象树搜索；右键「按此列筛选 / 按此值筛选 / 排除此值」保留（`QuickFilterAction`）。L31 关闭 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

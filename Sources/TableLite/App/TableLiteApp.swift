@@ -1,115 +1,122 @@
 import SwiftUI
 import AppKit
-import CMySQLClient
 
 /// 应用入口。
 ///
-/// 这里的界面只是 Phase 0 的骨架：用来验证
-///   1. 工程能生成、能构建、能启动
-///   2. Swift 侧能 `import CMySQLClient`，并且运行时能加载 libmysqlclient
+/// `--smoke` 时跑完 C shim 的端到端验证就直接退出，不启动 GUI
+/// （见 `Sources/TableLite/Core/MySQL/SmokeRunner.swift`，这条路径保持不变）。
 ///
-/// 真正的界面见 specs/02-workspace.md，实现见 docs/tech-designs/06-ui-layer.md。
+/// 真正的界面见 `specs/02-workspace.md`，实现见 `docs/tech-designs/06-ui-layer.md`。
 @main
 struct TableLiteApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @State private var environment: AppEnvironment
 
     init() {
-        // `--smoke` 时跑完 C shim 的端到端验证就直接退出，不启动 GUI。
-        // 见 Sources/TableLite/Core/MySQL/SmokeRunner.swift。
         SmokeRunner.runIfRequested()
+        // 隐藏的编辑 / 过滤 / 查询链路端到端模式（`--edit-smoke` / `--filter-smoke` / `--query-smoke`）：
+        // 不碰真实数据目录，也不在 init 里阻塞等待。
+        let isHeadlessSmoke = EditSmokeRunner.isRequested || FilterSmokeRunner.isRequested || QuerySmokeRunner.isRequested
+        _environment = State(initialValue: isHeadlessSmoke ? AppEnvironment.makeFallback() : AppEnvironment.makeLiveOrFallback())
+        EditSmokeRunner.scheduleIfRequested()
+        FilterSmokeRunner.scheduleIfRequested()
+        QuerySmokeRunner.scheduleIfRequested()
     }
 
     var body: some Scene {
         WindowGroup {
-            EnvironmentCheckView()
-                .frame(minWidth: 520, minHeight: 360)
+            RootView()
+                .environment(environment)
+                .task {
+                    // 装配（恢复会话骨架 / 孤儿草稿清理 / 启动空闲回收与保活）。
+                    appDelegate.environment = environment
+                    await environment.start()
+                }
         }
         .windowResizability(.contentMinSize)
         .commands {
-            // 单窗口应用：不要「新建窗口」
-            CommandGroup(replacing: .newItem) { }
+            // 单窗口应用：不要「新建窗口」；其余菜单见 `TableLiteCommands`。
+            TableLiteCommands()
         }
     }
 }
 
+/// 应用生命周期代理。
+///
+/// `applicationShouldTerminate` 返回 `.terminateLater`，先对逐个有未提交改动的标签
+/// 弹「提交 / 放弃 / 取消」，全部处理完再跑退出清理
+/// （关闭 MySQL 会话、停止隧道、flush Console Log），完成后回 `terminateNow`。
+/// 见 `docs/tech-designs/05-session-management.md` §7、`specs/04-data-editing.md` §12。
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+
+    /// 由 `TableLiteApp.body` 的任务注入。
+    var environment: AppEnvironment?
+
+    private var isTerminating = false
+    private var didShutdown = false
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
-        // TODO(P10): 关闭所有 MySQLSession，停止所有 SSHTunnel（不能残留 ssh 进程）
-        //           见 docs/tech-designs/05-session-management.md §7
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let environment, !isTerminating else { return .terminateNow }
+        isTerminating = true
+        Task { @MainActor in
+            let canProceed = await resolvePendingChanges(environment: environment)
+            guard canProceed else {
+                self.isTerminating = false
+                sender.reply(toApplicationShouldTerminate: false)
+                return
+            }
+            await environment.prepareForTermination()
+            self.didShutdown = true
+            self.isTerminating = false
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
-}
 
-/// Phase 0 的自检面板：把构建与链接问题在界面上直接暴露出来。
-private struct EnvironmentCheckView: View {
-    @State private var checks: [CheckResult] = []
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("TableLite")
-                    .font(.largeTitle.bold())
-                Text("macOS 原生 MySQL 客户端 · Phase 0 骨架")
-                    .foregroundStyle(.secondary)
-            }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(checks) { check in
-                    HStack(spacing: 8) {
-                        Image(systemName: check.passed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundStyle(check.passed ? .green : .red)
-                        Text(check.title)
-                        if let detail = check.detail {
-                            Text(detail)
-                                .foregroundStyle(.secondary)
-                                .font(.callout)
-                        }
-                    }
-                }
-            }
-
-            Spacer()
-
-            HStack {
-                Button("重新检查") { runChecks() }
-                Spacer()
-                Text("下一步：make smoke")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+    /// 逐个有暂存的标签弹确认；提交失败或取消则中止退出。
+    private func resolvePendingChanges(environment: AppEnvironment) async -> Bool {
+        while true {
+            let models = environment.sessionManager.sessions
+                .flatMap { PendingChangesCoordinator.pendingModels(in: $0) }
+            guard let model = models.first, model.hasPendingChanges else { return true }
+            switch presentPendingChangesAlert(model: model) {
+            case .cancel:
+                return false
+            case .discard:
+                await model.discardChanges()
+            case .submit:
+                if !(await model.submitChanges()) { return false }
             }
         }
-        .padding(24)
-        .task { runChecks() }
     }
 
-    private func runChecks() {
-        var results: [CheckResult] = []
-
-        // 1. 能创建并释放 C 侧的连接对象 —— 说明 modulemap 与静态库链接正常
-        let handle = mtl_conn_create()
-        results.append(.init(title: "CMySQLClient 已链接",
-                             passed: handle != nil,
-                             detail: handle != nil ? nil : "mtl_conn_create 返回 NULL"))
-        if let handle { mtl_conn_free(handle) }
-
-        // 2. 运行时能加载 libmysqlclient（能拿到客户端库版本字符串）
-        let version = String(cString: mtl_client_version())
-        results.append(.init(title: "libmysqlclient 已加载",
-                             passed: !version.isEmpty,
-                             detail: "客户端库版本 \(version)"))
-
-        checks = results
+    /// 退出流程用 AppKit 模态告警；按钮文案遵循 `specs/12-feedback.md` §4。
+    private func presentPendingChangesAlert(model: TableDataViewModel) -> PendingChangesCoordinator.Decision {
+        let alert = NSAlert()
+        alert.messageText = "有未提交的修改"
+        alert.informativeText = "「\(model.tab.title)」有 \(model.pendingCount) 处未提交的修改。"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "提交并继续")
+        alert.addButton(withTitle: "放弃修改")
+        alert.addButton(withTitle: "取消")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: return .submit
+        case .alertSecondButtonReturn: return .discard
+        default: return .cancel
+        }
     }
-}
 
-private struct CheckResult: Identifiable {
-    let id = UUID()
-    let title: String
-    let passed: Bool
-    let detail: String?
+    func applicationWillTerminate(_ notification: Notification) {
+        guard !didShutdown, let environment else { return }
+        // 兜底：正常清理没跑完（例如被强制结束）时尽力关闭会话与隧道，
+        // 但不阻塞退出。硬约束「退出后不得残留 ssh 进程」由正常路径保证。
+        StoreLog.warning("applicationWillTerminate 兜底：正常退出清理未走完，尽力关闭会话")
+        let manager = environment.sessionManager
+        Task { await manager.prepareForTermination() }
+    }
 }
