@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// 表数据标签的内容视图（P4 数据网格）。
+/// 表数据标签的内容视图。
 ///
 /// 组合：过滤栏占位（T10）→ 数据网格（AppKit）→ 插入行脚 → 分页栏。
 /// 右侧字段栏由 `WorkspaceView` 渲染，读的是 `tab.content` 里的同一个 ViewModel。
+/// T9 在这里挂上预览 / 提交失败 / 放弃确认 / 快速查看的呈现。
 struct TableDataTabView: View {
 
     let session: ConnectionSession
@@ -13,7 +14,6 @@ struct TableDataTabView: View {
 
     @State private var viewModel: TableDataViewModel?
     @State private var quickLook: QuickLookPanelController?
-    @State private var showEditNotReady = false
 
     var body: some View {
         Group {
@@ -38,11 +38,6 @@ struct TableDataTabView: View {
                 tab.content = nil
             }
         }
-        .alert("编辑功能待下一任务实现", isPresented: $showEditNotReady) {
-            Button("好", role: .cancel) {}
-        } message: {
-            Text("新建 / 修改 / 删除行会在编辑任务中提供。")
-        }
     }
 
     // MARK: 主体
@@ -56,12 +51,15 @@ struct TableDataTabView: View {
                     presentQuickLook(content)
                 }
                 overlay(for: viewModel)
+                if viewModel.isCommitting {
+                    committingOverlay(viewModel)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if viewModel.isMetadataLoaded, viewModel.isEditable {
                 InsertRowFooterView(isEmptyTable: viewModel.rows.isEmpty) {
-                    showEditNotReady = true
+                    viewModel.beginInsert()
                 }
             }
 
@@ -78,6 +76,53 @@ struct TableDataTabView: View {
                     .transition(.opacity)
             }
         }
+        .sheet(isPresented: previewBinding(viewModel)) {
+            PreviewSQLSheet(viewModel: viewModel) {
+                viewModel.dismissPreview()
+            }
+        }
+        .sheet(isPresented: commitFailureBinding(viewModel)) {
+            if let failure = viewModel.commitFailure {
+                CommitFailureSheet(failure: failure) {
+                    viewModel.dismissCommitFailure()
+                    Task { await viewModel.discardChanges() }
+                } onClose: {
+                    viewModel.dismissCommitFailure()
+                }
+            }
+        }
+        .confirmationDialog(
+            "有未提交的修改",
+            isPresented: discardBinding(viewModel),
+            titleVisibility: .visible
+        ) {
+            Button("放弃修改", role: .destructive) {
+                Task { await viewModel.discardChanges() }
+            }
+            Button("取消", role: .cancel) {
+                viewModel.cancelDiscardConfirmation()
+            }
+        } message: {
+            Text("确定要放弃当前标签里这 \(viewModel.pendingCount) 处未提交的修改吗？")
+        }
+        .onChange(of: viewModel.quickLookRequest) { _, content in
+            guard let content else { return }
+            presentQuickLook(content)
+            viewModel.clearQuickLookRequest()
+        }
+    }
+
+    /// 提交过程中的进度遮罩（`specs/04-data-editing.md` §10：界面上锁定编辑）。
+    private func committingOverlay(_ viewModel: TableDataViewModel) -> some View {
+        VStack(spacing: 10) {
+            ProgressView()
+            Text("正在提交 \(viewModel.commitCompleted)/\(viewModel.commitTotal)…")
+                .font(.callout)
+            Button("取消") { viewModel.cancelCommit() }
+                .controlSize(.small)
+        }
+        .padding(18)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 
     @ViewBuilder
@@ -87,7 +132,7 @@ struct TableDataTabView: View {
             errorOverlay(message: message, viewModel: viewModel)
         case .loading where viewModel.rows.isEmpty:
             StatusOverlay { ProgressView("正在加载…") }
-        case .loaded where viewModel.rows.isEmpty:
+        case .loaded where viewModel.rows.isEmpty && viewModel.insertionRows.isEmpty:
             StatusOverlay {
                 VStack(spacing: 6) {
                     Image(systemName: "tray")
@@ -121,6 +166,29 @@ struct TableDataTabView: View {
             }
             .padding(20)
         }
+    }
+
+    // MARK: 绑定
+
+    private func previewBinding(_ viewModel: TableDataViewModel) -> Binding<Bool> {
+        Binding(
+            get: { viewModel.isPreviewPresented },
+            set: { if !$0 { viewModel.dismissPreview() } }
+        )
+    }
+
+    private func commitFailureBinding(_ viewModel: TableDataViewModel) -> Binding<Bool> {
+        Binding(
+            get: { viewModel.commitFailure != nil },
+            set: { if !$0 { viewModel.dismissCommitFailure() } }
+        )
+    }
+
+    private func discardBinding(_ viewModel: TableDataViewModel) -> Binding<Bool> {
+        Binding(
+            get: { viewModel.isDiscardConfirmationPresented },
+            set: { if !$0 { viewModel.cancelDiscardConfirmation() } }
+        )
     }
 
     // MARK: 生命周期

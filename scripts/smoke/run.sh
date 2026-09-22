@@ -81,8 +81,26 @@ status=$?
 set -e
 
 if [[ $status -eq 0 ]]; then
-  printf "\n${GREEN}冒烟验证通过。${RESET}\n\n"
+  printf "\n${GREEN}冒烟验证通过。${RESET}\n"
+  # -------------------------------------------------------------- 编辑链路
+  if [[ "${SMOKE_EDIT:-1}" == "1" ]]; then
+    printf "\n${DIM}编辑链路端到端（--edit-smoke）：字段栏 → 暂存 → 预览 → 提交 …${RESET}\n"
+    set +e
+    MYSQL_HOST="$MYSQL_HOST" \
+    MYSQL_PORT="$MYSQL_PORT" \
+    MYSQL_USER="$MYSQL_USER" \
+    MYSQL_PASSWORD="$MYSQL_PASSWORD" \
+    MYSQL_DATABASE="${MYSQL_DATABASE:-tablelite_smoke}" \
+      "$BINARY" --edit-smoke
+    status=$?
+    set -e
+    if [[ $status -eq 0 ]]; then
+      printf "\n${GREEN}编辑冒烟验证通过。${RESET}\n"
+    else
+      printf "\n${RED}编辑冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
+    fi
+  fi
 else
-  printf "\n${RED}冒烟验证失败（退出码 %d）。${RESET}\n\n" "$status"
+  printf "\n${RED}冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
 fi
 exit $status

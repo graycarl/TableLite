@@ -1,10 +1,10 @@
 import SwiftUI
+import AppKit
 
-/// 右侧字段栏（只读版）。见 `specs/03-data-browsing.md` §7、`docs/tech-designs/14-row-inspector.md`。
+/// 右侧字段栏：表数据标签里**唯一**的编辑入口
+/// （`specs/03-data-browsing.md` §7、`specs/04-data-editing.md` §3、`docs/tech-designs/14-row-inspector.md`）。
 ///
-/// 本阶段（P4）只做只读展示：字段按表定义顺序排列、显示类型、值只读。
-/// T9 会把 `InspectorFieldRow` 的只读 `Text` 换成按列类型选择的编辑器；
-/// 值模型 `GridCell`（原始值 / 截断值 / 完整值 / 编辑中值）已经就位。
+/// 网格只读（S14）；这里的每个字段行按列类型选择编辑器，失焦 / `↩` 写入暂存区，`Esc` 放弃。
 struct RowInspectorView: View {
 
     let viewModel: TableDataViewModel
@@ -89,6 +89,8 @@ struct RowInspectorView: View {
 
     private func fieldList(for row: GridRow) -> some View {
         VStack(spacing: 0) {
+            rowBanner(for: row)
+
             if viewModel.isLoadingFullRow {
                 statusBar(text: "正在加载完整内容…", systemImage: "arrow.down.circle")
             } else if let error = viewModel.fullRowError {
@@ -100,18 +102,45 @@ struct RowInspectorView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(filteredColumns) { column in
-                        InspectorFieldRow(
-                            column: column,
-                            cell: row.cells[column.name],
-                            context: viewModel.cellDisplayContext,
-                            isLoading: viewModel.isLoadingFullRow
-                        )
+                        InspectorFieldRow(viewModel: viewModel, row: row, column: column)
+                            .id("\(row.id)#\(column.name)")
                         Divider()
                     }
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private func rowBanner(for row: GridRow) -> some View {
+        if viewModel.isRowDeleted(rowID: row.id) {
+            HStack(spacing: 6) {
+                Image(systemName: "trash")
+                Text("这一行已标记删除")
+                Spacer()
+                Button("撤销删除") { viewModel.undoDeletion(rowID: row.id) }
+                    .controlSize(.small)
+            }
+            .font(.caption)
+            .foregroundStyle(.red)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color.red.opacity(0.08))
+        } else if viewModel.isInsertionRow(rowID: row.id) {
+            HStack(spacing: 6) {
+                Image(systemName: "plus.circle")
+                Text("新增行")
+                Spacer()
+                Button("取消这一行") { viewModel.undoRow(rowID: row.id) }
+                    .controlSize(.small)
+            }
+            .font(.caption)
+            .foregroundStyle(.green)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color.green.opacity(0.08))
+        }
     }
 
     private func statusBar(text: String, systemImage: String, tint: Color = .secondary) -> some View {
@@ -153,22 +182,36 @@ struct RowInspectorView: View {
 
 // MARK: - 字段行
 
-/// 一个字段行：列名（主键加粗 + 🔑）、类型（灰小字）、只读值、`∅` 按钮。
-///
-/// T9 接缝：把 `valueText` 换成编辑器，把 `∅` 从禁用改为可点。
+/// 一个字段行：列名（主键加粗 + 🔑）、类型（灰小字）、按列类型选择的编辑器、`∅` 按钮。
 struct InspectorFieldRow: View {
 
+    let viewModel: TableDataViewModel
+    let row: GridRow
     let column: ColumnInfo
-    let cell: GridCell?
-    let context: CellDisplayContext
-    let isLoading: Bool
+
+    @State private var draft: String = ""
+    @State private var errorMessage: String?
+    @State private var previousNonNull: SQLValue?
+    @State private var isExpanded = false
+    @FocusState private var isFocused: Bool
+
+    private var editorKind: FieldEditorKind {
+        FieldEditorResolver.kind(for: column, tinyintAsCheckbox: viewModel.cellDisplayContext.tinyintAsCheckbox)
+    }
+
+    private var currentValue: SQLValue {
+        viewModel.inspectorValue(rowID: row.id, column: column.name)
+    }
+
+    private var isNullValue: Bool { currentValue.isNull }
+    private var isDeleted: Bool { viewModel.isRowDeleted(rowID: row.id) }
+    private var isEditable: Bool { viewModel.isEditingEnabled && !isDeleted }
+    private var isEdited: Bool { viewModel.isCellEdited(rowID: row.id, column: column.name) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                if column.isPrimaryKey {
-                    Text("🔑")
-                }
+                if column.isPrimaryKey { Text("🔑") }
                 Text(column.name)
                     .fontWeight(column.isPrimaryKey ? .semibold : .regular)
                     .lineLimit(1)
@@ -178,72 +221,282 @@ struct InspectorFieldRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            HStack(spacing: 6) {
-                valueView
-                Button {
-                    // T9：在 NULL 与上一个非 NULL 值之间切换。
-                } label: {
-                    Text("∅")
-                        .frame(width: 20)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(true)
-                .help("设为 NULL（编辑功能待下一任务实现）")
+
+            HStack(alignment: .top, spacing: 6) {
+                editor
+                nullButton
+            }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-    }
-
-    private var valueView: some View {
-        Text(displayText)
-            .font(valueFont)
-            .foregroundStyle(isNullDisplay ? .secondary : .primary)
-            .lineLimit(3)
-            .truncationMode(.tail)
-            .frame(maxWidth: .infinity, alignment: alignment)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
-            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 5))
-            .overlay(
-                RoundedRectangle(cornerRadius: 5)
-                    .stroke(Color(nsColor: .separatorColor))
-            )
-            .help(tooltip ?? "")
-    }
-
-    private var display: CellDisplay {
-        guard let cell else {
-            return CellDisplay(text: "—")
+        .background(isEdited ? Color.orange.opacity(0.16) : Color.clear)
+        .overlay(alignment: .topLeading) {
+            if isEdited {
+                Image(systemName: "arrowtriangle.up.left.fill")
+                    .font(.system(size: 7))
+                    .foregroundStyle(.orange)
+                    .offset(x: 2, y: 2)
+            }
         }
-        return CellDisplayFormatter.display(
-            value: cell.displayValue,
-            isTruncated: cell.isTruncated && cell.fullValue == nil,
-            totalByteCount: cell.totalByteCount,
+        .onAppear(perform: syncDraft)
+        .onChange(of: currentValue) { _, newValue in
+            if !newValue.isNull { previousNonNull = newValue }
+            if !isFocused { draft = FieldEditValidator.text(from: currentValue) }
+        }
+        .onChange(of: viewModel.focusRequestToken) { _, _ in
+            if viewModel.focusRequestColumn == column.name, isEditable {
+                isFocused = true
+            }
+        }
+        .onExitCommand(perform: cancelEdit)
+        .sheet(isPresented: $isExpanded) {
+            expandedEditor
+        }
+    }
+
+    // MARK: 编辑器
+
+    @ViewBuilder
+    private var editor: some View {
+        switch editorKind {
+        case .binary:
+            binaryEditor
+
+        case .booleanTinyInt:
+            Toggle("", isOn: Binding(
+                get: { currentValue == .bool(true) || currentValue == .text("1") },
+                set: { commit(value: .bool($0)) }
+            ))
+            .toggleStyle(.checkbox)
+            .labelsHidden()
+            .disabled(!isEditable)
+
+        case .enumeration(let values):
+            Picker("", selection: Binding(
+                get: { draft },
+                set: { newValue in
+                    draft = newValue
+                    commitDraft()
+                }
+            )) {
+                Text("（空）").tag("")
+                ForEach(values, id: \.self) { Text($0).tag($0) }
+            }
+            .labelsHidden()
+            .disabled(!isEditable)
+
+        case .set(let values):
+            setEditor(values)
+
+        case .multilineText:
+            multilineEditor
+
+        case .number, .temporal, .singleLineText:
+            singleLineEditor
+        }
+    }
+
+    private var singleLineEditor: some View {
+        TextField("", text: $draft)
+            .textFieldStyle(.roundedBorder)
+            .font(.system(size: 12, design: editorKind == .number ? .monospaced : .default))
+            .multilineTextAlignment(editorKind == .number ? .trailing : .leading)
+            .disabled(!isEditable)
+            .focused($isFocused)
+            .onSubmit(commitDraft)
+            .onChange(of: isFocused) { oldValue, newValue in
+                if oldValue, !newValue { commitDraft() }
+            }
+            .help(column.gridTypeTooltip)
+    }
+
+    private var multilineEditor: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            PlainTextView(
+                text: $draft,
+                isEditable: isEditable,
+                isMultiline: true,
+                fontSize: 12,
+                onCommit: commitDraft,
+                onCancel: cancelEdit
+            )
+            .frame(minHeight: 56, maxHeight: 120)
+            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 5))
+            .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color(nsColor: .separatorColor)))
+            .disabled(!isEditable)
+
+            HStack(spacing: 6) {
+                Button("展开") { isExpanded = true }
+                    .controlSize(.small)
+                Text("⇧↩ 换行 · ⌘↩ 提交")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func setEditor(_ values: [String]) -> some View {
+        let selected = Set(draft.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+        Menu {
+            ForEach(values, id: \.self) { value in
+                Button {
+                    toggleSetValue(value, values: values)
+                } label: {
+                    HStack {
+                        Text(value)
+                        if selected.contains(value) { Image(systemName: "checkmark") }
+                    }
+                }
+            }
+        } label: {
+            Text(draft.isEmpty ? "（空）" : draft)
+                .font(.system(size: 12))
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .menuStyle(.borderlessButton)
+        .disabled(!isEditable)
+    }
+
+    private var binaryEditor: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(binaryDisplayText)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 5))
+                .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color(nsColor: .separatorColor)))
+
+            HStack(spacing: 6) {
+                Button("查看") { viewModel.requestQuickLook(rowID: row.id, column: column.name) }
+                    .controlSize(.small)
+                Button("从文件导入…", action: importBinaryFile)
+                    .controlSize(.small)
+                    .disabled(!isEditable)
+                Spacer()
+            }
+        }
+    }
+
+    private var nullButton: some View {
+        Button {
+            toggleNull()
+        } label: {
+            Text("∅").frame(width: 18)
+        }
+        .buttonStyle(.bordered)
+        .tint(isNullValue ? Color.accentColor : Color.secondary)
+        .controlSize(.small)
+        .disabled(!isEditable)
+        .help(isNullValue ? "恢复为上一个非 NULL 值" : "设为 NULL")
+    }
+
+    // MARK: 提交 / 取消
+
+    private func syncDraft() {
+        draft = FieldEditValidator.text(from: currentValue)
+        if !currentValue.isNull { previousNonNull = currentValue }
+        errorMessage = nil
+    }
+
+    private func commitDraft() {
+        guard isEditable else { return }
+        if let error = FieldEditValidator.validate(text: draft, column: column, kind: editorKind) {
+            errorMessage = error.message
+            isFocused = true
+            return
+        }
+        errorMessage = nil
+        let value = FieldEditValidator.value(fromText: draft, column: column, kind: editorKind)
+        commit(value: value)
+    }
+
+    private func commit(value: SQLValue) {
+        guard isEditable else { return }
+        if !value.isNull { previousNonNull = value }
+        Task { await viewModel.applyInspectorEdit(rowID: row.id, column: column.name, value: value) }
+    }
+
+    private func cancelEdit() {
+        draft = FieldEditValidator.text(from: currentValue)
+        errorMessage = nil
+        isFocused = false
+    }
+
+    private func toggleNull() {
+        if isNullValue {
+            commit(value: previousNonNull ?? .text(""))
+        } else {
+            previousNonNull = currentValue
+            commit(value: .null)
+        }
+    }
+
+    private func toggleSetValue(_ value: String, values: [String]) {
+        var members = Set(draft.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+        if members.contains(value) {
+            members.remove(value)
+        } else {
+            members.insert(value)
+        }
+        // 保持表定义里的顺序，输出确定。
+        draft = values.filter { members.contains($0) }.joined(separator: ",")
+        commitDraft()
+    }
+
+    private func importBinaryFile() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) else { return }
+        commit(value: .binary(data))
+    }
+
+    // MARK: 展示
+
+    private var binaryDisplayText: String {
+        let display = CellDisplayFormatter.display(
+            value: currentValue,
+            isTruncated: false,
+            totalByteCount: row.cells[column.name]?.totalByteCount,
             column: column,
-            context: context
+            context: viewModel.cellDisplayContext
         )
+        return display.text
     }
 
-    private var displayText: String {
-        display.text
-    }
-
-    private var valueFont: Font {
-        isNullDisplay ? .system(size: 12).italic() : .system(size: 12)
-    }
-
-    private var isNullDisplay: Bool {
-        display.isNull
-    }
-
-    private var tooltip: String? {
-        if let tooltip = display.tooltip { return tooltip }
-        return column.gridTypeTooltip
-    }
-
-    private var alignment: Alignment {
-        display.alignment == .trailing ? .trailing : .leading
+    private var expandedEditor: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("\(column.name) · \(column.typeDisplayText)")
+                    .font(.headline)
+                Spacer()
+                Button("完成") {
+                    commitDraft()
+                    isExpanded = false
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(10)
+            Divider()
+            PlainTextView(
+                text: $draft,
+                isEditable: isEditable,
+                isMultiline: true,
+                fontSize: 13,
+                onCommit: {},
+                onCancel: {}
+            )
+            .frame(minWidth: 560, minHeight: 360)
+        }
     }
 }

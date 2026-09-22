@@ -17,6 +17,7 @@ struct WorkspaceView: View {
     @State private var showDatabasePicker = false
     @State private var showConnectionList = false
     @State private var searchFocusRequest = 0
+    @State private var pendingChanges = PendingChangesCoordinator()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -63,6 +64,22 @@ struct WorkspaceView: View {
         .frame(minWidth: 860, minHeight: 560)
         .navigationTitle(windowTitle)
         .focusedSceneValue(\.workspaceActions, workspaceActions)
+        .environment(pendingChanges)
+        .confirmationDialog(
+            pendingChanges.request?.title ?? "有未提交的修改",
+            isPresented: Binding(
+                get: { pendingChanges.request != nil },
+                set: { if !$0 { pendingChanges.dismissWithoutDecision() } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingChanges.request
+        ) { _ in
+            Button("提交并继续") { pendingChanges.decide(.submit) }
+            Button("放弃修改", role: .destructive) { pendingChanges.decide(.discard) }
+            Button("取消", role: .cancel) { pendingChanges.decide(.cancel) }
+        } message: { request in
+            Text(request.message)
+        }
         .sheet(isPresented: $showOpenTable) {
             OpenTableSheet(session: session)
         }
@@ -136,8 +153,11 @@ struct WorkspaceView: View {
     }
 
     private func closeActiveTab() {
-        if let tab = session.activeTab {
-            session.closeTab(tab)
+        guard let tab = session.activeTab else { return }
+        Task {
+            if await pendingChanges.resolveClose(tab: tab) {
+                session.closeTab(tab)
+            }
         }
     }
 
@@ -178,6 +198,37 @@ struct WorkspaceView: View {
         }
     }
 
+    // MARK: 变更操作组与确认
+
+    /// 当前前台表数据标签的 ViewModel。
+    private var activeTableViewModel: TableDataViewModel? {
+        session.activeTab?.content as? TableDataViewModel
+    }
+
+    private var pendingSubmitAction: (@MainActor () -> Void)? {
+        guard let model = activeTableViewModel else { return nil }
+        return { model.requestSubmit() }
+    }
+
+    private var pendingPreviewAction: (@MainActor () -> Void)? {
+        guard let model = activeTableViewModel else { return nil }
+        return { model.presentPreview() }
+    }
+
+    private var pendingDiscardAction: (@MainActor () -> Void)? {
+        guard let model = activeTableViewModel else { return nil }
+        return { model.requestDiscard() }
+    }
+
+    /// 断开连接前先处理未提交改动。
+    private func requestDisconnect() {
+        Task {
+            if await pendingChanges.resolveLeave(session: session) {
+                await environment.sessionManager.disconnect(id: session.id)
+            }
+        }
+    }
+
     private var workspaceActions: WorkspaceActions {
         WorkspaceActions(
             newQuery: newQuery,
@@ -189,17 +240,15 @@ struct WorkspaceView: View {
             reconnect: {
                 Task { try? await environment.sessionManager.reconnect(id: session.id) }
             },
-            disconnect: {
-                Task { await environment.sessionManager.disconnect(id: session.id) }
-            },
+            disconnect: requestDisconnect,
             switchDatabase: { showDatabasePicker = true },
             refresh: {
                 Task { await refresh() }
             },
             toggleReadOnly: { session.setReadOnly(!session.isReadOnly) },
-            submitChanges: nil,
-            previewSQL: nil,
-            discardChanges: nil,
+            submitChanges: pendingSubmitAction,
+            previewSQL: pendingPreviewAction,
+            discardChanges: pendingDiscardAction,
             cancelQuery: {
                 (session.activeTab?.content as? TableDataViewModel)?.cancelInFlight()
             },
@@ -211,6 +260,7 @@ struct WorkspaceView: View {
             selectTab: { selectTab($0) },
             inspectorVisible: environment.preferences.showInspector,
             isReadOnly: session.isReadOnly,
+            pendingChangeCount: activeTableViewModel?.pendingCount ?? 0,
             find: {
                 showSidebar = true
                 searchFocusRequest += 1

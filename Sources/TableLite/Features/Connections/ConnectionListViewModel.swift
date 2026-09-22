@@ -48,6 +48,9 @@ final class ConnectionListViewModel {
     /// 删除确认（`specs/01-connections.md` §1「删除连接」）。
     var pendingDeletion: Connection?
 
+    /// 删除连接但该会话有未提交改动时的三选一确认（`specs/04-data-editing.md` §12）。
+    var pendingChangesDeletion: Connection?
+
     /// 首次连接但没有保存密码时的输入框（`specs/01-connections.md` §2「密码处理」）。
     var passwordPrompt: PasswordPrompt?
 
@@ -196,6 +199,36 @@ final class ConnectionListViewModel {
         copyCredentials(from: connection.id, to: copy.id)
         await load()
         selectedConnectionID = copy.id
+    }
+
+    /// 用户点「删除」：先看有没有未提交改动，有则先弹三选一。
+    func requestDelete(_ connection: Connection) {
+        pendingDeletion = nil
+        if let session = manager.session(id: connection.id),
+           !PendingChangesCoordinator.pendingModels(in: session).isEmpty {
+            pendingChangesDeletion = connection
+        } else {
+            Task { await delete(connection) }
+        }
+    }
+
+    /// 三选一确认的结果：提交 / 放弃后继续删除，取消则中止。
+    func confirmDeleteWithPendingChanges(_ decision: PendingChangesCoordinator.Decision) async {
+        guard let connection = pendingChangesDeletion else { return }
+        pendingChangesDeletion = nil
+        guard decision != .cancel else { return }
+        if let session = manager.session(id: connection.id) {
+            let models = PendingChangesCoordinator.pendingModels(in: session)
+            switch decision {
+            case .discard:
+                for model in models { await model.discardChanges() }
+            case .submit:
+                for model in models where !(await model.submitChanges()) { return }
+            case .cancel:
+                return
+            }
+        }
+        await delete(connection)
     }
 
     /// 删除连接（先经 `pendingDeletion` 弹确认），钥匙串由 `ConnectionStore.delete(id:)` 连带清理。

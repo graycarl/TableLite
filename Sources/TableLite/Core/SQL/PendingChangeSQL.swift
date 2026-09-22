@@ -32,7 +32,8 @@ public enum PendingChangeSQL {
         table: String,
         columns: [ColumnInfo],
         escaping: SQLStringEscaping = .mysqlDefault,
-        introducer: String? = nil
+        introducer: String? = nil,
+        escaper: SQLValueLiteral.StringEscaper? = nil
     ) throws -> [String] {
         try statements(
             for: store.changes,
@@ -40,7 +41,8 @@ public enum PendingChangeSQL {
             table: table,
             columns: columns,
             escaping: escaping,
-            introducer: introducer
+            introducer: introducer,
+            escaper: escaper
         )
     }
 
@@ -51,7 +53,8 @@ public enum PendingChangeSQL {
         table: String,
         columns: [ColumnInfo],
         escaping: SQLStringEscaping = .mysqlDefault,
-        introducer: String? = nil
+        introducer: String? = nil,
+        escaper: SQLValueLiteral.StringEscaper? = nil
     ) throws -> [String] {
         let qualifiedTable = SQLIdentifier.qualified(database: database, table: table)
         var statements: [String] = []
@@ -65,7 +68,8 @@ public enum PendingChangeSQL {
                         edits: edits,
                         columns: columns,
                         escaping: escaping,
-                        introducer: introducer
+                        introducer: introducer,
+                        escaper: escaper
                     )
                 )
             }
@@ -79,7 +83,8 @@ public enum PendingChangeSQL {
                         locator: locator,
                         columns: columns,
                         escaping: escaping,
-                        introducer: introducer
+                        introducer: introducer,
+                        escaper: escaper
                     )
                 )
             }
@@ -91,7 +96,8 @@ public enum PendingChangeSQL {
                         table: qualifiedTable,
                         locator: locator,
                         escaping: escaping,
-                        introducer: introducer
+                        introducer: introducer,
+                        escaper: escaper
                     )
                 )
             }
@@ -106,7 +112,8 @@ public enum PendingChangeSQL {
         edits: [PendingEdit],
         columns: [ColumnInfo],
         escaping: SQLStringEscaping = .mysqlDefault,
-        introducer: String? = nil
+        introducer: String? = nil,
+        escaper: SQLValueLiteral.StringEscaper? = nil
     ) -> String {
         let ordered = orderedEdits(edits, columns: columns)
         guard !ordered.isEmpty else {
@@ -115,7 +122,7 @@ public enum PendingChangeSQL {
         }
         let columnNames = SQLIdentifier.quoteList(ordered.map(\.column))
         let values = ordered.map { edit in
-            literal(for: edit, columns: columns, escaping: escaping, introducer: introducer)
+            literal(for: edit, columns: columns, escaping: escaping, introducer: introducer, escaper: escaper)
         }.joined(separator: ", ")
         return "INSERT INTO \(table) (\(columnNames)) VALUES (\(values))"
     }
@@ -126,15 +133,16 @@ public enum PendingChangeSQL {
         locator: RowLocator,
         columns: [ColumnInfo],
         escaping: SQLStringEscaping = .mysqlDefault,
-        introducer: String? = nil
+        introducer: String? = nil,
+        escaper: SQLValueLiteral.StringEscaper? = nil
     ) throws -> String {
         guard !edits.isEmpty else { throw PendingChangeSQLError.emptyUpdateEdits }
         let ordered = orderedEdits(edits, columns: columns)
         let assignments = ordered.map { edit in
-            let value = literal(for: edit, columns: columns, escaping: escaping, introducer: introducer)
+            let value = literal(for: edit, columns: columns, escaping: escaping, introducer: introducer, escaper: escaper)
             return "\(SQLIdentifier.quote(edit.column)) = \(value)"
         }.joined(separator: ", ")
-        let whereClause = try locationClause(locator, escaping: escaping, introducer: introducer)
+        let whereClause = try locationClause(locator, escaping: escaping, introducer: introducer, escaper: escaper)
         return "UPDATE \(table) SET \(assignments) WHERE \(whereClause)"
     }
 
@@ -142,9 +150,10 @@ public enum PendingChangeSQL {
         table: String,
         locator: RowLocator,
         escaping: SQLStringEscaping = .mysqlDefault,
-        introducer: String? = nil
+        introducer: String? = nil,
+        escaper: SQLValueLiteral.StringEscaper? = nil
     ) throws -> String {
-        let whereClause = try locationClause(locator, escaping: escaping, introducer: introducer)
+        let whereClause = try locationClause(locator, escaping: escaping, introducer: introducer, escaper: escaper)
         return "DELETE FROM \(table) WHERE \(whereClause)"
     }
 
@@ -152,7 +161,8 @@ public enum PendingChangeSQL {
     public static func locationClause(
         _ locator: RowLocator,
         escaping: SQLStringEscaping = .mysqlDefault,
-        introducer: String? = nil
+        introducer: String? = nil,
+        escaper: SQLValueLiteral.StringEscaper? = nil
     ) throws -> String {
         guard !locator.isEmpty else { throw PendingChangeSQLError.emptyLocator(.update) }
         return locator.keys.map { key in
@@ -161,19 +171,37 @@ public enum PendingChangeSQL {
             case .null:
                 return "\(column) IS NULL"
             default:
-                let value = SQLValueLiteral.literal(
-                    for: key.value,
-                    fieldType: key.fieldType,
-                    isBinaryColumn: key.isBinary,
-                    escaping: escaping,
-                    introducer: introducer
-                )
+                let value = keyLiteral(key, escaping: escaping, introducer: introducer, escaper: escaper)
                 return "\(column) = \(value)"
             }
         }.joined(separator: " AND ")
     }
 
     // MARK: 辅助
+
+    private static func keyLiteral(
+        _ key: RowKeyValue,
+        escaping: SQLStringEscaping,
+        introducer: String?,
+        escaper: SQLValueLiteral.StringEscaper?
+    ) -> String {
+        if let escaper {
+            return SQLValueLiteral.literal(
+                for: key.value,
+                fieldType: key.fieldType,
+                isBinaryColumn: key.isBinary,
+                escaper: escaper,
+                introducer: introducer
+            )
+        }
+        return SQLValueLiteral.literal(
+            for: key.value,
+            fieldType: key.fieldType,
+            isBinaryColumn: key.isBinary,
+            escaping: escaping,
+            introducer: introducer
+        )
+    }
 
     /// 按列在表中的顺序排列；不在 `columns` 里的列保持原顺序放最后，保证确定性。
     static func orderedEdits(_ edits: [PendingEdit], columns: [ColumnInfo]) -> [PendingEdit] {
@@ -191,9 +219,18 @@ public enum PendingChangeSQL {
         for edit: PendingEdit,
         columns: [ColumnInfo],
         escaping: SQLStringEscaping,
-        introducer: String?
+        introducer: String?,
+        escaper: SQLValueLiteral.StringEscaper? = nil
     ) -> String {
         if let column = columns.first(where: { $0.name == edit.column }) {
+            if let escaper {
+                return SQLValueLiteral.literal(
+                    for: edit.value,
+                    column: column,
+                    escaper: escaper,
+                    introducer: introducer
+                )
+            }
             return SQLValueLiteral.literal(
                 for: edit.value,
                 column: column,
@@ -202,6 +239,14 @@ public enum PendingChangeSQL {
             )
         }
         // 元数据缺失时保守走字符串路径，永不拼接未验证内容。
+        if let escaper {
+            return SQLValueLiteral.literal(
+                for: edit.value,
+                fieldType: .varString,
+                escaper: escaper,
+                introducer: introducer
+            )
+        }
         return SQLValueLiteral.literal(
             for: edit.value,
             fieldType: .varString,

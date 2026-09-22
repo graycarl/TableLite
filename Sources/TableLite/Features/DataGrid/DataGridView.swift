@@ -210,7 +210,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
 
     /// 首次拿到数据后按内容估算列宽（上限 400pt），用户拖过的列不覆盖。
     private func applyEstimatedWidthsIfNeeded() {
-        guard !didEstimateWidths, !viewModel.rows.isEmpty, let tableView else { return }
+        guard !didEstimateWidths, !viewModel.gridRows.isEmpty, let tableView else { return }
         didEstimateWidths = true
         let context = viewModel.cellDisplayContext
         for tableColumn in tableView.tableColumns where tableColumn.identifier != Self.rowNumberIdentifier {
@@ -218,7 +218,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
             guard viewModel.columnWidths[name] == nil,
                   let column = viewModel.visibleColumns.first(where: { $0.name == name }) else { continue }
             var sample = column.name.count
-            for row in viewModel.rows.prefix(50) {
+            for row in viewModel.gridRows.prefix(50) {
                 guard let cell = row.cells[name] else { continue }
                 let display = CellDisplayFormatter.display(
                     value: cell.displayValue,
@@ -238,12 +238,12 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     // MARK: 数据源
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        viewModel.rows.count
+        viewModel.gridRows.count
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard let tableColumn, row >= 0, row < viewModel.rows.count else { return nil }
-        let gridRow = viewModel.rows[row]
+        guard let tableColumn, row >= 0, row < viewModel.gridRows.count else { return nil }
+        let gridRow = viewModel.gridRows[row]
         let isSelected = tableView.selectedRowIndexes.contains(row)
 
         if tableColumn.identifier == Self.rowNumberIdentifier {
@@ -265,8 +265,33 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
             context: viewModel.cellDisplayContext
         )
         let cell = cellView(tableView, identifier: tableColumn.identifier)
-        cell.configure(display: display, font: cellFont, isSelected: isSelected)
+        cell.configure(
+            display: display,
+            font: cellFont,
+            isSelected: isSelected,
+            changeKind: gridRow.changeKind,
+            isEdited: cellModel.isEdited
+        )
         return cell
+    }
+
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        let rowView = NSTableRowView()
+        if let color = rowBackgroundColor(for: row) {
+            rowView.backgroundColor = color
+        }
+        return rowView
+    }
+
+    /// 新增 / 修改 / 删除行的整行底色（`specs/03-data-browsing.md` §4、`specs/04-data-editing.md` §3）。
+    private func rowBackgroundColor(for row: Int) -> NSColor? {
+        guard row >= 0, row < viewModel.gridRows.count else { return nil }
+        switch viewModel.gridRows[row].changeKind {
+        case .insertion: return NSColor.systemGreen.withAlphaComponent(0.12)
+        case .update: return NSColor.systemYellow.withAlphaComponent(0.10)
+        case .deletion: return NSColor.systemRed.withAlphaComponent(0.10)
+        case nil: return nil
+        }
     }
 
     private func rowNumberCell(_ tableView: NSTableView) -> NSTableCellView {
@@ -318,20 +343,61 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     @objc func tableViewDoubleClicked(_ sender: NSTableView) {
         let row = sender.clickedRow
         let column = sender.clickedColumn
-        guard row >= 0, row < viewModel.rows.count,
+        guard row >= 0, row < viewModel.gridRows.count,
               column > 0, column < sender.tableColumns.count else { return }
-        presentQuickLook(rowID: viewModel.rows[row].id, column: sender.tableColumns[column].identifier.rawValue)
+        let gridRow = viewModel.gridRows[row]
+        let columnName = sender.tableColumns[column].identifier.rawValue
+        // 可编辑表：双击跳到字段栏对应字段；不可编辑表：打开快速查看（`specs/04-data-editing.md` §2 / §3）。
+        if viewModel.isEditingEnabled, gridRow.changeKind != .deletion {
+            focusedColumnName = columnName
+            viewModel.focusInspector(rowID: gridRow.id, column: columnName)
+        } else {
+            presentQuickLook(rowID: gridRow.id, column: columnName)
+        }
+    }
+
+    // MARK: 行操作（T9）
+
+    func insertRow() {
+        viewModel.beginInsert()
+    }
+
+    func copySelectedRows() {
+        let ids = selectedRowIDsForAction(fallbackRow: nil)
+        Task { [weak self] in await self?.viewModel.copySelectedRows(rowIDs: ids) }
+    }
+
+    func deleteSelectedRows() {
+        viewModel.deleteRows(rowIDs: selectedRowIDsForAction(fallbackRow: nil))
+    }
+
+    /// 右键菜单用：上下文行在选区里则作用于整个选区，否则只作用于该行。
+    private func selectedRowIDsForAction(fallbackRow: Int?) -> [String] {
+        if let tableView {
+            let selected = tableView.selectedRowIndexes.compactMap { index -> String? in
+                guard index >= 0, index < viewModel.gridRows.count else { return nil }
+                return viewModel.gridRows[index].id
+            }
+            if let fallbackRow, fallbackRow >= 0, fallbackRow < viewModel.gridRows.count {
+                let contextID = viewModel.gridRows[fallbackRow].id
+                if selected.contains(contextID), !selected.isEmpty { return selected }
+                return [contextID]
+            }
+            if !selected.isEmpty { return selected }
+        }
+        if let focusedRowID = viewModel.focusedRowID { return [focusedRowID] }
+        return []
     }
 
     private func pushSelection() {
         guard let tableView else { return }
         let ids = tableView.selectedRowIndexes.compactMap { index -> String? in
-            guard index >= 0, index < viewModel.rows.count else { return nil }
-            return viewModel.rows[index].id
+            guard index >= 0, index < viewModel.gridRows.count else { return nil }
+            return viewModel.gridRows[index].id
         }
         let focusedIndex = tableView.selectedRow
-        let focusedID = (focusedIndex >= 0 && focusedIndex < viewModel.rows.count)
-            ? viewModel.rows[focusedIndex].id
+        let focusedID = (focusedIndex >= 0 && focusedIndex < viewModel.gridRows.count)
+            ? viewModel.gridRows[focusedIndex].id
             : ids.first
         let column = focusedColumnName
         // 焦点列若被隐藏，回落到第一列。
@@ -344,7 +410,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     private func applySelectionFromViewModel() {
         guard let tableView else { return }
         let targetIDs = viewModel.selectedRowIDs
-        let indexes = IndexSet(viewModel.rows.enumerated().compactMap { index, row in
+        let indexes = IndexSet(viewModel.gridRows.enumerated().compactMap { index, row in
             targetIDs.contains(row.id) ? index : nil
         })
         if tableView.selectedRowIndexes != indexes {
@@ -353,7 +419,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
             isApplyingSelection = false
         }
         if let focusedRowID = viewModel.focusedRowID,
-           let index = viewModel.rows.firstIndex(where: { $0.id == focusedRowID }) {
+           let index = viewModel.gridRows.firstIndex(where: { $0.id == focusedRowID }) {
             focusedColumnName = viewModel.focusedColumn ?? focusedColumnName
             if tableView.selectedRow != index {
                 isApplyingSelection = true
@@ -395,8 +461,8 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     }
 
     private func currentFocusedRowID() -> String? {
-        if let tableView, tableView.selectedRow >= 0, tableView.selectedRow < viewModel.rows.count {
-            return viewModel.rows[tableView.selectedRow].id
+        if let tableView, tableView.selectedRow >= 0, tableView.selectedRow < viewModel.gridRows.count {
+            return viewModel.gridRows[tableView.selectedRow].id
         }
         return viewModel.focusedRowID
     }
@@ -486,18 +552,55 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         copyDDL.isEnabled = viewModel.createStatement != nil
         menu.addItem(copyDDL)
 
-        // T9：「删除行」。
-        let delete = NSMenuItem(title: "删除行", action: nil, keyEquivalent: "")
-        delete.isEnabled = false
+        // T9：行操作菜单。
+        let copyRow = NSMenuItem(title: "复制行", action: #selector(menuCopyRow(_:)), keyEquivalent: "")
+        copyRow.target = self
+        copyRow.isEnabled = viewModel.isEditingEnabled && canEditContextRow
+        menu.addItem(copyRow)
+
+        let delete = NSMenuItem(title: "删除行", action: #selector(menuDeleteRow(_:)), keyEquivalent: "")
+        delete.target = self
+        delete.isEnabled = viewModel.isEditingEnabled && canEditContextRow
         menu.addItem(delete)
+
+        let undo = NSMenuItem(title: "撤销该行的修改", action: #selector(menuUndoRow(_:)), keyEquivalent: "")
+        undo.target = self
+        undo.isEnabled = hasContextRowChange
+        menu.addItem(undo)
         return menu
     }
 
+    /// 上下文行是否可编辑（可定位、未标记删除）。
+    private var canEditContextRow: Bool {
+        guard contextRow >= 0, contextRow < viewModel.gridRows.count else { return false }
+        let row = viewModel.gridRows[contextRow]
+        return row.changeKind != .deletion && (row.locator != nil || viewModel.isInsertionRow(rowID: row.id))
+    }
+
+    private var hasContextRowChange: Bool {
+        guard contextRow >= 0, contextRow < viewModel.gridRows.count else { return false }
+        return viewModel.rowChangeKind(rowID: viewModel.gridRows[contextRow].id) != nil
+    }
+
+    @objc private func menuCopyRow(_ sender: NSMenuItem) {
+        let ids = selectedRowIDsForAction(fallbackRow: contextRow)
+        Task { [weak self] in await self?.viewModel.copySelectedRows(rowIDs: ids) }
+    }
+
+    @objc private func menuDeleteRow(_ sender: NSMenuItem) {
+        viewModel.deleteRows(rowIDs: selectedRowIDsForAction(fallbackRow: contextRow))
+    }
+
+    @objc private func menuUndoRow(_ sender: NSMenuItem) {
+        guard contextRow >= 0, contextRow < viewModel.gridRows.count else { return }
+        viewModel.undoRow(rowID: viewModel.gridRows[contextRow].id)
+    }
+
     @objc private func menuQuickLook(_ sender: NSMenuItem) {
-        guard let tableView, contextRow >= 0, contextRow < viewModel.rows.count,
+        guard let tableView, contextRow >= 0, contextRow < viewModel.gridRows.count,
               contextColumn > 0, contextColumn < tableView.tableColumns.count else { return }
         presentQuickLook(
-            rowID: viewModel.rows[contextRow].id,
+            rowID: viewModel.gridRows[contextRow].id,
             column: tableView.tableColumns[contextColumn].identifier.rawValue
         )
     }
@@ -506,10 +609,10 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         guard let format = sender.representedObject as? CopyFormat else { return }
         if format == .cellValue,
            let tableView,
-           contextRow >= 0, contextRow < viewModel.rows.count,
+           contextRow >= 0, contextRow < viewModel.gridRows.count,
            contextColumn > 0, contextColumn < tableView.tableColumns.count {
             let text = viewModel.makeCellCopy(
-                rowID: viewModel.rows[contextRow].id,
+                rowID: viewModel.gridRows[contextRow].id,
                 column: tableView.tableColumns[contextColumn].identifier.rawValue,
                 format: format
             ).text
@@ -551,6 +654,23 @@ final class DataGridTableView: NSTableView {
 
     override func keyDown(with event: NSEvent) {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags == .command, let characters = event.charactersIgnoringModifiers {
+            switch characters.lowercased() {
+            case "i":
+                gridCoordinator?.insertRow()
+                return
+            case "d":
+                gridCoordinator?.copySelectedRows()
+                return
+            default:
+                break
+            }
+        }
+        // ⌫ / ⌦：删除选中行（进暂存，`specs/04-data-editing.md` §6）。
+        if flags.isEmpty, event.keyCode == 51 || event.keyCode == 117 {
+            gridCoordinator?.deleteSelectedRows()
+            return
+        }
         if event.charactersIgnoringModifiers == " ", flags.isEmpty {
             gridCoordinator?.quickLookFocusedCell()
             return
@@ -665,8 +785,15 @@ final class GridCellView: NSTableCellView {
         checkboxButton.isHidden = true
     }
 
-    func configure(display: CellDisplay, font: NSFont, isSelected: Bool) {
+    func configure(
+        display: CellDisplay,
+        font: NSFont,
+        isSelected: Bool,
+        changeKind: GridRowChangeKind? = nil,
+        isEdited: Bool = false
+    ) {
         toolTip = display.tooltip
+        applyEditingBackground(changeKind: changeKind, isEdited: isEdited)
 
         if let state = display.checkbox {
             valueLabel.isHidden = true
@@ -681,17 +808,41 @@ final class GridCellView: NSTableCellView {
 
         checkboxButton.isHidden = true
         valueLabel.isHidden = false
-        valueLabel.stringValue = display.text
         valueLabel.alignment = alignment(for: display.alignment)
 
-        if display.isNull {
+        // 已删除的行整行加删除线并变淡（`specs/03-data-browsing.md` §4）。
+        if changeKind == .deletion {
+            let attributes: [NSAttributedString.Key: Any] = [
+                .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .font: font,
+            ]
+            valueLabel.attributedStringValue = NSAttributedString(string: display.text, attributes: attributes)
+        } else if display.isNull {
+            valueLabel.stringValue = display.text
             valueLabel.textColor = .secondaryLabelColor
             valueLabel.font = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
         } else {
+            valueLabel.stringValue = display.text
             valueLabel.textColor = .labelColor
             valueLabel.font = font
         }
         _ = isSelected
+    }
+
+    /// 已修改单元格橙色底（`specs/04-data-editing.md` §3）。
+    private func applyEditingBackground(changeKind: GridRowChangeKind?, isEdited: Bool) {
+        wantsLayer = true
+        switch changeKind {
+        case .insertion:
+            layer?.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.10).cgColor
+        case .deletion:
+            layer?.backgroundColor = NSColor.clear.cgColor
+        case .update where isEdited:
+            layer?.backgroundColor = NSColor.systemOrange.withAlphaComponent(0.22).cgColor
+        default:
+            layer?.backgroundColor = NSColor.clear.cgColor
+        }
     }
 
     private func alignment(for alignment: CellAlignment) -> NSTextAlignment {

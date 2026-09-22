@@ -11,9 +11,10 @@ struct TabBarView: View {
     let session: ConnectionSession
     var onNewQuery: () -> Void
 
+    @Environment(PendingChangesCoordinator.self) private var pendingChanges
+
     @State private var renamingTab: Tab?
     @State private var renameText = ""
-    @State private var closingTab: Tab?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -56,15 +57,6 @@ struct TabBarView: View {
             }
             Button("取消", role: .cancel) { renamingTab = nil }
         }
-        .confirmationDialog(
-            "「\(closingTab?.title ?? "")」有未提交的修改",
-            isPresented: closePresented,
-            titleVisibility: .visible
-        ) {
-            Button("提交") { close(closingTab) }
-            Button("放弃并关闭", role: .destructive) { close(closingTab) }
-            Button("取消", role: .cancel) { closingTab = nil }
-        }
     }
 
     private var renamePresented: Binding<Bool> {
@@ -74,26 +66,13 @@ struct TabBarView: View {
         )
     }
 
-    private var closePresented: Binding<Bool> {
-        Binding(
-            get: { closingTab != nil },
-            set: { if !$0 { closingTab = nil } }
-        )
-    }
-
-    /// 关闭前检查未提交改动（`specs/02-workspace.md` §6）。
+    /// 关闭前检查未提交改动（`specs/02-workspace.md` §6、`specs/04-data-editing.md` §12）。
     private func requestClose(_ tab: Tab) {
-        if tab.hasPendingChanges {
-            closingTab = tab
-        } else {
-            close(tab)
+        Task {
+            if await pendingChanges.resolveClose(tab: tab) {
+                session.closeTab(tab)
+            }
         }
-    }
-
-    private func close(_ tab: Tab?) {
-        guard let tab else { return }
-        session.closeTab(tab)
-        closingTab = nil
     }
 }
 

@@ -63,6 +63,8 @@ struct WorkspaceActions {
     // 菜单标题用的当前状态
     var inspectorVisible: Bool
     var isReadOnly: Bool
+    /// 当前表数据标签的待提交条数（0 时提交 / 预览 / 放弃禁用）。
+    var pendingChangeCount: Int
 
     // 查找（⌘F / ⌥⌘F）；本阶段 ⌘F 聚焦对象树搜索框
     var find: (@MainActor () -> Void)?
@@ -194,9 +196,13 @@ struct TableLiteCommands: Commands {
     @CommandsBuilder
     private var queryMenu: some Commands {
         CommandMenu("查询") {
-            Button("执行光标所在语句") { }
-                .keyboardShortcut(.return, modifiers: .command)
-                .disabled(true)
+            // 同一组按键的落点随当前标签变化：表数据标签是「提交修改」，
+            // 查询标签是「执行光标所在语句」（P7 实现后放开）。见 `specs/02-workspace.md` §9。
+            Button(workspace?.submitChanges != nil ? "提交修改" : "执行光标所在语句") {
+                workspace?.submitChanges?()
+            }
+            .keyboardShortcut(.return, modifiers: .command)
+            .disabled(workspace?.submitChanges == nil)
             Button("执行全部") { }
                 .keyboardShortcut(.return, modifiers: [.command, .shift])
                 .disabled(true)
@@ -228,15 +234,15 @@ struct TableLiteCommands: Commands {
 
             Button("提交修改") { workspace?.submitChanges?() }
                 .keyboardShortcut("s", modifiers: .command)
-                .disabled(workspace?.submitChanges == nil)
+                .disabled(workspace?.submitChanges == nil || (workspace?.pendingChangeCount ?? 0) == 0)
 
             Button("预览 SQL") { workspace?.previewSQL?() }
                 .keyboardShortcut("p", modifiers: [.command, .shift])
-                .disabled(workspace?.previewSQL == nil)
+                .disabled(workspace?.previewSQL == nil || (workspace?.pendingChangeCount ?? 0) == 0)
 
             Button("放弃修改") { workspace?.discardChanges?() }
                 .keyboardShortcut(.delete, modifiers: [.command, .shift])
-                .disabled(workspace?.discardChanges == nil)
+                .disabled(workspace?.discardChanges == nil || (workspace?.pendingChangeCount ?? 0) == 0)
 
             Button("取消查询") { workspace?.cancelQuery?() }
                 .keyboardShortcut(".", modifiers: .command)

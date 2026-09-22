@@ -75,7 +75,10 @@
 | L24 | 网格行号列不冻结 | 横向滚动时行号随内容滚出视野 | `07-data-grid.md` §4 要求固定最左；冻结需双表滚动同步，风险高收益低 |
 | L25 | 快速查看的 JSON 只 pretty-print、长文本无查找/行号 | 大 JSON 浏览不便 | 二进制 hex 与图片预览已做；按需再增强 |
 | L26 | 外键列的 ↗ 跳转未实现 | 不能一键跳到引用行 | `specs/03` §1/§10 有该入口；元数据已备好（`foreignKeyColumns`），待补 |
-| L27 | SQL INSERT 复制遇未加载的大字段会用截断值 | 复制出的 INSERT 语句数据不完整 | T9 在复制/编辑路径统一加「含未加载大字段」提示 |
+| L27 | SQL INSERT 复制遇未加载的大字段会用截断值 | 复制出的 INSERT 语句数据不完整 | 复制结果附带警告提示（L27 已缓解）；写路径（复制行/编辑）先自动加载完整值 |
+| L28 | 日期时间编辑器是纯文本框，不是日期选择器 | 与 `specs/04` §3、`manual/04` 的「日期选择器 + 手输」不一致，待用户拍板 | 值原样读写（S27 零时区处理），文本框语义最简单可靠 |
+| L29 | 字段栏长文本大窗口无行号与查找 | `14-row-inspector.md` §3 有该要求 | 查询编辑器组件（P7）落地后复用其文本视图再补 |
+| L30 | 预览 SQL 无语法高亮、悬停不高亮网格行 | `specs/04` §9 要求高亮 | 等宽纯文本已保证内容一致（S29）；高亮待 P7 词法扫描接入 |
 
 ## 3. 待定事项
 
@@ -115,5 +118,6 @@
 | 2026-09-22 | Core/Meta + Core/Session 落地（W2-T5）：MetaRepository（information_schema + TTL 缓存 + DDL 失效）、SessionManager/ConnectionSession/Tab/AppEnvironment；`MySQLSessionProtocol`/`SSHTunnelProtocol` 抽协议供测试替身（S26 手写协议）；SSH 别名模式校验已放宽（`Connection.validationIssues()` 不再强制 `ssh.user`/私钥）；保活用固定 30s 周期（未按连接各自间隔）；退出前的未提交确认待编辑 wave 补 |
 | 2026-09-22 | Features/Connections + Features/Workspace 落地（W2-T6/T7）：菜单快捷键走 `Commands + @FocusedValue`（`WorkspaceActions`/`AppActions`，后续 wave 在 WorkspaceView 里把 nil 换成真实现，nil 自动禁用）；对象树用 SwiftUI LazyVStack 不下沉 AppKit；登记 L21–L23；窗口最小尺寸取 860×560（specs 未定）；ConnectionColor 的 SwiftUI 颜色映射有两处（`swatchColor`/`swiftUIColor`）待收敛 |
 | 2026-09-22 | DataGrid 数据网格落地（W3-T8，P4）：NSTableView 桥接 + `GridCell` 区分首屏值/截断值/完整值/编辑中值（截断值不写回的安全闸门）；`SessionTab.content` 去掉 `@ObservationIgnored`（否则字段栏不重绘）；列重排禁用（`07` §2 列顺序=结果集顺序）；字段栏不设快捷键（S15）；登记 L24–L27 |
+| 2026-09-22 | 编辑与提交落地（W3-T9，P5，M1 达成）：字段栏编辑器 + 暂存 + 预览==提交（S29）+ 事务提交/回滚保留暂存 + 关标签/断开/删除连接/退出四处确认；**修复两个真库才暴露的 bug**：`MySQLValueMapping` 把数值/时间列（charset 63）误判为二进制导致主键定位失效、提交路径忽略语句级错误导致唯一键冲突被当成功；冒烟新增 `--edit-smoke` 编辑链路 e2e（5/5）；登记 L28–L30；`⌘I`/`⌘D`/`⌫` 仅在网格焦点时生效 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

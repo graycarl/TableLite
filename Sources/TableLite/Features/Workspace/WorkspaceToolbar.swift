@@ -14,6 +14,7 @@ struct WorkspaceToolbar: View {
     var onShowConnections: () -> Void
 
     @Environment(AppEnvironment.self) private var environment
+    @Environment(PendingChangesCoordinator.self) private var pendingChanges
 
     var body: some View {
         HStack(spacing: 8) {
@@ -64,21 +65,29 @@ struct WorkspaceToolbar: View {
         session.activeTab?.kind.isTableData ?? false
     }
 
-    /// 变更操作组：本阶段没有网格，整体禁用；条数为 0 时也应禁用（`specs/02-workspace.md` §2）。
+    private var activeTableViewModel: TableDataViewModel? {
+        session.activeTab?.content as? TableDataViewModel
+    }
+
+    /// 变更操作组（`specs/02-workspace.md` §2）：放弃 / 预览(N) / 提交(N)。
+    /// 条数为 0 时整体禁用；只读连接上「提交」始终禁用并说明原因。
     private var changeButtons: some View {
-        HStack(spacing: 6) {
-            Button("放弃") { }
-                .disabled(true)
-            Button("预览") { }
-                .disabled(true)
-            Button("提交修改") { }
-                .disabled(true)
-                .help(isReadOnlyHint)
+        let count = activeTableViewModel?.pendingCount ?? 0
+        let enabled = isTableDataTab && count > 0
+        return HStack(spacing: 6) {
+            Button("放弃") { activeTableViewModel?.requestDiscard() }
+                .disabled(!enabled)
+            Button("预览(\(count))") { activeTableViewModel?.presentPreview() }
+                .disabled(!enabled)
+            Button("提交(\(count))") { activeTableViewModel?.requestSubmit() }
+                .disabled(!enabled || session.isReadOnly)
+                .help(submitHint)
         }
     }
 
-    private var isReadOnlyHint: String {
-        session.isReadOnly ? "该连接处于只读模式" : "暂无未提交的修改"
+    private var submitHint: String {
+        if session.isReadOnly { return "该连接处于只读模式，无法提交修改" }
+        return (activeTableViewModel?.pendingCount ?? 0) == 0 ? "暂无未提交的修改" : "提交修改（⌘↩）"
     }
 
     private func navButton(systemImage: String, help: String, action: @escaping () -> Void) -> some View {
@@ -98,6 +107,7 @@ struct ConnectionSwitcher: View {
     var onShowConnections: () -> Void
 
     @Environment(AppEnvironment.self) private var environment
+    @Environment(PendingChangesCoordinator.self) private var pendingChanges
 
     var body: some View {
         Menu {
@@ -151,7 +161,11 @@ struct ConnectionSwitcher: View {
     }
 
     private func disconnect() {
-        Task { await environment.sessionManager.disconnect(id: session.id) }
+        Task {
+            if await pendingChanges.resolveLeave(session: session) {
+                await environment.sessionManager.disconnect(id: session.id)
+            }
+        }
     }
 }
 

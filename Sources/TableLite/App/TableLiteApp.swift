@@ -14,7 +14,10 @@ struct TableLiteApp: App {
 
     init() {
         SmokeRunner.runIfRequested()
-        _environment = State(initialValue: AppEnvironment.makeLiveOrFallback())
+        // 隐藏的编辑链路端到端模式（`--edit-smoke`）：不碰真实数据目录，也不在 init 里阻塞等待。
+        let isEditSmoke = EditSmokeRunner.isRequested
+        _environment = State(initialValue: isEditSmoke ? AppEnvironment.makeFallback() : AppEnvironment.makeLiveOrFallback())
+        EditSmokeRunner.scheduleIfRequested()
     }
 
     var body: some Scene {
@@ -37,11 +40,10 @@ struct TableLiteApp: App {
 
 /// 应用生命周期代理。
 ///
-/// `applicationShouldTerminate` 返回 `.terminateLater`，先跑退出清理
+/// `applicationShouldTerminate` 返回 `.terminateLater`，先对逐个有未提交改动的标签
+/// 弹「提交 / 放弃 / 取消」，全部处理完再跑退出清理
 /// （关闭 MySQL 会话、停止隧道、flush Console Log），完成后回 `terminateNow`。
-/// 见 `docs/tech-designs/05-session-management.md` §7。
-///
-/// TODO(Wave P5): 退出前先对有未提交改动的标签弹「提交 / 放弃 / 取消关闭」。
+/// 见 `docs/tech-designs/05-session-management.md` §7、`specs/04-data-editing.md` §12。
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
@@ -59,12 +61,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let environment, !isTerminating else { return .terminateNow }
         isTerminating = true
         Task { @MainActor in
+            let canProceed = await resolvePendingChanges(environment: environment)
+            guard canProceed else {
+                self.isTerminating = false
+                sender.reply(toApplicationShouldTerminate: false)
+                return
+            }
             await environment.prepareForTermination()
-            didShutdown = true
-            isTerminating = false
+            self.didShutdown = true
+            self.isTerminating = false
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
+    }
+
+    /// 逐个有暂存的标签弹确认；提交失败或取消则中止退出。
+    private func resolvePendingChanges(environment: AppEnvironment) async -> Bool {
+        while true {
+            let models = environment.sessionManager.sessions
+                .flatMap { PendingChangesCoordinator.pendingModels(in: $0) }
+            guard let model = models.first, model.hasPendingChanges else { return true }
+            switch presentPendingChangesAlert(model: model) {
+            case .cancel:
+                return false
+            case .discard:
+                await model.discardChanges()
+            case .submit:
+                if !(await model.submitChanges()) { return false }
+            }
+        }
+    }
+
+    /// 退出流程用 AppKit 模态告警；按钮文案遵循 `specs/12-feedback.md` §4。
+    private func presentPendingChangesAlert(model: TableDataViewModel) -> PendingChangesCoordinator.Decision {
+        let alert = NSAlert()
+        alert.messageText = "有未提交的修改"
+        alert.informativeText = "「\(model.tab.title)」有 \(model.pendingCount) 处未提交的修改。"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "提交并继续")
+        alert.addButton(withTitle: "放弃修改")
+        alert.addButton(withTitle: "取消")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: return .submit
+        case .alertSecondButtonReturn: return .discard
+        default: return .cancel
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

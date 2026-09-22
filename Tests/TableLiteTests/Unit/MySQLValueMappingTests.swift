@@ -30,6 +30,21 @@ final class MySQLValueMappingTests: XCTestCase {
         XCTAssertEqual(MySQLValueMapping.value(for: .bytes(data), column: column), .binary(data))
     }
 
+    /// 协议层把数字列的 charset 也报成 63；不能因此把整数主键 hex 化。
+    func testNumericColumnWithCharset63MapsToText() {
+        let column = TestSupport.column("id", type: .long, charset: 63)
+        XCTAssertEqual(MySQLValueMapping.value(for: .bytes(Data("7".utf8)), column: column), .text("7"))
+    }
+
+    /// 日期时间列同理：charset 63 不等于二进制。
+    func testTemporalColumnWithCharset63MapsToText() {
+        let column = TestSupport.column("created_at", type: .datetime, charset: 63)
+        XCTAssertEqual(
+            MySQLValueMapping.value(for: .bytes(Data("2025-01-01 12:00:00".utf8)), column: column),
+            .text("2025-01-01 12:00:00")
+        )
+    }
+
     func testBinaryColumnByFlag() {
         let column = TestSupport.column("payload", type: .blob, flags: ColumnFlag.binary, charset: 33)
         XCTAssertTrue(column.isBinary)

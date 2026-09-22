@@ -39,12 +39,15 @@ actor FakeMySQLSession: MySQLSessionProtocol {
     private var parameters: MySQLConnectionParameters?
     /// 按「子串命中顺序」返回结果。
     private var responses: [(String, MySQLQueryResult)] = []
+    /// 按「子串命中顺序」抛错，优先于 `responses`。
+    private var failures: [(String, Error)] = []
     private var defaultResult = MySQLQueryResult.empty
 
     func setConnectError(_ error: Error?) { connectError = error }
     func setPingError(_ error: Error?) { pingError = error }
     func setUnresolvedDatabase(_ value: String?) { unresolvedDatabaseValue = value }
     func setResponses(_ responses: [(String, MySQLQueryResult)]) { self.responses = responses }
+    func setFailures(_ failures: [(String, Error)]) { self.failures = failures }
     func setState(_ state: MySQLSession.State) { stateValue = state }
 
     // MARK: 生命周期
@@ -86,6 +89,9 @@ actor FakeMySQLSession: MySQLSessionProtocol {
 
     func execute(_ sql: String, unbuffered: Bool) async throws -> MySQLQueryResult {
         executedSQL.append(sql)
+        if let failure = failures.first(where: { sql.contains($0.0) }) {
+            throw failure.1
+        }
         if let match = responses.first(where: { sql.contains($0.0) }) {
             return match.1
         }
@@ -196,6 +202,18 @@ extension MySQLQueryResult {
         affectedRows: 0,
         lastInsertID: 0
     )
+
+    /// 构造一个「语句级错误放在 result 里」的结果（`ConnectionSession.execute` 不抛异常）。
+    static func statementError(_ error: MySQLError) -> MySQLQueryResult {
+        MySQLQueryResult(
+            resultSets: [],
+            statementErrors: [MySQLStatementError(resultIndex: 0, error: error)],
+            wasCancelled: false,
+            rowCount: 0,
+            affectedRows: 0,
+            lastInsertID: 0
+        )
+    }
 
     /// 构造一个单结果集，便于元数据映射测试。
     static func single(columns: [String], rows: [[String?]]) -> MySQLQueryResult {

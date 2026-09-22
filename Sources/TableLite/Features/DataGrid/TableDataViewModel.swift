@@ -36,8 +36,9 @@ public final class TableDataViewModel {
     public let table: String
 
     @ObservationIgnored private let metadataProvider: any TableDataMetadataProviding
-    @ObservationIgnored private let preferences: Preferences
-    @ObservationIgnored private let clock: Clock
+    /// `internal`：编辑扩展（另一个文件）需要读写字段栏偏好。
+    @ObservationIgnored internal let preferences: Preferences
+    @ObservationIgnored internal let clock: Clock
 
     /// 字段栏自动加载大字段的上限（L12）。
     public static let autoLoadByteLimit = 8 * 1024 * 1024
@@ -58,7 +59,7 @@ public final class TableDataViewModel {
 
     // MARK: 数据
 
-    public private(set) var rows: [GridRow] = []
+    public internal(set) var rows: [GridRow] = []
     public private(set) var loadState: TableDataLoadState = .idle
     public private(set) var hasNextPage = false
     public private(set) var lastQueryMilliseconds: Int?
@@ -76,9 +77,9 @@ public final class TableDataViewModel {
 
     // MARK: 选择
 
-    public private(set) var focusedRowID: String?
-    public private(set) var focusedColumn: String?
-    public private(set) var selectedRowIDs: Set<String> = []
+    public internal(set) var focusedRowID: String?
+    public internal(set) var focusedColumn: String?
+    public internal(set) var selectedRowIDs: Set<String> = []
 
     // MARK: 大字段二次加载
 
@@ -91,6 +92,29 @@ public final class TableDataViewModel {
 
     public private(set) var copyNotice: String?
     @ObservationIgnored private var copyNoticeTask: Task<Void, Never>?
+
+    // MARK: 编辑与暂存（T9）
+
+    /// 当前标签的变更暂存区（`docs/tech-designs/08-pending-changes.md` §1）。
+    public internal(set) var pendingStore = PendingChangeStore()
+    /// 新增行（未落库），在网格里显示为绿色行，位于「＋ 插入行」上方。
+    public internal(set) var insertionRows: [GridRow] = []
+    public internal(set) var isCommitting = false
+    public internal(set) var commitCompleted = 0
+    public internal(set) var commitTotal = 0
+    /// 提交失败详情；非 nil 时弹错误面板。
+    public internal(set) var commitFailure: CommitFailure?
+    /// 预览面板的语句快照（与提交走同一条生成路径）。
+    public internal(set) var previewStatements: [String] = []
+    public internal(set) var isPreviewPresented = false
+    public internal(set) var isDiscardConfirmationPresented = false
+    /// 字段栏需要聚焦的列（双击单元格 / 新增行时设置）。
+    public internal(set) var focusRequestColumn: String?
+    public internal(set) var focusRequestToken = 0
+    @ObservationIgnored internal var commitTask: Task<Void, Never>?
+    @ObservationIgnored internal var cancelCommitRequested = false
+    /// 字段栏「查看」等入口请求弹出快速查看（由 `TableDataTabView` 负责呈现）。
+    public internal(set) var quickLookRequest: QuickLookContent?
 
     // MARK: 修订号（驱动 AppKit 桥接增量刷新）
 
@@ -190,7 +214,28 @@ public final class TableDataViewModel {
 
     public var focusedRow: GridRow? {
         guard let focusedRowID else { return nil }
-        return rows.first { $0.id == focusedRowID }
+        return gridRows.first { $0.id == focusedRowID }
+    }
+
+    /// 数据行 + 新增行。网格、选中、复制、字段栏都看这个序列。
+    public var gridRows: [GridRow] { rows + insertionRows }
+
+    public var pendingCount: Int { pendingStore.totalCount }
+    public var hasPendingChanges: Bool { !pendingStore.isEmpty }
+
+    /// 放弃前是否需要确认：超过 5 条，或含新增 / 删除（`specs/04-data-editing.md` §11）。
+    public var needsDiscardConfirmation: Bool {
+        let counts = pendingStore.counts
+        return counts.total > 5 || counts.insert > 0 || counts.delete > 0
+    }
+
+    /// 状态栏里不可编辑原因的文案（`specs/03-data-browsing.md` §11、`specs/04-data-editing.md` §2）。
+    public var uneditableStatusText: String? {
+        guard isMetadataLoaded, let reason = editability.reason else { return nil }
+        switch reason {
+        case .noPrimaryKey: return "该表没有主键，分页顺序不保证，且不可编辑"
+        case .view, .readOnlyConnection: return reason.message
+        }
     }
 
     public var focusedColumnInfo: ColumnInfo? {
@@ -405,11 +450,11 @@ public final class TableDataViewModel {
     /// 字段栏要展示的行（仅单选时有值）。
     public var inspectorRow: GridRow? {
         guard selectedRowIDs.count <= 1 else { return nil }
-        if let focusedRowID, let row = rows.first(where: { $0.id == focusedRowID }) {
+        if let focusedRowID, let row = gridRows.first(where: { $0.id == focusedRowID }) {
             return row
         }
         if let id = selectedRowIDs.first {
-            return rows.first { $0.id == id }
+            return gridRows.first { $0.id == id }
         }
         return nil
     }
@@ -431,7 +476,7 @@ public final class TableDataViewModel {
 
     /// 快速查看 / 编辑前确保某个单元格拿到完整值（显式用户动作，不受 8 MB 限制）。
     public func ensureFullValue(rowID: String, column: String) async {
-        guard let row = rows.first(where: { $0.id == rowID }),
+        guard let row = gridRows.first(where: { $0.id == rowID }),
               let cell = row.cells[column],
               cell.needsFullValueLoad else { return }
         fullLoadTask?.cancel()
@@ -442,7 +487,7 @@ public final class TableDataViewModel {
     private func performFullRowLoad(force: Bool, targetRowID: String?) async {
         let row: GridRow?
         if let targetRowID {
-            row = rows.first { $0.id == targetRowID }
+            row = gridRows.first { $0.id == targetRowID }
         } else {
             guard selectedRowIDs.count <= 1 else { return }
             row = inspectorRow
@@ -525,7 +570,7 @@ public final class TableDataViewModel {
 
     /// 右键菜单「复制单元格值」：只复制指定的一个格子。
     public func makeCellCopy(rowID: String, column: String, format: CopyFormat) -> CopyResult {
-        guard let row = rows.first(where: { $0.id == rowID }) else { return CopyResult(text: "") }
+        guard let row = gridRows.first(where: { $0.id == rowID }) else { return CopyResult(text: "") }
         let value = row.cells[column]?.displayValue ?? .null
         let text = CopyFormatter.format(
             rows: [[value]],
@@ -541,7 +586,7 @@ public final class TableDataViewModel {
     public func makeCopy(format: CopyFormat) -> CopyResult {
         let columnNames = columns.map(\.name)
         let selectedRows: [GridRow] = {
-            let selected = rows.filter { selectedRowIDs.contains($0.id) }
+            let selected = gridRows.filter { selectedRowIDs.contains($0.id) }
             if !selected.isEmpty { return selected }
             if let focusedRow { return [focusedRow] }
             return []
@@ -579,9 +624,21 @@ public final class TableDataViewModel {
             table: table,
             options: copyOptions
         )
-        let notice = copiedRows.count > Self.copyNoticeRowThreshold
-            ? "已复制 \(RowCountEstimate.grouped(Int64(copiedRows.count))) 行（\(ByteSize.format(text.utf8.count))）"
-            : nil
+        var notice: String?
+        if copiedRows.count > Self.copyNoticeRowThreshold {
+            notice = "已复制 \(RowCountEstimate.grouped(Int64(copiedRows.count))) 行（\(ByteSize.format(text.utf8.count))）"
+        }
+        // L27 / `08-pending-changes.md` §9：SQL INSERT 复制时若含未加载完整的大字段，
+        // 只能用截断值，给出明确警告（不静默地导出不完整数据）。
+        if format == .sqlInsert {
+            let truncatedCount = selectedRows.reduce(0) { partial, row in
+                partial + row.cells.values.filter(\.needsFullValueLoad).count
+            }
+            if truncatedCount > 0 {
+                let warning = "注意：\(truncatedCount) 个单元格的大字段尚未加载完整，INSERT 语句只包含截断值"
+                notice = notice.map { "\($0) · \(warning)" } ?? warning
+            }
+        }
         if let notice {
             showCopyNotice(notice)
         }
@@ -598,12 +655,17 @@ public final class TableDataViewModel {
         }
     }
 
+    /// 统一的轻提示入口（提交成功 / 复制 / 校验拦截都用它，`specs/12-feedback.md` §3）。
+    public func showToast(_ text: String) {
+        showCopyNotice(text)
+    }
+
     // MARK: 快速查看
 
     /// 构建快速查看内容；`isLoading == true` 表示需要先二次加载。
     public func quickLookContent(rowID: String, column: String) -> QuickLookContent? {
         guard let columnInfo = columns.first(where: { $0.name == column }),
-              let row = rows.first(where: { $0.id == rowID }),
+              let row = gridRows.first(where: { $0.id == rowID }),
               let cell = row.cells[column] else { return nil }
         let value = cell.displayValue
         let kind = CellDisplayFormatter.quickLookKind(for: columnInfo, value: value)
@@ -755,6 +817,8 @@ public final class TableDataViewModel {
             guard let resultSet = result.firstResultSet else {
                 rows = []
                 hasNextPage = false
+                rebuildPendingPresentation()
+                syncPendingFlag()
                 loadState = .loaded
                 syncTab()
                 bumpRevision()
@@ -776,17 +840,20 @@ public final class TableDataViewModel {
             }
 
             rows = visible
-            if let focused = focusedRowID, !rows.contains(where: { $0.id == focused }) {
+            if let focused = focusedRowID, !gridRows.contains(where: { $0.id == focused }) {
                 // 刷新后焦点行不在本页：保留本页仍存在的选中项，清掉焦点行。
                 focusedRowID = nil
             }
             if !selectedRowIDs.isEmpty {
-                let present = Set(rows.map(\.id))
+                let present = Set(gridRows.map(\.id))
                 selectedRowIDs = selectedRowIDs.intersection(present)
             }
             if let cached = focusedRowID, let map = fullRowCache[cached] {
                 applyFullValues(map, toRowID: cached)
             }
+            // 重新加载后把暂存投影回新拉到的行（暂存不因刷新丢失，`specs/03-data-browsing.md` §12）。
+            rebuildPendingPresentation()
+            syncPendingFlag()
             loadState = .loaded
             syncTab()
             bumpRevision()
@@ -897,7 +964,7 @@ public final class TableDataViewModel {
         )
     }
 
-    private func bumpRevision() {
+    internal func bumpRevision() {
         dataRevision &+= 1
     }
 

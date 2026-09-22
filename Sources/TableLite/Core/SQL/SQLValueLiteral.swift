@@ -87,6 +87,57 @@ public enum SQLValueLiteral {
         quote(text, escaper: escaper, introducer: introducer)
     }
 
+    /// 按列类型生成字面量，字符串转义交给连接转义器（S29：Preview 与下发共用）。
+    ///
+    /// 语义与 `literal(for:column:escaping:introducer:)` 完全一致，唯一区别是
+    /// 引号内文本走 `mysql_real_escape_string` 语义的注入点，而不是纯 Swift 转义。
+    public static func literal(
+        for value: SQLValue,
+        column: ColumnInfo,
+        escaper: StringEscaper,
+        introducer: String? = nil
+    ) -> String {
+        literal(
+            for: value,
+            fieldType: column.fieldType,
+            isBinaryColumn: column.isBinary,
+            escaper: escaper,
+            introducer: introducer
+        )
+    }
+
+    /// 按字段类型生成字面量，字符串转义交给连接转义器。
+    public static func literal(
+        for value: SQLValue,
+        fieldType: MySQLFieldType,
+        isBinaryColumn: Bool = false,
+        escaper: StringEscaper,
+        introducer: String? = nil
+    ) -> String {
+        switch value {
+        case .null:
+            return "NULL"
+
+        case .binary(let data):
+            return hexLiteral(data)
+
+        case .bool(let flag):
+            return flag ? "1" : "0"
+
+        case .integer(let number):
+            return String(number)
+
+        case .decimal(let text):
+            return isStrictDecimal(text) ? text : quote(text, escaper: escaper, introducer: introducer)
+
+        case .text(let text):
+            if fieldType.isNumeric, isStrictNumber(text) {
+                return text
+            }
+            return quote(text, escaper: escaper, introducer: introducer)
+        }
+    }
+
     // MARK: 拼接
 
     /// 单引号字符串，内部按模式转义。

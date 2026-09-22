@@ -172,7 +172,22 @@ public enum MySQLValueMapping {
         case .null:
             return .null
         case .bytes(let data):
-            return column.isBinary ? .binary(data) : .text(String(decoding: data, as: UTF8.self))
+            return isBinaryColumn(column) ? .binary(data) : .text(String(decoding: data, as: UTF8.self))
+        }
+    }
+
+    /// 是否是真正的二进制字符串列。
+    ///
+    /// 协议层把数字 / 日期时间列的 charset 也报成 63（`ColumnInfo.isBinary == true`），
+    /// 所以不能只看 `isBinary`：只有字符串 / BLOB / JSON / GEOMETRY / BIT 才按二进制处理，
+    /// 否则整数主键会被 hex 化成 `0x31`，导致 `WHERE id = 0x31` 定位不到行。
+    static func isBinaryColumn(_ column: ColumnInfo) -> Bool {
+        guard column.isBinary else { return false }
+        switch column.fieldType {
+        case .varchar, .varString, .string, .tinyBlob, .mediumBlob, .longBlob, .blob, .json, .geometry, .bit:
+            return true
+        default:
+            return false
         }
     }
 

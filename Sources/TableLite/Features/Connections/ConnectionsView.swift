@@ -84,6 +84,26 @@ private struct ConnectionListContent: View {
         } message: { _ in
             Text("同时会删除保存在系统钥匙串里的密码。\n此操作不可撤销。")
         }
+        .confirmationDialog(
+            "有未提交的修改",
+            isPresented: Binding(
+                get: { viewModel.pendingChangesDeletion != nil },
+                set: { if !$0 { viewModel.pendingChangesDeletion = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("提交并删除", role: .destructive) {
+                Task { await viewModel.confirmDeleteWithPendingChanges(.submit) }
+            }
+            Button("放弃修改并删除", role: .destructive) {
+                Task { await viewModel.confirmDeleteWithPendingChanges(.discard) }
+            }
+            Button("取消", role: .cancel) {
+                Task { await viewModel.confirmDeleteWithPendingChanges(.cancel) }
+            }
+        } message: {
+            Text("这个连接有未提交的修改。删除连接会一并关闭它的会话。")
+        }
     }
 
     // MARK: 头部与提示
@@ -202,7 +222,7 @@ private struct ConnectionListContent: View {
                     Button("编辑…") { Task { await viewModel.beginEdit(connection) } }
                     Button("复制为新连接") { Task { await viewModel.duplicate(connection) } }
                     Divider()
-                    Button("删除", role: .destructive) { viewModel.pendingDeletion = connection }
+                    Button("删除", role: .destructive) { viewModel.requestDelete(connection) }
                     Divider()
                     Button("在 Finder 中显示配置文件") { viewModel.revealConnectionsFile() }
                 }

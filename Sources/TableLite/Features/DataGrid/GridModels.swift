@@ -7,10 +7,10 @@ import Foundation
 /// 这是两阶段大字段加载（`docs/tech-designs/07-data-grid.md` §3.1）的载体：
 /// - `value` 是首屏从服务器拿到的值（大字段可能只是 `LEFT(col, N)` 的截断前缀）；
 /// - `fullValue` 是二次加载后的完整值；
-/// - `draftValue` 是编辑中的值（T9 使用，本阶段恒为 nil）。
+/// - `draftValue` 是暂存区投影到单元格的编辑中值（T9）。
 ///
 /// **硬约束**：`isTruncated == true` 且 `fullValue == nil` 时，`value` 绝不能写回数据库
-/// （`docs/tech-designs/08-pending-changes.md` §9）。T9 的编辑器必须先加载完整值再允许编辑。
+/// （`docs/tech-designs/08-pending-changes.md` §9）。编辑器必须先加载完整值再允许编辑。
 public struct GridCell: Sendable, Equatable {
     /// 首屏值。
     public var value: SQLValue
@@ -20,7 +20,7 @@ public struct GridCell: Sendable, Equatable {
     public var totalByteCount: Int?
     /// 二次加载得到的完整值。
     public var fullValue: SQLValue?
-    /// 编辑中的值（T9）。
+    /// 编辑中的值；由暂存区重建（T9）。
     public var draftValue: SQLValue?
 
     public init(
@@ -59,7 +59,7 @@ public struct GridCell: Sendable, Equatable {
     }
 }
 
-/// 行状态（T9：新增 / 修改 / 删除）。本阶段恒为 nil。
+/// 行状态（新增 / 修改 / 删除），由暂存区派生（T9）。
 public enum GridRowChangeKind: Sendable, Equatable {
     case insertion
     case update
@@ -84,7 +84,7 @@ public struct GridRow: Identifiable, Sendable, Equatable {
     public let locator: RowLocator?
     /// 列名 → 单元格。
     public var cells: [String: GridCell]
-    /// 行状态（T9）。
+    /// 行状态：由暂存区重建时写入（T9）。
     public var changeKind: GridRowChangeKind?
 
     public init(
