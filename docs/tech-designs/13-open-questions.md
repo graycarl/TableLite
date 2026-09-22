@@ -72,6 +72,10 @@
 | L21 | 左侧栏显隐与对象树分组折叠状态未持久化 | 重启后恢复默认（侧栏显示、分组展开）；`specs/02` §5 要求记住，待 P11 补持久化 | 运行期内由 @State 记住；P11 加 PreferenceKey |
 | L22 | 标签中键点击关闭未实现 | 可用 ⌘W / 关闭按钮 / 右键菜单替代 | SwiftUI 无中键事件，需 AppKit 事件监控，收益低 |
 | L23 | 测试连接无实时分步进度、取消仅丢弃结果 | 等待时面板只转圈，拿到整份报告后渲染 ✓/✗；点取消后 Core 仍会把测试连接跑完再关 | 结果正确（不留痕），体验可接受；真取消需 Core 加中断点 |
+| L24 | 网格行号列不冻结 | 横向滚动时行号随内容滚出视野 | `07-data-grid.md` §4 要求固定最左；冻结需双表滚动同步，风险高收益低 |
+| L25 | 快速查看的 JSON 只 pretty-print、长文本无查找/行号 | 大 JSON 浏览不便 | 二进制 hex 与图片预览已做；按需再增强 |
+| L26 | 外键列的 ↗ 跳转未实现 | 不能一键跳到引用行 | `specs/03` §1/§10 有该入口；元数据已备好（`foreignKeyColumns`），待补 |
+| L27 | SQL INSERT 复制遇未加载的大字段会用截断值 | 复制出的 INSERT 语句数据不完整 | T9 在复制/编辑路径统一加「含未加载大字段」提示 |
 
 ## 3. 待定事项
 
@@ -110,5 +114,6 @@
 | 2026-09-22 | Core/MySQL + Core/Store + Core/SSH 落地（W1-T2/T3/T4）：冒烟 7/7 通过；登记 S31（删连接 Keychain 顺序）、S32（SSH BatchMode 策略）、L17–L20；`session.json` schema 由 Core/Store 首定（`SessionStateFile`），W2 的 SessionManager 对接时可调整；SSH 别名模式下 `Connection.validationIssues()` 仍强制要求 `ssh.user`，待 W2 连接表单放宽 |
 | 2026-09-22 | Core/Meta + Core/Session 落地（W2-T5）：MetaRepository（information_schema + TTL 缓存 + DDL 失效）、SessionManager/ConnectionSession/Tab/AppEnvironment；`MySQLSessionProtocol`/`SSHTunnelProtocol` 抽协议供测试替身（S26 手写协议）；SSH 别名模式校验已放宽（`Connection.validationIssues()` 不再强制 `ssh.user`/私钥）；保活用固定 30s 周期（未按连接各自间隔）；退出前的未提交确认待编辑 wave 补 |
 | 2026-09-22 | Features/Connections + Features/Workspace 落地（W2-T6/T7）：菜单快捷键走 `Commands + @FocusedValue`（`WorkspaceActions`/`AppActions`，后续 wave 在 WorkspaceView 里把 nil 换成真实现，nil 自动禁用）；对象树用 SwiftUI LazyVStack 不下沉 AppKit；登记 L21–L23；窗口最小尺寸取 860×560（specs 未定）；ConnectionColor 的 SwiftUI 颜色映射有两处（`swatchColor`/`swiftUIColor`）待收敛 |
+| 2026-09-22 | DataGrid 数据网格落地（W3-T8，P4）：NSTableView 桥接 + `GridCell` 区分首屏值/截断值/完整值/编辑中值（截断值不写回的安全闸门）；`SessionTab.content` 去掉 `@ObservationIgnored`（否则字段栏不重绘）；列重排禁用（`07` §2 列顺序=结果集顺序）；字段栏不设快捷键（S15）；登记 L24–L27 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

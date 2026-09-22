@@ -176,7 +176,10 @@ public final class Tab: Identifiable {
     // MARK: 内容视图挂载点（后续 Wave 填充）
 
     /// 具体内容视图 / ViewModel。为避免与并行开发耦合，声明为 `AnyObject?`。
-    @ObservationIgnored public var content: AnyObject?
+    ///
+    /// **可观察**：`WorkspaceView` 的右侧字段栏按 `activeTab.content as? TableDataViewModel`
+    /// 取网格的选区投影，必须能在内容装配后重绘（T8 起）。
+    public var content: AnyObject?
     /// 重连后刷新该标签的数据；由内容视图装配时设置。
     @ObservationIgnored public var reloadAfterReconnect: (@MainActor () async -> Void)?
 

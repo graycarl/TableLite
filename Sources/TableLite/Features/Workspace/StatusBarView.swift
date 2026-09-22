@@ -73,6 +73,10 @@ struct StatusBarView: View {
 
     private var summary: String {
         guard let tab = session.activeTab else { return "" }
+        // 表数据标签用网格 ViewModel 的真实行数 / 耗时。
+        if let viewModel = tab.content as? TableDataViewModel, let text = viewModel.statusBarText {
+            return text
+        }
         return WorkspaceStatusText.tabSummary(
             for: tab.kind,
             page: tab.page,

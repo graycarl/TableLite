@@ -38,12 +38,8 @@ struct TabContentView: View {
 
     var body: some View {
         switch tab.kind {
-        case .tableData(let database, let table):
-            TabPlaceholderView(
-                symbol: "tablecells",
-                title: "表数据视图",
-                detail: "\(database).\(table)\n数据网格与右侧字段栏待 W3/W4 实现"
-            )
+        case .tableData:
+            TableDataTabView(session: session, tab: tab)
         case .tableStructure(let database, let table):
             TabPlaceholderView(
                 symbol: "list.bullet.rectangle",

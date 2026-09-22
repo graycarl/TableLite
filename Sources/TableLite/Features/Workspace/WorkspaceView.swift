@@ -48,7 +48,7 @@ struct WorkspaceView: View {
                     ResizeHandle { delta in
                         environment.preferences.inspectorWidth -= Double(delta)
                     }
-                    inspectorPlaceholder
+                    inspector
                         .frame(width: environment.preferences.inspectorWidth)
                 }
             }
@@ -86,7 +86,18 @@ struct WorkspaceView: View {
         environment.preferences.showInspector && (session.activeTab?.kind.isTableData ?? false)
     }
 
-    /// 字段栏本阶段是占位：真正的字段编辑在 W3/W4 与 `14-row-inspector.md` 一起做。
+    /// 字段栏是表数据网格选区的 SwiftUI 投影（`14-row-inspector.md` §2）。
+    /// 本阶段只读；T9 在同一位置换成可编辑版本。
+    @ViewBuilder
+    private var inspector: some View {
+        if let viewModel = session.activeTab?.content as? TableDataViewModel {
+            RowInspectorView(viewModel: viewModel)
+        } else {
+            inspectorPlaceholder
+        }
+    }
+
+    /// 字段栏未就绪时的占位（标签尚未装配 ViewModel）。
     private var inspectorPlaceholder: some View {
         VStack(spacing: 10) {
             Image(systemName: "sidebar.right")
@@ -189,7 +200,9 @@ struct WorkspaceView: View {
             submitChanges: nil,
             previewSQL: nil,
             discardChanges: nil,
-            cancelQuery: nil,
+            cancelQuery: {
+                (session.activeTab?.content as? TableDataViewModel)?.cancelInFlight()
+            },
             toggleSidebar: { showSidebar.toggle() },
             toggleInspector: { environment.preferences.showInspector.toggle() },
             toggleConsoleLog: toggleConsoleLog,
