@@ -71,7 +71,6 @@ public enum InterfaceLanguage: String, Codable, Sendable, CaseIterable {
 public enum PreferenceKey: String, CaseIterable, Sendable {
 
     // 通用（specs/11 §1）
-    case restoreLastWorkspace = "general.restoreLastWorkspace"
     case restoreLastScript = "general.restoreLastScript"
     case idleDisconnect = "general.idleDisconnect"
     case reportCrashes = "general.reportCrashes"
@@ -127,7 +126,6 @@ public enum PreferenceKey: String, CaseIterable, Sendable {
     /// 默认值。类型由具体项决定（Bool / Int / Double / String / 枚举 rawValue）。
     public var defaultValue: Any? {
         switch self {
-        case .restoreLastWorkspace: return true
         case .restoreLastScript: return true
         case .idleDisconnect: return true
         case .reportCrashes: return false

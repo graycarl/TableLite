@@ -26,10 +26,6 @@ public final class Preferences {
 
     // MARK: 通用（specs/11 §1）
 
-    /// 恢复上次打开的标签。
-    public var restoreLastWorkspace: Bool {
-        didSet { persist(restoreLastWorkspace, .restoreLastWorkspace) }
-    }
     /// 恢复上次的脚本内容。
     public var restoreLastScript: Bool {
         didSet { persist(restoreLastScript, .restoreLastScript) }
@@ -247,7 +243,6 @@ public final class Preferences {
     public init(preferencesStore: PreferencesStore) {
         self.storage = preferencesStore
 
-        restoreLastWorkspace = preferencesStore.bool(.restoreLastWorkspace)
         restoreLastScript = preferencesStore.bool(.restoreLastScript)
         idleDisconnect = preferencesStore.bool(.idleDisconnect)
         reportCrashes = preferencesStore.bool(.reportCrashes)
@@ -309,7 +304,6 @@ public final class Preferences {
     public func resetToDefaults() {
         storage.resetAll()
         let fresh = Preferences(preferencesStore: storage)
-        restoreLastWorkspace = fresh.restoreLastWorkspace
         restoreLastScript = fresh.restoreLastScript
         idleDisconnect = fresh.idleDisconnect
         reportCrashes = fresh.reportCrashes

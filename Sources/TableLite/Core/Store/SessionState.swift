@@ -2,8 +2,9 @@ import Foundation
 
 /// `session.json` 的内容。
 ///
-/// 决策见 `05-session-management.md` §8：记录活动连接、每个会话的库 / 活动标签，
-/// 以及每个标签的分页、排序、过滤、隐藏列等。**恢复后不自动连接**。
+/// 决策见 `05-session-management.md` §8：**启动不恢复会话**，文件只记「按连接的标签现场」
+/// （每个连接的库 / 活动标签，以及每个标签的分页、排序、过滤、隐藏列等），
+/// 用户连上该连接时才套用（S36）。
 ///
 /// 版本与向前兼容规则见 `02-persistence.md` §9：未知字段忽略、缺失字段取默认值。
 public struct SessionStateFile: Sendable, Codable, Equatable {
@@ -11,9 +12,9 @@ public struct SessionStateFile: Sendable, Codable, Equatable {
     public static let currentSchemaVersion = 1
 
     public var schemaVersion: Int
-    /// 当前活动的连接。
+    /// 本次运行的活动连接。仅供记录，不驱动启动行为（S36）。
     public var activeConnectionID: UUID?
-    /// 每个连接的会话骨架。
+    /// 每个连接上次的标签现场。
     public var sessions: [SessionState]
 
     public init(

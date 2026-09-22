@@ -10,7 +10,7 @@
 | 查询历史 | `…/history.sqlite3` | SQLite | 否 |
 | Console Log | 内存环形缓冲，可选落盘 | 文本 | 否 |
 | 偏好设置 | `UserDefaults`（`com.graycarl.tablelite`） | plist | 否 |
-| 窗口 / Tab 状态 | `UserDefaults` + 自维护 JSON | JSON | 否 |
+| 窗口框架 / 标签现场 | `UserDefaults`（窗口框架）+ `session.json`（标签现场） | JSON | 否 |
 | 导入 / 导出 | 用户选择路径 | CSV | 否 |
 
 **约束**：目录用 `FileManager` 解析，不硬编码路径。

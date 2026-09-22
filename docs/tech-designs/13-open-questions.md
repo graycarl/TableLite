@@ -44,9 +44,10 @@
 | S30 | 语句分类从严 | `VALUES` / `TABLE` 语句归为 query 但不放进只读白名单（`specs/09-readonly-mode.md` §4 未列即不放行） |
 | S31 | 删除连接先清 Keychain，失败则不删 JSON | `02-persistence.md` §3 只要求「连带删除」未定顺序；选择不留无人认领的密码，代价是 Keychain 异常时需重试删除。见 `Core/Store/ConnectionStore.swift` |
 | S32 | SSH `BatchMode` 只用于 config/agent 认证 | `BatchMode=yes` 会禁用 `SSH_ASKPASS`，密码/私钥口令认证不能加。见 `Core/SSH/SSHCommand.swift` |
-| S33 | 退出 App 不弹查询脚本保存确认 | 草稿已防抖落盘、重启可恢复；仅「关闭标签」弹保存确认。避免退出流程串联多个 sheet 死循环 |
+| S33 | 退出 App 不弹查询脚本保存确认 | 草稿已防抖落盘、标签还原时可恢复；仅「关闭标签」弹保存确认。避免退出流程串联多个 sheet 死循环 |
 | S34 | CSV 导入空字段默认视为 `NULL` | 与导出默认「空串表示 NULL」形成往返；改默认只动 `ImportOptions.emptyFieldIsNull` 一处 |
 | S35 | 导入「事务模式」与「遇错继续」互斥 | 勾事务即全部成功或全部回滚，忽略 continueOnError；`TRUNCATE` 是 DDL 隐式提交，在事务外先执行 |
+| S36 | 启动不恢复会话 | 每次启动都进连接列表，不自动连接、不自动进工作区；`session.json` 降级为「按连接记住标签现场」，用户连上该连接时才还原。删除偏好「恢复上次打开的标签」（`session.json` 里残留的旧字段 / 旧偏好键忽略即可）。见 `specs/01-connections.md` §1/§7、`specs/11-preferences.md` §1、`05-session-management.md` §8 |
 
 ## 2. 已知限制
 
@@ -127,6 +128,7 @@
 | 2026-09-22 | DataGrid 数据网格落地（W3-T8，P4）：NSTableView 桥接 + `GridCell` 区分首屏值/截断值/完整值/编辑中值（截断值不写回的安全闸门）；`SessionTab.content` 去掉 `@ObservationIgnored`（否则字段栏不重绘）；列重排禁用（`07` §2 列顺序=结果集顺序）；字段栏不设快捷键（S15）；登记 L24–L27 |
 | 2026-09-22 | 编辑与提交落地（W3-T9，P5，M1 达成）：字段栏编辑器 + 暂存 + 预览==提交（S29）+ 事务提交/回滚保留暂存 + 关标签/断开/删除连接/退出四处确认；**修复两个真库才暴露的 bug**：`MySQLValueMapping` 把数值/时间列（charset 63）误判为二进制导致主键定位失效、提交路径忽略语句级错误导致唯一键冲突被当成功；冒烟新增 `--edit-smoke` 编辑链路 e2e（5/5）；登记 L28–L30；`⌘I`/`⌘D`/`⌫` 仅在网格焦点时生效 |
 | 2026-09-22 | 过滤器落地（W3-T10，P6）：行过滤器 14 操作符/Raw 模式互斥/列过滤浮层/右键快速筛选/250ms 防抖快速过滤/WorkspaceStateStore 持久化；冒烟新增 `--filter-smoke`（8/8）；⌘F 改为上下文分派（表数据标签=过滤横条，否则=对象树搜索）；`FilterState` 持久化草稿态保证 Esc 后保留；登记 L31–L32；外键 ↗ 跳转仍未实现（L26） |
+| 2026-09-22 | **启动不再恢复会话**：每次启动都进连接列表，连上某个连接后才还原该连接的标签现场；删除偏好「恢复上次打开的标签」，见 S36（`specs/01-connections.md` §1/§7、`specs/11-preferences.md` §1、`specs/06-query-editor.md`、`manual/01`、`manual/06`、`manual/11`、`05-session-management.md` §8） |
 | 2026-09-22 | SQL 编辑器 + 导入导出 + 表结构落地（W4-T11/T12/T13，P7/P8/P9）：冒烟新增 `--query-smoke`（6/6）；L29（字段栏大窗口换 SQLTextView 带行号查找）与 L30（预览高亮）已解决；登记 S33–S35、L33–L35；⌘S 加入 File 菜单（与网格提交按上下文启用）；结构视图列页顶部多了行数估算（超出 specs/07，待用户拍板）；`GridRow` 与 SwiftUI 撞名处统一写 `SwiftUI.GridRow`；当前工具链已移除 `func f(): T` 旧语法，必须写 `-> T` |
 | 2026-09-22 | 收尾（W4-T15，P11，M3 达成）：偏好设置面板 7 组全部落地并即时生效；只读模式补「关闭前确认」并写回连接配置；SSH 指纹变化单独高亮、隧道断开时心跳先探隧道再报「SSH 隧道已断开」；**L21**（侧栏显隐 / 对象树折叠持久化）与 **L35**（建表语句语法高亮）已解决；`ConnectionColor` 的 `swatchColor` / `swiftUIColor` 两处映射收敛为一处；表数据状态栏接入 `导出…`（`.filteredTable`，带过滤条件）；首次加载用骨架占位、翻页叠加加载遮罩；App 图标落地；README 更新为当前状态。Core/Session 有改动：`ConnectionSession.ping()` 先探隧道、`ConnectFailure.underlyingMessage` 的 MySQL 分支补 SQLSTATE 格式、`SessionManager` 保活周期改用偏好「心跳间隔」 |
 | 2026-09-22 | 用户拍板收尾分歧：`specs/11` §3 补「超长内容延迟加载」（L20 关闭）；`specs/04` §3 日期时间编辑器改为单行文本框、`manual/04` 图 4-2 同步（L28 关闭）；跨列快速过滤框定为不必要功能，建清理 todo（L31 届时关闭）；`manual/01` 图 1-1 摘要按 `specs/01` §1 对齐为「经 ssh-主机」；结构视图列页顶部的行数估算已移除（超出 `specs/07`） |

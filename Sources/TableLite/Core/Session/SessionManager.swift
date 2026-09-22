@@ -27,6 +27,9 @@ public final class SessionManager {
     @ObservationIgnored private var idleTask: Task<Void, Never>?
     @ObservationIgnored private var keepAliveTask: Task<Void, Never>?
     @ObservationIgnored private var persistTask: Task<Void, Never>?
+    /// 启动时从 `session.json` 读出的「按连接标签现场」，连接时套用（05 §8）。
+    @ObservationIgnored private var loadedTagSnapshots: [UUID: SessionState] = [:]
+    @ObservationIgnored private var didLoadTagSnapshots = false
 
     public init(connections: ConnectionStore, services: SessionServices) {
         self.connections = connections
@@ -72,16 +75,25 @@ public final class SessionManager {
         guard activeSessionCount < connectionLimit else {
             throw SessionManagerError.connectionLimitReached(limit: connectionLimit)
         }
+        // 保险：启动早期就点连接时也先读到旧现场。
+        await loadTagSnapshotsIfNeeded()
 
         let session = ConnectionSession(connection: connection, password: password, services: services)
         sessions.append(session)
         activeSessionID = connection.id
+        // 套用这个连接上次的标签现场（S36）；失败时也不丢，用户重连后还在。
+        let tagSnapshot = loadedTagSnapshots[connection.id]
+        if let tagSnapshot { session.restore(from: tagSnapshot) }
         do {
             try await session.open()
         } catch {
             // 失败保留会话对象与已建资源，状态已是 `.failed`。
             await persistSessionState()
             throw error
+        }
+        if tagSnapshot != nil {
+            // 还原出来的表数据标签需要重新加载当前页。
+            await session.reloadTabsAfterReconnect()
         }
         await persistSessionState()
         return session
@@ -117,9 +129,14 @@ public final class SessionManager {
         }
     }
 
-    /// 删除连接时清理会话（断开、移除、清理草稿）。
+    /// 删除连接时清理会话（断开、移除、清理草稿），并丢掉它的标签现场。
     public func removeSession(id: UUID) async {
-        guard let session = session(id: id) else { return }
+        loadedTagSnapshots[id] = nil
+        guard let session = session(id: id) else {
+            // 没有会话（本次运行没连过）也要把快照从文件里抹掉。
+            await persistSessionState()
+            return
+        }
         let draftIDs = session.tabs.compactMap(\.kind.draftID)
         await session.close()
         sessions.removeAll { $0.id == id }
@@ -217,22 +234,24 @@ public final class SessionManager {
         }
     }
 
-    // MARK: 会话恢复（05 §8）
+    // MARK: 标签现场（05 §8）
 
-    /// 启动时按 `session.json` 恢复骨架，**不自动连接**。
+    /// 启动时读 `session.json`，只把「按连接的标签现场」装进内存。
     ///
-    /// 偏好关闭时既不读也不写；同时清理超过 30 天且未被引用的孤儿草稿。
-    public func restoreIfNeeded() async {
-        guard sessions.isEmpty else { return }
-
-        guard services.preferences.restoreLastWorkspace else {
-            _ = try? await services.drafts.cleanupOrphans(referencedIDs: [])
-            return
-        }
+    /// **不建会话、不自动连接**（决策 S36）：每次启动都进连接列表，
+    /// 用户在连接列表里连上某个连接时才套用它上次的标签。
+    ///
+    /// 顺带清理超过 30 天且未被引用的孤儿草稿（§9）。
+    public func loadTagSnapshotsIfNeeded() async {
+        guard !didLoadTagSnapshots else { return }
+        didLoadTagSnapshots = true
 
         let file: SessionStateFile
         do {
-            guard let loaded = try await services.sessionState.load() else { return }
+            guard let loaded = try await services.sessionState.load() else {
+                _ = try? await services.drafts.cleanupOrphans(referencedIDs: [])
+                return
+            }
             file = loaded
         } catch {
             StoreLog.error("读取 session.json 失败：\(error)")
@@ -247,27 +266,27 @@ public final class SessionManager {
         }
 
         for snapshot in file.sessions {
-            guard let connection = try? await connections.connection(id: snapshot.connectionID) else {
-                continue
-            }
-            let session = ConnectionSession(connection: connection, password: nil, services: services)
-            session.restore(from: snapshot)
-            sessions.append(session)
-        }
-
-        if let active = file.activeConnectionID, session(id: active) != nil {
-            activeSessionID = active
-        } else {
-            activeSessionID = sessions.first?.id
+            // 连接已被删掉的旧快照留着没用。
+            guard let _ = try? await connections.connection(id: snapshot.connectionID) else { continue }
+            loadedTagSnapshots[snapshot.connectionID] = snapshot
         }
     }
 
-    /// 把当前会话 / 标签骨架写入 `session.json`。偏好关闭时跳过。
+    /// 把「按连接的标签现场」写入 `session.json`。
+    ///
+    /// 读-改-写：本次运行打开过的连接以当前会话为准（标签清空也写空快照，避免下次又还原出旧标签）；
+    /// 没打开过的连接的旧快照原样保留（`05-session-management.md` §8）。
     public func persistSessionState() async {
-        guard services.preferences.restoreLastWorkspace else { return }
+        // 没先读过就写会把别人的快照冲掉（启动早期调用）。
+        await loadTagSnapshotsIfNeeded()
+
+        var snapshots = loadedTagSnapshots
+        for session in sessions {
+            snapshots[session.id] = session.makeSessionState()
+        }
         let file = SessionStateFile(
             activeConnectionID: activeSessionID,
-            sessions: sessions.map { $0.makeSessionState() }
+            sessions: snapshots.values.sorted { $0.connectionID.uuidString < $1.connectionID.uuidString }
         )
         do {
             try await services.sessionState.save(file)

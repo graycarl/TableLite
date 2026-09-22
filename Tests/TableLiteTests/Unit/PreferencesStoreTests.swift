@@ -7,7 +7,7 @@ final class PreferencesStoreTests: XCTestCase {
 
     func testReadsDefaultsWhenEmpty() {
         let store = PreferencesStore(store: InMemoryKeyValueStore())
-        XCTAssertTrue(store.bool(.restoreLastWorkspace))
+        XCTAssertTrue(store.bool(.restoreLastScript))
         XCTAssertEqual(store.integer(.gridPageSize), 300)
         XCTAssertEqual(store.double(.gridInspectorWidth), 320)
         XCTAssertEqual(store.string(.gridNullDisplayText), "NULL")
@@ -18,12 +18,12 @@ final class PreferencesStoreTests: XCTestCase {
         let backing = InMemoryKeyValueStore()
         let store = PreferencesStore(store: backing)
         store.set(1000, for: .gridPageSize)
-        store.set(false, for: .restoreLastWorkspace)
+        store.set(false, for: .restoreLastScript)
         store.setChoice(CSVExportDelimiter.semicolon, for: .csvDelimiter)
 
         let reloaded = PreferencesStore(store: backing)
         XCTAssertEqual(reloaded.integer(.gridPageSize), 1000)
-        XCTAssertFalse(reloaded.bool(.restoreLastWorkspace))
+        XCTAssertFalse(reloaded.bool(.restoreLastScript))
         XCTAssertEqual(reloaded.choice(.csvDelimiter, CSVExportDelimiter.self, fallback: .comma), .semicolon)
     }
 

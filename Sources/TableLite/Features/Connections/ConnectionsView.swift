@@ -265,7 +265,7 @@ private struct ConnectionListContent: View {
 /// 连接列表里的状态指示（`specs/01-connections.md` §4）。
 ///
 /// 未连接 → 灰点；连接中 → 转圈；已连接 → 绿点；异常 → 红点；
-/// 恢复出来但未连接（或已被空闲回收）→ 灰点，右侧另给「点击重连」。
+/// 被空闲回收 / 断开（或连接失败后已断开）→ 灰点，右侧另给「点击重连」。
 private struct ConnectionStatusIndicator: View {
     let status: ConnectionListViewModel.RowStatus
 

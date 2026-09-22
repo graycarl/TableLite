@@ -9,7 +9,6 @@ final class PreferencesTests: XCTestCase {
         let preferences = Preferences(store: InMemoryKeyValueStore())
 
         // 通用
-        XCTAssertTrue(preferences.restoreLastWorkspace)
         XCTAssertTrue(preferences.restoreLastScript)
         XCTAssertTrue(preferences.idleDisconnect)
         XCTAssertFalse(preferences.reportCrashes)

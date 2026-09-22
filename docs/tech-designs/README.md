@@ -10,7 +10,7 @@
 | [02-persistence.md](02-persistence.md) | 连接配置、Keychain、查询历史、Console Log、偏好、日志的存储决策与硬约束 |
 | [03-mysql-layer.md](03-mysql-layer.md) | C shim 边界与 Swift 封装：设计原则、类型映射与字面量生成、取消与超时、保活、错误映射 |
 | [04-ssh-tunnel.md](04-ssh-tunnel.md) | 基于系统 `ssh` 子进程的本地端口转发：方案取舍、命令拼装、认证、生命周期 |
-| [05-session-management.md](05-session-management.md) | 连接会话与多连接管理：作用域、连接流程、空闲回收、重连、会话恢复 |
+| [05-session-management.md](05-session-management.md) | 连接会话与多连接管理：作用域、连接流程、空闲回收、重连、标签现场还原 |
 | [06-ui-layer.md](06-ui-layer.md) | SwiftUI 与 AppKit 的边界、状态归属、标签模型、桥接与刷新约定 |
 | [07-data-grid.md](07-data-grid.md) | 网格实现决策：为何用 AppKit、大字段两阶段加载、分页稳定性、行数估算、性能预算 |
 | [08-pending-changes.md](08-pending-changes.md) | 暂存的作用域、合并规则、SQL 生成、提交与回滚、可编辑性判定 |
@@ -62,6 +62,7 @@
 | 导出方式 | 只支持 CSV；流式写出、临时文件原子替换 | [11](11-schema-and-import-export.md) §3、[13](13-open-questions.md) S9 |
 | 口令存储 | 密码 / Passphrase 只进 Keychain，禁止写进 JSON / UserDefaults | [02](02-persistence.md) §2、§3 |
 | 连接失效处理 | 不自动重连，保留未提交改动，由用户点「重新连接」 | [05](05-session-management.md) §6、[13](13-open-questions.md) L7 |
+| 启动行为 | **每次启动都进连接列表**，不自动连接、不自动进工作区；标签现场按连接记住，连上后才还原 | [05](05-session-management.md) §8、[13](13-open-questions.md) S36 |
 | 只读模式 | 语句级拦截（不是权限控制） | [10](10-query-editor.md) §10、[13](13-open-questions.md) L3 |
 | 工程组织 | XcodeGen，`TableLite.xcodeproj` 不进版本控制 | [12](12-build-and-deps.md) §1 |
 | 第三方依赖 | 零 Swift Package 依赖 | [12](12-build-and-deps.md) §1、[13](13-open-questions.md) T10 |

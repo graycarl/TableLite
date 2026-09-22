@@ -126,11 +126,11 @@ public final class AppEnvironment {
 
     // MARK: 生命周期
 
-    /// 启动时装配：恢复会话骨架、清理孤儿草稿、启动空闲回收与保活。
+    /// 启动时装配：读入标签现场（不建会话、不自动连接）、清理孤儿草稿、启动空闲回收与保活。
     public func start() async {
         guard !didStart else { return }
         didStart = true
-        await sessionManager.restoreIfNeeded()
+        await sessionManager.loadTagSnapshotsIfNeeded()
         sessionManager.startIdleReaper()
         sessionManager.startKeepAlive()
     }

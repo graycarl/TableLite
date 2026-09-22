@@ -1,11 +1,10 @@
 import Foundation
 
-/// 会话恢复状态的读写。
+/// 标签现场（`session.json`）的读写。
 ///
 /// 决策见 `05-session-management.md` §8：
-/// - 存 `session.json`；
-/// - 写文件用「临时文件 + 原子替换」（`02-persistence.md` §2.1）；
-/// - 偏好关闭「恢复上次打开的标签」时**不写该文件**（由上层调用 `clear()`）。
+/// - 存 `session.json`，按连接记标签现场；**启动只读不套用**（S36）；
+/// - 写文件用「临时文件 + 原子替换」（`02-persistence.md` §2.1）。
 ///
 /// 并发：actor，文件 IO 不占主线程。
 public actor SessionStateStore {
@@ -52,7 +51,7 @@ public actor SessionStateStore {
         try AtomicFileWriter.write(data, to: layout.sessionFile)
     }
 
-    /// 删除 `session.json`（偏好关闭恢复、或主动清空）。
+    /// 删除 `session.json`（主动清空）。
     public func clear() throws {
         try AtomicFileWriter.remove(layout.sessionFile)
     }

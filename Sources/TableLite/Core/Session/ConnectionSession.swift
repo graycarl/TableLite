@@ -236,7 +236,10 @@ public final class ConnectionSession: Identifiable {
         await reloadTabsAfterReconnect()
     }
 
-    private func reloadTabsAfterReconnect() async {
+    /// 连接成功后重载还原出来的标签内容（`05-session-management.md` §8）。
+    ///
+    /// 先 `restore(from:)` 装回现场、再 `open()`，然后调本方法把表数据标签的当前页拉回来。
+    public func reloadTabsAfterReconnect() async {
         for tab in tabs {
             if let reload = tab.reloadAfterReconnect {
                 await reload()
@@ -651,7 +654,7 @@ public final class ConnectionSession: Identifiable {
         )
     }
 
-    /// 按 `session.json` 恢复标签骨架（不自动连接）。
+    /// 按 `session.json` 里这个连接的标签现场还原标签骨架（`05-session-management.md` §8）。
     public func restore(from state: SessionState) {
         selectedDatabase = state.selectedDatabase
         tabs = state.tabs.compactMap { Tab(state: $0) }

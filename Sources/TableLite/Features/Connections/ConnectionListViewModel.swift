@@ -24,7 +24,7 @@ final class ConnectionListViewModel {
         case connecting(ConnectStep)
         /// 已连接。
         case connected
-        /// 有会话但没连上（恢复出来的骨架 / 被空闲回收 / 连接失败后已断开）：显示「点击重连」。
+        /// 有会话但没连上（被空闲回收 / 连接失败后已断开）：显示「点击重连」。
         case needsReconnect
         /// 连接失败或运行中失效。
         case failed(ConnectFailure)
@@ -86,7 +86,7 @@ final class ConnectionListViewModel {
         }
     }
 
-    /// 是否存在「恢复出来但未连接」的会话（显示「恢复全部」）。
+    /// 是否存在需要重连的会话（断开 / 回收后，显示「恢复全部」）。
     var hasReconnectableSessions: Bool {
         manager.sessions.contains { !$0.state.isConnected }
     }

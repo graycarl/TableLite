@@ -38,9 +38,6 @@ struct PreferencesView: View {
     private func generalTab(_ preferences: Preferences) -> some View {
         @Bindable var preferences = preferences
         Form {
-            Toggle("恢复上次打开的标签", isOn: $preferences.restoreLastWorkspace)
-            Text("重启 App 后恢复上次的连接与标签；只恢复骨架，不自动重连。")
-                .preferenceCaption()
             Toggle("恢复上次的脚本内容", isOn: $preferences.restoreLastScript)
             Text("查询标签重新打开时恢复上次的编辑内容。")
                 .preferenceCaption()

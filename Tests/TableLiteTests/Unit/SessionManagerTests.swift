@@ -1,7 +1,7 @@
 import XCTest
 @testable import TableLite
 
-/// `SessionManager`：连接上限、空闲回收、测试连接无痕、会话恢复、退出清理。
+/// `SessionManager`：连接上限、空闲回收、测试连接无痕、标签现场、退出清理。
 @MainActor
 final class SessionManagerTests: XCTestCase {
 
@@ -112,9 +112,10 @@ final class SessionManagerTests: XCTestCase {
         XCTAssertEqual(session.state.failure?.step, .mysql)
     }
 
-    // MARK: 会话恢复
+    // MARK: 标签现场（05 §8）
 
-    func testSessionRestoreRoundTripDoesNotAutoConnect() async throws {
+    /// 启动只读现场、不建会话；连上该连接时才把标签装回来（S36）。
+    func testStartupOnlyLoadsSnapshotsAndRestoresOnConnect() async throws {
         let connection = SessionTestSupport.connection()
         try await harness.connections.upsert(connection)
 
@@ -124,31 +125,100 @@ final class SessionManagerTests: XCTestCase {
         first.selectedDatabase = "app_dev"
         await harness.manager.persistSessionState()
 
-        // 用同一个存储目录重开一个 manager。
+        // 用同一个存储目录重开一个 manager（模拟重启）。
         let second = SessionTestSupport.makeHarness(layout: harness.layout)
-        await second.manager.restoreIfNeeded()
+        await second.mysql.setResponses(SessionTestSupport.successfulResponses())
+        await second.manager.loadTagSnapshotsIfNeeded()
 
-        XCTAssertEqual(second.manager.sessions.count, 1)
-        let restored = second.manager.sessions[0]
-        XCTAssertEqual(restored.state, .disconnected, "恢复后不自动连接")
+        XCTAssertTrue(second.manager.sessions.isEmpty, "启动不建会话")
+        XCTAssertNil(second.manager.activeSession)
+
+        // 用户连上这个连接：上次的标签随之还原。
+        let restored = try await second.manager.connect(connection, password: nil)
+        XCTAssertEqual(restored.state, .connected)
         XCTAssertEqual(restored.selectedDatabase, "app_dev")
         XCTAssertEqual(restored.tabs.count, 2)
         XCTAssertEqual(restored.tabs[0].kind, .tableData(database: "app_dev", table: "users"))
         XCTAssertEqual(restored.tabs[1].kind.draftID, queryTab.kind.draftID)
-
-        // 恢复全部后逐个连接。
-        await second.manager.reconnectAll()
-        XCTAssertEqual(second.manager.sessions[0].state, .connected)
     }
 
-    func testRestoreSkippedWhenPreferenceOff() async throws {
-        harness.preferences.restoreLastWorkspace = false
+    /// 落盘是读-改-写：本次没连过的连接的旧快照不会被冲掉。
+    func testPersistPreservesUntouchedConnectionSnapshots() async throws {
+        let a = SessionTestSupport.connection(name: "A")
+        let b = SessionTestSupport.connection(name: "B")
+        try await harness.connections.upsert(a)
+        try await harness.connections.upsert(b)
+
+        let sessionA = try await harness.manager.connect(a, password: nil)
+        sessionA.openTableData(database: "app_dev", table: "users")
+        await harness.manager.persistSessionState()
+
+        // 重启后只连 B。
+        let second = SessionTestSupport.makeHarness(layout: harness.layout)
+        let sessionB = try await second.manager.connect(b, password: nil)
+        sessionB.openTableData(database: "app_dev", table: "users")
+        await second.manager.persistSessionState()
+
+        let loaded = try await second.sessionState.load()
+        let file = try XCTUnwrap(loaded)
+        XCTAssertEqual(Set(file.sessions.map(\.connectionID)), Set([a.id, b.id]))
+    }
+
+    /// 连过之后把标签全关掉：要写空快照，下次不再还原旧标签。
+    func testClosingAllTabsClearsSnapshot() async throws {
+        let connection = SessionTestSupport.connection()
+        try await harness.connections.upsert(connection)
+
+        let first = try await harness.manager.connect(connection, password: nil)
+        let tab = first.openTableData(database: "app_dev", table: "users")
+        await harness.manager.persistSessionState()
+        first.closeTab(tab)
+        await harness.manager.persistSessionState()
+
+        let second = SessionTestSupport.makeHarness(layout: harness.layout)
+        await second.manager.loadTagSnapshotsIfNeeded()
+        let restored = try await second.manager.connect(connection, password: nil)
+        XCTAssertTrue(restored.tabs.isEmpty, "关光的标签不该被还原")
+    }
+
+    /// 重启后不再存在待重连的会话（S36）。
+    func testStartupDoesNotCreateReconnectableSessions() async throws {
         let connection = SessionTestSupport.connection()
         try await harness.connections.upsert(connection)
         _ = try await harness.manager.connect(connection, password: nil)
-        // 偏好关闭时不写 session.json。
+        await harness.manager.persistSessionState()
+
+        let second = SessionTestSupport.makeHarness(layout: harness.layout)
+        await second.manager.loadTagSnapshotsIfNeeded()
+        XCTAssertNil(second.manager.activeSession)
+        XCTAssertTrue(second.manager.sessions.isEmpty)
+    }
+
+    /// 「恢复全部」把断开 / 回收的会话逐个接回来。
+    func testReconnectAllReconnectsDisconnectedSessions() async throws {
+        let connection = SessionTestSupport.connection()
+        let session = try await harness.manager.connect(connection, password: nil)
+        await harness.manager.disconnect(id: connection.id)
+        XCTAssertEqual(session.state, .disconnected)
+
+        await harness.manager.reconnectAll()
+        XCTAssertEqual(session.state, .connected)
+    }
+
+    /// 删除连接会连带扔掉它的标签现场。
+    func testRemoveConnectionDropsTagSnapshot() async throws {
+        let connection = SessionTestSupport.connection()
+        try await harness.connections.upsert(connection)
+        let session = try await harness.manager.connect(connection, password: nil)
+        session.openTableData(database: "app_dev", table: "users")
+        await harness.manager.persistSessionState()
+
+        try await harness.connections.delete(id: connection.id)
+        await harness.manager.removeSession(id: connection.id)
+
         let loaded = try await harness.sessionState.load()
-        XCTAssertNil(loaded)
+        let file = try XCTUnwrap(loaded)
+        XCTAssertTrue(file.sessions.isEmpty)
     }
 
     // MARK: 退出清理
