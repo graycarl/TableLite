@@ -1,5 +1,18 @@
 import SwiftUI
 
+/// 导出请求（`Features/ImportExport/ExportPanelView` 的挂载载体）。
+private struct ExportRequest: Identifiable {
+    let id = UUID()
+    let source: ExportSource
+}
+
+/// 导入请求（`Features/ImportExport/ImportWizardView` 的挂载载体）。
+private struct ImportRequest: Identifiable {
+    let id = UUID()
+    let database: String?
+    let table: String?
+}
+
 /// 工作区主界面（`specs/02-workspace.md` §1）。
 ///
 /// 纵向四层：工具栏 → 连接颜色带（2pt）→ 主体区 → 状态栏。
@@ -18,6 +31,8 @@ struct WorkspaceView: View {
     @State private var showConnectionList = false
     @State private var searchFocusRequest = 0
     @State private var pendingChanges = PendingChangesCoordinator()
+    @State private var exportRequest: ExportRequest?
+    @State private var importRequest: ImportRequest?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,7 +51,16 @@ struct WorkspaceView: View {
 
             HStack(spacing: 0) {
                 if showSidebar {
-                    ObjectTreeSidebar(session: session, focusSearchRequest: searchFocusRequest)
+                    ObjectTreeSidebar(
+                        session: session,
+                        focusSearchRequest: searchFocusRequest,
+                        onExport: { object in
+                            exportRequest = ExportRequest(source: .table(database: object.database, table: object.name))
+                        },
+                        onImportCSV: { object in
+                            importRequest = ImportRequest(database: object.database, table: object.name)
+                        }
+                    )
                         .frame(width: environment.preferences.sidebarWidth)
                     ResizeHandle { delta in
                         environment.preferences.sidebarWidth += Double(delta)
@@ -94,6 +118,15 @@ struct WorkspaceView: View {
         }
         .sheet(isPresented: $showConnectionList) {
             ConnectionsView()
+        }
+        .sheet(item: $exportRequest) { request in
+            ExportPanelView(session: session, source: request.source)
+        }
+        .sheet(item: $importRequest) { request in
+            ImportWizardView(session: session, defaultDatabase: request.database, defaultTable: request.table) { _ in
+                // 导入完成后刷新对象树与当前页（DDL/数据变化已由 session.execute 触发缓存失效）
+                Task { await session.refreshObjects() }
+            }
         }
     }
 
@@ -155,7 +188,7 @@ struct WorkspaceView: View {
     private func closeActiveTab() {
         guard let tab = session.activeTab else { return }
         Task {
-            if await pendingChanges.resolveClose(tab: tab) {
+            if await pendingChanges.resolveCloseAnyTab(tab: tab) {
                 session.closeTab(tab)
             }
         }
@@ -205,6 +238,20 @@ struct WorkspaceView: View {
         session.activeTab?.content as? TableDataViewModel
     }
 
+    /// 当前前台查询编辑器 ViewModel（查询标签且已装配）。
+    private var activeQueryEditor: QueryEditorViewModel? {
+        guard session.activeTab?.kind.isQuery == true else { return nil }
+        return session.activeTab?.content as? QueryEditorViewModel
+    }
+
+    private func openScript() {
+        guard let (url, text) = ScriptFileController.openPanel() else { return }
+        let tab = session.newQueryTab()
+        tab.filePath = url.path
+        tab.customTitle = url.lastPathComponent
+        tab.initialSQL = text
+    }
+
     private var pendingSubmitAction: (@MainActor () -> Void)? {
         guard let model = activeTableViewModel else { return nil }
         return { model.requestSubmit() }
@@ -231,10 +278,13 @@ struct WorkspaceView: View {
 
     private var workspaceActions: WorkspaceActions {
         let tableModel = activeTableViewModel
+        let editor = activeQueryEditor
         let findAction: @MainActor () -> Void = {
-            // 表数据标签前台时 `⌘F` 开关行过滤器；否则聚焦对象树搜索框
-            // （`specs/02-workspace.md` §7、§9）。
-            if let tableModel {
+            // 表数据标签前台时 `⌘F` 开关行过滤器；查询编辑器前台时弹系统查找条；
+            // 否则聚焦对象树搜索框（`specs/02-workspace.md` §7、§9）。
+            if let editor {
+                editor.requestFind()
+            } else if let tableModel {
                 tableModel.toggleFilterVisible()
             } else {
                 showSidebar = true
@@ -245,13 +295,46 @@ struct WorkspaceView: View {
             guard let tableModel else { return nil }
             return { tableModel.presentColumnFilter() }
         }()
+        let cancelAction: @MainActor () -> Void = {
+            if let editor {
+                editor.stop()
+            } else {
+                tableModel?.cancelInFlight()
+            }
+        }
+        let saveAsAction: @MainActor () -> Void = { editor?.saveScriptAs() }
+        var saveAction: (@MainActor () -> Void)?
+        if let editor {
+            saveAction = { editor.saveScript() }
+        }
+        var executeStatement: (@MainActor () -> Void)?
+        var executeAll: (@MainActor () -> Void)?
+        var toggleComment: (@MainActor () -> Void)?
+        var indentSelection: (@MainActor () -> Void)?
+        var outdentSelection: (@MainActor () -> Void)?
+        if let editor {
+            executeStatement = { editor.executeCurrentStatement() }
+            executeAll = { editor.executeAll() }
+            toggleComment = { editor.requestCommand(.toggleComment) }
+            indentSelection = { editor.requestCommand(.indent) }
+            outdentSelection = { editor.requestCommand(.dedent) }
+        }
         return WorkspaceActions(
             newQuery: newQuery,
             closeTab: closeActiveTab,
-            importCSV: { },
-            exportData: { },
-            openScript: { },
-            saveScriptAs: { },
+            importCSV: { importRequest = ImportRequest(database: session.selectedDatabase, table: nil) },
+            exportData: {
+                if let tableModel = activeTableViewModel {
+                    exportRequest = ExportRequest(source: .table(database: tableModel.database, table: tableModel.table))
+                } else {
+                    // 没有表数据标签时退化为「先选表」：打开对象树搜索
+                    showSidebar = true
+                    searchFocusRequest += 1
+                }
+            },
+            openScript: openScript,
+            saveScript: saveAction,
+            saveScriptAs: saveAsAction,
             reconnect: {
                 Task { try? await environment.sessionManager.reconnect(id: session.id) }
             },
@@ -264,9 +347,12 @@ struct WorkspaceView: View {
             submitChanges: pendingSubmitAction,
             previewSQL: pendingPreviewAction,
             discardChanges: pendingDiscardAction,
-            cancelQuery: {
-                (session.activeTab?.content as? TableDataViewModel)?.cancelInFlight()
-            },
+            cancelQuery: cancelAction,
+            executeStatement: executeStatement,
+            executeAllStatements: executeAll,
+            toggleComment: toggleComment,
+            indentSelection: indentSelection,
+            outdentSelection: outdentSelection,
             toggleSidebar: { showSidebar.toggle() },
             toggleInspector: { environment.preferences.showInspector.toggle() },
             toggleConsoleLog: toggleConsoleLog,

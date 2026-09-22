@@ -118,6 +118,24 @@ if [[ $status -eq 0 ]]; then
       printf "\n${RED}过滤冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
     fi
   fi
+  # -------------------------------------------------------------- 查询编辑器链路
+  if [[ "${SMOKE_QUERY:-1}" == "1" ]]; then
+    printf "\n${DIM}查询编辑器端到端（--query-smoke）：多语句 / 错误 / 只读 / 取消 / 记录 …${RESET}\n"
+    set +e
+    MYSQL_HOST="$MYSQL_HOST" \
+    MYSQL_PORT="$MYSQL_PORT" \
+    MYSQL_USER="$MYSQL_USER" \
+    MYSQL_PASSWORD="$MYSQL_PASSWORD" \
+    MYSQL_DATABASE="${MYSQL_DATABASE:-tablelite_smoke}" \
+      "$BINARY" --query-smoke
+    status=$?
+    set -e
+    if [[ $status -eq 0 ]]; then
+      printf "\n${GREEN}查询编辑器冒烟验证通过。${RESET}\n"
+    else
+      printf "\n${RED}查询编辑器冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
+    fi
+  fi
 else
   printf "\n${RED}冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
 fi

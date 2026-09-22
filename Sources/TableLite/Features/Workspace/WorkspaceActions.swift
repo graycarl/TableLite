@@ -37,6 +37,7 @@ struct WorkspaceActions {
     var importCSV: @MainActor () -> Void
     var exportData: @MainActor () -> Void
     var openScript: @MainActor () -> Void
+    var saveScript: (@MainActor () -> Void)?
     var saveScriptAs: @MainActor () -> Void
 
     // 连接
@@ -51,6 +52,13 @@ struct WorkspaceActions {
     var previewSQL: (@MainActor () -> Void)?
     var discardChanges: (@MainActor () -> Void)?
     var cancelQuery: (@MainActor () -> Void)?
+
+    // 查询编辑器（P7）：⌘↩ / ⇧⌘↩ / 注释与缩进的落点。
+    var executeStatement: (@MainActor () -> Void)?
+    var executeAllStatements: (@MainActor () -> Void)?
+    var toggleComment: (@MainActor () -> Void)?
+    var indentSelection: (@MainActor () -> Void)?
+    var outdentSelection: (@MainActor () -> Void)?
 
     // 视图
     var toggleSidebar: @MainActor () -> Void
@@ -155,6 +163,10 @@ struct TableLiteCommands: Commands {
                 .keyboardShortcut("o", modifiers: .command)
                 .disabled(workspace == nil)
 
+            Button("保存脚本") { workspace?.saveScript?() }
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(workspace?.saveScript == nil)
+
             Button("脚本另存为…") { workspace?.saveScriptAs() }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
                 .disabled(workspace == nil)
@@ -170,14 +182,14 @@ struct TableLiteCommands: Commands {
     private var editMenu: some Commands {
         CommandGroup(after: .pasteboard) {
             Divider()
-            // 注释切换 / 缩进 / 反缩进属于 SQL 编辑器（P7），本阶段留位禁用。
-            Button("注释切换") { }
+            // 注释切换 / 缩进 / 反缩进只在 SQL 编辑器前台时可用（P7）。
+            Button("注释切换") { workspace?.toggleComment?() }
                 .keyboardShortcut("/", modifiers: .command)
-                .disabled(true)
-            Button("缩进") { }
-                .disabled(true)
-            Button("反缩进") { }
-                .disabled(true)
+                .disabled(workspace?.toggleComment == nil)
+            Button("缩进") { workspace?.indentSelection?() }
+                .disabled(workspace?.indentSelection == nil)
+            Button("反缩进") { workspace?.outdentSelection?() }
+                .disabled(workspace?.outdentSelection == nil)
             Divider()
             Button("查找") { workspace?.find?() }
                 .keyboardShortcut("f", modifiers: .command)
@@ -192,20 +204,27 @@ struct TableLiteCommands: Commands {
     // MARK: 查询
 
     // 执行相关命令的落点随当前标签变化（网格是「提交」、编辑器是「执行」），
-    // 见 `06-ui-layer.md` §5；本阶段没有内容标签，留位禁用。
+    // 见 `06-ui-layer.md` §5。
     @CommandsBuilder
     private var queryMenu: some Commands {
         CommandMenu("查询") {
-            // 同一组按键的落点随当前标签变化：表数据标签是「提交修改」，
-            // 查询标签是「执行光标所在语句」（P7 实现后放开）。见 `specs/02-workspace.md` §9。
-            Button(workspace?.submitChanges != nil ? "提交修改" : "执行光标所在语句") {
-                workspace?.submitChanges?()
+            if workspace?.executeStatement != nil {
+                // 查询编辑器前台：⌘↩ 执行当前语句，⇧⌘↩ 执行全部。
+                Button("执行光标所在语句") { workspace?.executeStatement?() }
+                    .keyboardShortcut(.return, modifiers: .command)
+                Button("执行全部") { workspace?.executeAllStatements?() }
+                    .keyboardShortcut(.return, modifiers: [.command, .shift])
+            } else {
+                // 表数据标签前台：⌘↩ 提交修改（`specs/02-workspace.md` §9）。
+                Button(workspace?.submitChanges != nil ? "提交修改" : "执行光标所在语句") {
+                    workspace?.submitChanges?()
+                }
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(workspace?.submitChanges == nil)
+                Button("执行全部") { }
+                    .keyboardShortcut(.return, modifiers: [.command, .shift])
+                    .disabled(true)
             }
-            .keyboardShortcut(.return, modifiers: .command)
-            .disabled(workspace?.submitChanges == nil)
-            Button("执行全部") { }
-                .keyboardShortcut(.return, modifiers: [.command, .shift])
-                .disabled(true)
         }
     }
 

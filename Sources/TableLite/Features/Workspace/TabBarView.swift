@@ -66,10 +66,11 @@ struct TabBarView: View {
         )
     }
 
-    /// 关闭前检查未提交改动（`specs/02-workspace.md` §6、`specs/04-data-editing.md` §12）。
+    /// 关闭前检查未提交改动（`specs/02-workspace.md` §6、`specs/04-data-editing.md` §12）；
+    /// 查询标签则检查未保存文件改动（`specs/06-query-editor.md` §7）。
     private func requestClose(_ tab: Tab) {
         Task {
-            if await pendingChanges.resolveClose(tab: tab) {
+            if await pendingChanges.resolveCloseAnyTab(tab: tab) {
                 session.closeTab(tab)
             }
         }

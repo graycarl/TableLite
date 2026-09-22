@@ -1,13 +1,17 @@
 import SwiftUI
 import AppKit
 
-/// Console Log 标签（`specs/06-query-editor.md` §6）。
+/// Console Log 标签（`specs/06-query-editor.md` §6、`docs/tech-designs/10-query-editor.md` §8）。
 ///
-/// 数据来自 `AppEnvironment.consoleLog`；本阶段实现按类别过滤、复制全部与清空。
+/// 记录**所有**下发到服务器的语句（含元数据查询、事务控制、`KILL QUERY`），
+/// 由 Core 层自动写入（`ConsoleLogStore`），本视图只读展示。
+/// 支持按类别过滤、展开看完整 SQL 与结果概要、复制、清空、自动跟随底部。
 struct ConsoleLogTabView: View {
 
     @Environment(AppEnvironment.self) private var environment
     @State private var filter: ConsoleLogFilter = .all
+    @State private var expandedIDs: Set<UInt64> = []
+    @State private var isFollowing = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,6 +38,12 @@ struct ConsoleLogTabView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
+            Button("回到底部") {
+                withAnimation { isFollowing = true }
+            }
+            .disabled(isFollowing)
+            .help("继续跟随最新记录")
+
             Button("复制") { copyAll() }
                 .disabled(visibleEntries.isEmpty)
             Button("清空") { environment.consoleLog.clear() }
@@ -48,10 +58,51 @@ struct ConsoleLogTabView: View {
         if visibleEntries.isEmpty {
             ContentUnavailableView("还没有语句记录", systemImage: "terminal")
         } else {
-            List(visibleEntries) { entry in
-                ConsoleLogRow(entry: entry)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(visibleEntries) { entry in
+                            ConsoleLogRow(
+                                entry: entry,
+                                isExpanded: expandedIDs.contains(entry.id),
+                                onToggle: { toggle(entry.id) }
+                            )
+                            .id(entry.id)
+                            Divider()
+                        }
+                        // 底部哨兵：可见时说明已滚到底部，恢复跟随。
+                        Color.clear
+                            .frame(height: 1)
+                            .id(Self.bottomAnchor)
+                            .onAppear { isFollowing = true }
+                            .onDisappear { isFollowing = false }
+                    }
+                }
+                .onChange(of: visibleEntries.count) { _, _ in
+                    guard environment.preferences.consoleLogScrollToBottom, isFollowing else { return }
+                    scrollToBottom(proxy)
+                }
+                .onAppear {
+                    guard environment.preferences.consoleLogScrollToBottom else { return }
+                    scrollToBottom(proxy)
+                }
             }
-            .listStyle(.inset)
+        }
+    }
+
+    private static let bottomAnchor = "console-log-bottom"
+
+    private func scrollToBottom(_ proxy: ScrollViewProxy) {
+        withAnimation(.easeOut(duration: 0.15)) {
+            proxy.scrollTo(Self.bottomAnchor, anchor: .bottom)
+        }
+    }
+
+    private func toggle(_ id: UInt64) {
+        if expandedIDs.contains(id) {
+            expandedIDs.remove(id)
+        } else {
+            expandedIDs.insert(id)
         }
     }
 
@@ -109,10 +160,15 @@ enum ConsoleLogFilter: String, CaseIterable, Identifiable, Sendable {
 private struct ConsoleLogRow: View {
 
     let entry: ConsoleLogEntry
+    let isExpanded: Bool
+    var onToggle: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 8) {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                 Text(entry.tag == .data ? "[data]" : "[meta]")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(entry.tag == .data ? .blue : .secondary)
@@ -128,22 +184,32 @@ private struct ConsoleLogRow: View {
                 if let rows = entry.returnedRowCount {
                     Text("\(rows) 行").foregroundStyle(.secondary)
                 }
+                if let affected = entry.affectedRows {
+                    Text("影响 \(affected) 行").foregroundStyle(.secondary)
+                }
                 if let code = entry.errorCode {
                     Text("✗ \(code)").foregroundStyle(.red)
+                }
+                if entry.isCancelled {
+                    Text("已取消").foregroundStyle(.orange)
                 }
                 Spacer()
             }
             Text(entry.sql)
                 .font(.system(.body, design: .monospaced))
-                .lineLimit(3)
-            if let errorMessage = entry.errorMessage {
+                .lineLimit(isExpanded ? nil : 3)
+                .textSelection(.enabled)
+            if isExpanded, let errorMessage = entry.errorMessage {
                 Text(errorMessage)
                     .font(.callout)
                     .foregroundStyle(.red)
-                    .lineLimit(2)
+                    .textSelection(.enabled)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onToggle)
     }
 
     private static let timeFormatter: DateFormatter = {

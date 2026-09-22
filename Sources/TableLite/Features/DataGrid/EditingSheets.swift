@@ -30,8 +30,8 @@ struct PreviewSQLSheet: View {
                                 .font(.caption.monospacedDigit())
                                 .foregroundStyle(.secondary)
                                 .frame(width: 24, alignment: .trailing)
-                            Text(sql)
-                                .font(.system(.body, design: .monospaced))
+                            // L30：预览 SQL 加语法高亮（复用 SQLLexer）。
+                            SQLHighlightedText(sql: sql)
                                 .textSelection(.enabled)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }

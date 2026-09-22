@@ -193,6 +193,8 @@ struct InspectorFieldRow: View {
     @State private var errorMessage: String?
     @State private var previousNonNull: SQLValue?
     @State private var isExpanded = false
+    /// L29：大窗口里的查找请求计数。
+    @State private var findToken = 0
     @FocusState private var isFocused: Bool
 
     private var editorKind: FieldEditorKind {
@@ -480,6 +482,8 @@ struct InspectorFieldRow: View {
                 Text("\(column.name) · \(column.typeDisplayText)")
                     .font(.headline)
                 Spacer()
+                Button("查找") { findToken += 1 }
+                    .help("在内容里查找（⌘F 面板）")
                 Button("完成") {
                     commitDraft()
                     isExpanded = false
@@ -488,13 +492,15 @@ struct InspectorFieldRow: View {
             }
             .padding(10)
             Divider()
-            PlainTextView(
+            // L29：大窗口带行号与查找；内容不是 SQL，关掉语法着色。
+            SQLTextView(
                 text: $draft,
                 isEditable: isEditable,
-                isMultiline: true,
                 fontSize: 13,
-                onCommit: {},
-                onCancel: {}
+                showLineNumbers: true,
+                highlightCurrentStatement: false,
+                syntaxHighlighting: false,
+                findRequestToken: findToken
             )
             .frame(minWidth: 560, minHeight: 360)
         }

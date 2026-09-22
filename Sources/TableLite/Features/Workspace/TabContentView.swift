@@ -40,24 +40,12 @@ struct TabContentView: View {
         switch tab.kind {
         case .tableData:
             TableDataTabView(session: session, tab: tab)
-        case .tableStructure(let database, let table):
-            TabPlaceholderView(
-                symbol: "list.bullet.rectangle",
-                title: "表结构视图",
-                detail: "\(database).\(table)\n列 / 索引 / 外键 / 触发器待 W4 实现"
-            )
-        case .objectDefinition(let database, let object):
-            TabPlaceholderView(
-                symbol: "doc.plaintext",
-                title: "对象定义",
-                detail: "\(database).\(object) 的定义语句待 W4 实现"
-            )
+        case .tableStructure:
+            TableStructureTabView(session: session, tab: tab)
+        case .objectDefinition:
+            TableStructureTabView(session: session, tab: tab)
         case .query:
-            TabPlaceholderView(
-                symbol: "chevron.left.forwardslash.chevron.right",
-                title: "SQL 编辑器",
-                detail: "查询编辑器与结果标签待 W4/W7 实现"
-            )
+            QueryEditorView(session: session, tab: tab)
         case .history:
             HistoryTabView(session: session)
         case .consoleLog:

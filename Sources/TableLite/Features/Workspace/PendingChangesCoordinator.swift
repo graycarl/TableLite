@@ -74,6 +74,22 @@ final class PendingChangesCoordinator {
         return await resolve(models: [model], message: Self.message(for: [model]))
     }
 
+    /// 关闭任意标签前的确认：表数据标签走「提交 / 放弃 / 取消」，
+    /// 查询标签走「保存 / 不保存 / 取消」（`specs/06-query-editor.md` §7）。
+    @discardableResult
+    func resolveCloseAnyTab(tab: Tab) async -> Bool {
+        if let editor = tab.content as? QueryEditorViewModel {
+            return await editor.resolveClosePrompt()
+        }
+        return await resolveClose(tab: tab)
+    }
+
+    /// 该会话里所有有未保存文件改动的查询标签。
+    static func queryEditors(in session: ConnectionSession) -> [QueryEditorViewModel] {
+        session.tabs.compactMap { $0.content as? QueryEditorViewModel }
+            .filter(\.hasUnsavedFileChanges)
+    }
+
     /// 断开 / 移除连接前的确认（汇总该会话的所有暂存标签）。
     @discardableResult
     func resolveLeave(session: ConnectionSession) async -> Bool {

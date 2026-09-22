@@ -1,10 +1,11 @@
 import SwiftUI
 import AppKit
 
-/// 查询历史标签（`specs/06-query-editor.md` §5）。
+/// 查询历史标签（`specs/06-query-editor.md` §5、`docs/tech-designs/10-query-editor.md` §7）。
 ///
-/// 本阶段实现只读列表 + 搜索 + 清空。双击插入当前查询标签、复制、在新标签打开等
-/// 需要 SQL 编辑器的能力，留到 W4/W7。
+/// 数据来自 `history.sqlite3`；只记录从 SQL 编辑器执行的语句（由 `ConnectionSession` 统一写入）。
+/// 支持按 SQL 搜索、按连接过滤、按时间范围过滤、单条删除 / 清空（`⌥` 清空全部）、
+/// 双击插入当前查询标签、右键复制 / 在新标签打开 / 删除。
 struct HistoryTabView: View {
 
     let session: ConnectionSession
@@ -12,6 +13,9 @@ struct HistoryTabView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var entries: [QueryHistoryEntry] = []
     @State private var search = ""
+    @State private var connectionFilter: ConnectionFilter = .all
+    @State private var timeFilter: HistoryTimeFilter = .all
+    @State private var selection: Int64?
     @State private var loadError: String?
 
     var body: some View {
@@ -19,23 +23,52 @@ struct HistoryTabView: View {
             toolbar
             Divider()
             content
+            if let selected = selectedEntry {
+                Divider()
+                preview(selected)
+            }
         }
-        .task(id: search) { await load() }
+        .task(id: reloadKey) { await load() }
     }
+
+    // MARK: 工具栏
 
     private var toolbar: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField("搜索", text: $search)
+            TextField("搜索 SQL", text: $search)
                 .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 260)
+                .frame(maxWidth: 240)
+
+            Picker("连接", selection: $connectionFilter) {
+                Text("全部连接").tag(ConnectionFilter.all)
+                ForEach(connectionChoices, id: \.id) { choice in
+                    Text(choice.name).tag(ConnectionFilter.connection(choice.id))
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .frame(maxWidth: 180)
+
+            Picker("时间", selection: $timeFilter) {
+                ForEach(HistoryTimeFilter.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .frame(maxWidth: 120)
+
             Spacer()
+
             Text("\(entries.count) 条")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+
             Button("清空历史") { clear() }
                 .disabled(entries.isEmpty)
+                .help("清空当前连接的记录；按住 ⌥ 清空所有连接")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -48,20 +81,83 @@ struct HistoryTabView: View {
         } else if entries.isEmpty {
             ContentUnavailableView("还没有查询历史", systemImage: "clock.arrow.circlepath")
         } else {
-            List(entries) { entry in
+            List(entries, selection: $selection) { entry in
                 HistoryRow(entry: entry)
+                    .tag(entry.id)
+                    .contentShape(Rectangle())
+                    .onTapGesture(count: 2) { insert(entry.sql) }
+                    .contextMenu {
+                        Button("复制") { copy(entry.sql) }
+                        Button("插入到当前查询标签") { insert(entry.sql) }
+                        Button("重新执行") { rerun(entry.sql) }
+                        Button("在新标签打开") { openInNewTab(entry.sql) }
+                        Divider()
+                        Button("删除该条", role: .destructive) {
+                            Task {
+                                try? await environment.history.delete(id: entry.id)
+                                await load()
+                            }
+                        }
+                    }
             }
             .listStyle(.inset)
         }
     }
 
+    private func preview(_ entry: QueryHistoryEntry) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text(Self.timeFormatter.string(from: entry.executedAt))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    if let database = entry.database {
+                        Text(database).foregroundStyle(.tertiary)
+                    }
+                    Text("\(entry.durationMilliseconds) ms")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                Text(entry.sql)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(12)
+        }
+        .frame(height: 150)
+        .background(Color(nsColor: .textBackgroundColor))
+    }
+
+    // MARK: 数据
+
+    private var reloadKey: String {
+        "\(search)|\(connectionFilter.key)|\(timeFilter.rawValue)"
+    }
+
+    private var selectedEntry: QueryHistoryEntry? {
+        guard let selection else { return nil }
+        return entries.first { $0.id == selection }
+    }
+
+    private var connectionChoices: [(id: UUID, name: String)] {
+        environment.sessionManager.sessions.map { ($0.id, $0.connection.name) }
+    }
+
     private func load() async {
         do {
             let trimmed = search.trimmingCharacters(in: .whitespacesAndNewlines)
+            let connectionID: UUID?
+            switch connectionFilter {
+            case .all: connectionID = nil
+            case .connection(let id): connectionID = id
+            }
             entries = try await environment.history.recent(
-                connectionID: session.id,
+                connectionID: connectionID,
                 search: trimmed.isEmpty ? nil : trimmed,
-                limit: 200
+                limit: 500,
+                since: timeFilter.since(now: environment.clock.now)
             )
             loadError = nil
         } catch {
@@ -70,12 +166,98 @@ struct HistoryTabView: View {
     }
 
     private func clear() {
+        let clearAll = NSEvent.modifierFlags.contains(.option)
         Task {
-            try? await environment.history.clear(connectionID: session.id)
+            if clearAll {
+                try? await environment.history.clearAll()
+            } else {
+                try? await environment.history.clear(connectionID: session.id)
+            }
             await load()
         }
     }
+
+    // MARK: 动作
+
+    private func copy(_ sql: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(sql, forType: .string)
+    }
+
+    /// 插入到当前查询标签；没有查询标签时新建一个。
+    private func insert(_ sql: String) {
+        if let editor = session.activeTab?.content as? QueryEditorViewModel {
+            editor.insertHistorySQL(sql, append: true)
+        } else {
+            session.newQueryTab(initialSQL: sql)
+        }
+    }
+
+    private func openInNewTab(_ sql: String) {
+        session.newQueryTab(initialSQL: sql)
+    }
+
+    /// 重新执行：当前有查询编辑器就直接跑，否则开一个新标签。
+    private func rerun(_ sql: String) {
+        if let editor = session.activeTab?.content as? QueryEditorViewModel {
+            editor.insertHistorySQL(sql, append: false)
+            editor.executeSQL(sql)
+        } else {
+            session.newQueryTab(initialSQL: sql)
+        }
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter
+    }()
 }
+
+// MARK: - 过滤项
+
+enum ConnectionFilter: Hashable {
+    case all
+    case connection(UUID)
+
+    var key: String {
+        switch self {
+        case .all: return "all"
+        case .connection(let id): return id.uuidString
+        }
+    }
+}
+
+/// 时间范围过滤（`specs/06-query-editor.md` §5）。
+enum HistoryTimeFilter: String, CaseIterable, Identifiable {
+    case all
+    case today
+    case last7Days
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: return "全部时间"
+        case .today: return "今天"
+        case .last7Days: return "最近 7 天"
+        }
+    }
+
+    func since(now: Date) -> Date? {
+        switch self {
+        case .all:
+            return nil
+        case .today:
+            return Calendar.current.startOfDay(for: now)
+        case .last7Days:
+            return Calendar.current.date(byAdding: .day, value: -7, to: now)
+        }
+    }
+}
+
+// MARK: - 行
 
 /// 一条查询历史。
 private struct HistoryRow: View {

@@ -12,6 +12,10 @@ struct ObjectTreeSidebar: View {
     let session: ConnectionSession
     /// 外部（⌘F）要求聚焦搜索框时自增。
     let focusSearchRequest: Int
+    /// 右键「导出…」（P8 接线）；nil 时菜单项禁用。
+    var onExport: ((TableInfo) -> Void)?
+    /// 右键「导入 CSV…」（P8 接线）；nil 时菜单项禁用。
+    var onImportCSV: ((TableInfo) -> Void)?
 
     @State private var searchText = ""
     @State private var expandedGroups: Set<ObjectTreeGroup> = Set(ObjectTreeGroup.allCases)
@@ -212,11 +216,10 @@ struct ObjectTreeSidebar: View {
 
             Divider()
 
-            // 导出 / 导入属于 P8，本阶段留位禁用。
-            Button("导出…") { }
-                .disabled(true)
-            Button("导入 CSV…") { }
-                .disabled(true)
+            Button("导出…") { onExport?(object) }
+                .disabled(onExport == nil)
+            Button("导入 CSV…") { onImportCSV?(object) }
+                .disabled(onImportCSV == nil || session.isReadOnly)
 
             Divider()
 
