@@ -105,5 +105,6 @@
 | 2026-09-21 | 补齐测试与工程决策：新增 `15-testing.md`（测试分层、可测试性注入点、CI）、存储版本与迁移（`02-persistence.md` §9）、界面文案硬编码中文（`06-ui-layer.md` §8）、时区零处理（`03-mysql-layer.md` §4.3）、分发 `make dist`（`12-build-and-deps.md` §4.1）；新增 S22–S27、L13、L14、T12 |
 | 2026-09-22 | Core/Model + Core/SQL 落地（W1-T1）：登记 S28（LIKE ESCAPE 按 sql_mode 适配，修正 `09` §1.4 矛盾）、S29（Preview 与下发共用连接转义器）、S30（语句分类从严）、L15（CSV 读全量解析）、L16（TSV NULL 文本表示）；行定位键 `RowKeyValue` 携带 `fieldType`/`isBinary` 以生成正确字面量 |
 | 2026-09-22 | Core/MySQL + Core/Store + Core/SSH 落地（W1-T2/T3/T4）：冒烟 7/7 通过；登记 S31（删连接 Keychain 顺序）、S32（SSH BatchMode 策略）、L17–L20；`session.json` schema 由 Core/Store 首定（`SessionStateFile`），W2 的 SessionManager 对接时可调整；SSH 别名模式下 `Connection.validationIssues()` 仍强制要求 `ssh.user`，待 W2 连接表单放宽 |
+| 2026-09-22 | Core/Meta + Core/Session 落地（W2-T5）：MetaRepository（information_schema + TTL 缓存 + DDL 失效）、SessionManager/ConnectionSession/Tab/AppEnvironment；`MySQLSessionProtocol`/`SSHTunnelProtocol` 抽协议供测试替身（S26 手写协议）；SSH 别名模式校验已放宽（`Connection.validationIssues()` 不再强制 `ssh.user`/私钥）；保活用固定 30s 周期（未按连接各自间隔）；退出前的未提交确认待编辑 wave 补 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

@@ -251,11 +251,15 @@ public struct Connection: Sendable, Codable, Equatable, Hashable, Identifiable {
 
         if ssh.enabled {
             if ssh.host.trimmingCharacters(in: .whitespaces).isEmpty { issues.append(.emptySSHHost) }
-            if ssh.user.trimmingCharacters(in: .whitespaces).isEmpty { issues.append(.emptySSHUser) }
-            if !(1...65535).contains(ssh.port) { issues.append(.invalidSSHPort) }
-            if ssh.authMethod == .privateKey,
-               (ssh.privateKeyPath?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) {
-                issues.append(.missingPrivateKeyPath)
+            // 别名模式完全交给系统 `~/.ssh/config` 解析（主机别名、端口、用户、密钥），
+            // 因此不再强制要求 ssh.user / 端口 / 私钥路径（`specs/10-ssh-tunnel.md` §3.1）。
+            if !ssh.useSSHConfigAlias {
+                if ssh.user.trimmingCharacters(in: .whitespaces).isEmpty { issues.append(.emptySSHUser) }
+                if !(1...65535).contains(ssh.port) { issues.append(.invalidSSHPort) }
+                if ssh.authMethod == .privateKey,
+                   (ssh.privateKeyPath?.trimmingCharacters(in: .whitespaces).isEmpty ?? true) {
+                    issues.append(.missingPrivateKeyPath)
+                }
             }
         }
         return issues

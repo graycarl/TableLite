@@ -184,11 +184,12 @@ public actor MySQLSession {
     /// 流式执行：逐结果集 / 逐行回调，不在 session 侧缓冲。
     ///
     /// 回调在 session 的串行队列上同步执行，只应做数据复制或计数，不得阻塞、不得回灌 UI。
+    /// 因为要跨隔离域传给 actor，回调必须 `@Sendable`（`docs/tech-designs/01-architecture.md` §3、§4）。
     @discardableResult
     public func streamQuery(
         _ sql: String,
         unbuffered: Bool = false,
-        onEvent: @escaping (MySQLQueryEvent) -> Void
+        onEvent: @escaping @Sendable (MySQLQueryEvent) -> Void
     ) async throws -> MySQLQuerySummary {
         try await runQuery(sql, unbuffered: unbuffered, onEvent: onEvent)
     }

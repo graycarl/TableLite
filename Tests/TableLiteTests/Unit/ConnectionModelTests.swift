@@ -54,6 +54,28 @@ final class ConnectionModelTests: XCTestCase {
         XCTAssertTrue(makeConnection().validationIssues().isEmpty)
     }
 
+    func testSSHConfigAliasDoesNotRequireUserOrPrivateKey() {
+        var connection = makeConnection()
+        connection.ssh = SSHConfig(
+            enabled: true,
+            host: "my-alias",
+            port: 0,
+            user: "",
+            authMethod: .privateKey,
+            privateKeyPath: nil,
+            useSSHConfigAlias: true
+        )
+        // 别名模式完全交给系统解析，不再强制 ssh.user / 端口 / 私钥路径。
+        XCTAssertTrue(connection.validationIssues().isEmpty)
+
+        // 关掉别名后仍然强制。
+        connection.ssh.useSSHConfigAlias = false
+        let issues = connection.validationIssues()
+        XCTAssertTrue(issues.contains(.emptySSHUser))
+        XCTAssertTrue(issues.contains(.invalidSSHPort))
+        XCTAssertTrue(issues.contains(.missingPrivateKeyPath))
+    }
+
     func testDuplicatedHasNewIdentityAndName() {
         let original = makeConnection()
         let copy = original.duplicated(newName: "副本")
