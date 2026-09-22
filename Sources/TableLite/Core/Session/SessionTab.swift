@@ -166,6 +166,10 @@ public final class Tab: Identifiable {
     public var scrollRow: Int?
     public var focusedColumn: String?
 
+    /// 外键 `↗` 跳转带入的初始过滤条件；不随 `session.json` 往返。
+    /// 装配 `TableDataViewModel` 时优先于「按表记住的过滤」。
+    @ObservationIgnored public var initialFilter: FilterState?
+
     // MARK: 查询标签状态
 
     /// 关联的磁盘文件（从文件打开或另存为过）。
@@ -197,6 +201,7 @@ public final class Tab: Identifiable {
         self.focusedColumn = nil
         self.filePath = nil
         self.initialSQL = nil
+        self.initialFilter = nil
     }
 
     /// 标签标题。

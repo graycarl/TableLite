@@ -69,6 +69,15 @@ private struct ConnectionListContent: View {
                 onCancel: { viewModel.cancelPasswordPrompt() }
             )
         }
+        .sheet(item: $viewModel.sshSecretPrompt) { prompt in
+            SSHSecretPromptView(
+                request: prompt.request,
+                onSubmit: { value, remember in
+                    viewModel.submitSSHSecretPrompt(value, remember: remember)
+                },
+                onCancel: { viewModel.cancelSSHSecretPrompt() }
+            )
+        }
         .alert(
             "确定要删除连接「\(viewModel.pendingDeletion?.name ?? "")」吗？",
             isPresented: Binding(
@@ -102,7 +111,7 @@ private struct ConnectionListContent: View {
                 Task { await viewModel.confirmDeleteWithPendingChanges(.cancel) }
             }
         } message: {
-            Text("这个连接有未提交的修改。删除连接会一并关闭它的会话。")
+            Text("这个连接有未提交的修改。删除连接会一并关闭它。")
         }
     }
 
@@ -265,7 +274,7 @@ private struct ConnectionListContent: View {
 /// 连接列表里的状态指示（`specs/01-connections.md` §4）。
 ///
 /// 未连接 → 灰点；连接中 → 转圈；已连接 → 绿点；异常 → 红点；
-/// 被空闲回收 / 断开（或连接失败后已断开）→ 灰点，右侧另给「点击重连」。
+/// 被空闲回收 / 断开（或连接失败后已断开）→ 灰点，右侧另给「重新连接」。
 private struct ConnectionStatusIndicator: View {
     let status: ConnectionListViewModel.RowStatus
 
@@ -351,7 +360,7 @@ private struct ConnectionRowView: View {
                     .controlSize(.small)
             }
         case .needsReconnect:
-            Button("点击重连") { onReconnect() }
+            Button("重新连接") { onReconnect() }
                 .controlSize(.small)
         case .notConnected, .connected:
             EmptyView()
@@ -392,5 +401,55 @@ private struct ConnectionPasswordPromptView: View {
         }
         .padding(20)
         .frame(width: 380)
+    }
+}
+
+// MARK: - SSH 密码 / 私钥口令输入
+
+/// 需要 SSH 密码或私钥口令时的输入框（`specs/10-ssh-tunnel.md` §3.2 / §3.3）。
+///
+/// 由 `ConnectionSession` 的连接流程通过 `sshSecretRequester` 弹出；勾选「记住」时
+/// 由 ViewModel 写入系统钥匙串。界面只展示「需要」，不回显任何已保存的凭据。
+private struct SSHSecretPromptView: View {
+
+    let request: SSHSecretRequest
+    let onSubmit: (String, Bool) -> Void
+    let onCancel: () -> Void
+
+    @State private var secret = ""
+    @State private var remember = true
+
+    private var isPassphrase: Bool { request.kind == .passphrase }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(isPassphrase ? "输入私钥口令" : "输入 SSH 密码")
+                .font(.headline)
+            Text(message)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            SecureField(isPassphrase ? "私钥口令" : "SSH 密码", text: $secret)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit { onSubmit(secret, remember) }
+            Toggle(isPassphrase ? "记住口令（保存到钥匙串）" : "记住密码（保存到钥匙串）", isOn: $remember)
+                .toggleStyle(.checkbox)
+            HStack {
+                Spacer()
+                Button("取消") { onCancel() }
+                    .keyboardShortcut(.cancelAction)
+                Button("连接") { onSubmit(secret, remember) }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
+    }
+
+    private var message: String {
+        if isPassphrase {
+            let key = request.privateKeyPath ?? ""
+            return "私钥 \(key) 有口令。连接「\(request.connectionName)」需要它。"
+        }
+        return "连接「\(request.connectionName)」需要 SSH 密码。"
     }
 }

@@ -213,7 +213,7 @@ struct StaleStructureBanner: View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-            Text("这张表的结构可能已经改变（刚执行过 DDL），显示的内容可能不是最新的。")
+            Text("这张表的结构可能已经改变，显示的内容可能不是最新的。")
                 .font(.callout)
             Spacer()
             Button("刷新", action: onRefresh)

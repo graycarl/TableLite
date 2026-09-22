@@ -141,6 +141,64 @@ final class QueryEditorTests: XCTestCase {
         XCTAssertTrue(model.results[0].statementText.contains("SELECT 2"))
     }
 
+    func testExecuteDefaultHonorsPreferenceScope() async throws {
+        let session = try await connect()
+        await harness.mysql.setResponses(SessionTestSupport.successfulResponses() + [
+            ("SELECT 1", .single(columns: ["a"], rows: [["1"]])),
+            ("SELECT 2", .single(columns: ["a"], rows: [["2"]])),
+        ])
+        let sql = "SELECT 1;\nSELECT 2;"
+
+        // 偏好改成「执行全部」时 `⌘↩`（executeDefault）跑整段脚本。
+        harness.preferences.defaultExecutionScope = .allStatements
+        let allModel = makeModel(session)
+        allModel.textChanged(sql)
+        allModel.selectionChanged(NSRange(location: 3, length: 0))
+        allModel.executeDefault()
+        await allModel.waitForExecution()
+        XCTAssertEqual(allModel.results.count, 2)
+
+        // 默认「执行当前语句」时只跑光标所在语句。
+        harness.preferences.defaultExecutionScope = .currentStatement
+        let currentModel = makeModel(session)
+        currentModel.textChanged(sql)
+        currentModel.selectionChanged(NSRange(location: 12, length: 0))
+        currentModel.executeDefault()
+        await currentModel.waitForExecution()
+        XCTAssertEqual(currentModel.results.count, 1)
+        XCTAssertTrue(currentModel.results[0].statementText.contains("SELECT 2"))
+    }
+
+    func testCancelFailureShowsNotice() async throws {
+        let session = try await connect()
+        await harness.mysql.setCancelError(
+            MySQLError.server(code: 1095, sqlState: "HY000", message: "You are not owner of thread")
+        )
+        let model = makeModel(session)
+        model.textChanged("SELECT SLEEP(10);")
+        model.executeAll()
+        XCTAssertTrue(model.isRunning)
+        model.stop()
+        await waitForNotice(model, equals: "取消失败，查询仍在服务器上运行")
+    }
+
+    func testResultTabComputesApproximateByteCount() {
+        let statement = SQLStatement(text: "SELECT a", range: TextRange(location: 0, length: 8), kind: .query)
+        let tab = QueryResultTab(ordinal: 1, statement: statement)
+        tab.apply(result: .single(columns: ["a"], rows: [["hello"], ["world!"]]), durationMilliseconds: 1)
+        XCTAssertEqual(tab.byteCount, "hello".utf8.count + "world!".utf8.count)
+    }
+
+    func testResultColumnVisibilityKeepsAtLeastOneColumn() {
+        XCTAssertEqual(ResultColumnVisibility.toggling(index: 0, in: [], columnCount: 2), [0])
+        XCTAssertEqual(ResultColumnVisibility.toggling(index: 1, in: [0], columnCount: 2), [0])
+        XCTAssertEqual(ResultColumnVisibility.toggling(index: 0, in: [0], columnCount: 2), [])
+        XCTAssertEqual(ResultColumnVisibility.toggling(index: 1, in: [0, 1], columnCount: 2), [0])
+        XCTAssertEqual(ResultColumnVisibility.toggling(index: 0, in: [0, 1], columnCount: 2), [1])
+        XCTAssertEqual(ResultColumnVisibility.toggling(index: 5, in: [], columnCount: 2), [])
+        XCTAssertEqual(ResultColumnVisibility.toggling(index: 0, in: [], columnCount: 0), [])
+    }
+
     func testSyntaxErrorProducesFailureTab() async throws {
         let session = try await connect()
         let syntaxError = MySQLError.server(code: 1064, sqlState: "42000", message: "You have an error in your SQL syntax")
@@ -192,6 +250,11 @@ final class QueryEditorTests: XCTestCase {
         XCTAssertFalse(executed.contains { $0.hasPrefix("INSERT") })
         XCTAssertTrue(executed.contains { $0.contains("SELECT 1") })
         XCTAssertEqual(model.notice, "只读模式：已跳过 1 条写操作语句")
+        XCTAssertEqual(model.results[0].blockedReason, QueryResultTab.readOnlyBlockedMessage)
+        XCTAssertEqual(
+            QueryResultTab.readOnlyBlockedMessage,
+            "当前连接处于只读模式，只能执行查询语句。如需修改，请在连接菜单中关闭只读模式。"
+        )
     }
 
     func testReadOnlyBlocksCTEWrite() async throws {
@@ -269,5 +332,18 @@ final class QueryEditorTests: XCTestCase {
             try? await Task.sleep(for: .milliseconds(25))
         }
         return nil
+    }
+
+    private func waitForNotice(
+        _ model: QueryEditorViewModel,
+        equals expected: String,
+        timeout: TimeInterval = 2
+    ) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if model.notice == expected { return }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        XCTFail("未等到提示「\(expected)」，当前为 \(model.notice ?? "nil")")
     }
 }

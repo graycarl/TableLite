@@ -62,6 +62,29 @@ public struct CommitFailure: Sendable, Equatable {
     }
 }
 
+// MARK: - 删除确认
+
+/// 删除行前展示的将执行条件（`specs/04-data-editing.md` §6）。
+///
+/// 每行一个 `WHERE` 子句（用该行的冻结定位键生成），让用户确认删的是哪一行。
+public struct PendingRowDeletion: Sendable, Equatable {
+    /// 待删除的行 id（含新增行）。
+    public var rowIDs: [String]
+    /// 每行将执行的 `WHERE` 条件，例如 `WHERE id = 42`。
+    public var conditions: [String]
+
+    public init(rowIDs: [String], conditions: [String]) {
+        self.rowIDs = rowIDs
+        self.conditions = conditions
+    }
+
+    /// 确认弹窗里的说明文案。
+    public var message: String {
+        let joined = conditions.joined(separator: "\n")
+        return conditions.count == 1 ? "将执行：\n\(joined)" : "将执行以下条件：\n\(joined)"
+    }
+}
+
 // MARK: - 编辑编排
 
 /// `TableDataViewModel` 的编辑 / 暂存 / 提交 / 放弃编排。
@@ -221,9 +244,55 @@ extension TableDataViewModel {
         }
     }
 
-    /// `⌫` / 右键「删除行」：标记删除（进暂存）。
+    /// `⌫` / 右键「删除行」：先展示将执行的 `WHERE` 条件让用户确认（`specs/04-data-editing.md` §6）。
+    ///
+    /// 只选中新增行时没有 `WHERE`，直接取消整行，不弹确认。
     public func deleteRows(rowIDs: [String]) {
         guard isEditingEnabled, !rowIDs.isEmpty else { return }
+        var deletable: [String] = []
+        var conditions: [String] = []
+        for rowID in rowIDs {
+            guard let row = gridRows.first(where: { $0.id == rowID }) else { continue }
+            guard row.changeKind != .deletion else { continue }
+            guard let identity = rowIdentity(for: row) else { continue }
+            deletable.append(rowID)
+            if let locator = identity.locator, let clause = deletionClause(for: locator) {
+                conditions.append("WHERE \(clause)")
+            }
+        }
+        guard !deletable.isEmpty else { return }
+        if conditions.isEmpty {
+            performDelete(rowIDs: deletable)
+        } else {
+            pendingDeletion = PendingRowDeletion(rowIDs: deletable, conditions: conditions)
+            bumpRevision()
+        }
+    }
+
+    /// 确认删除：把待删除的行标记进暂存。
+    public func confirmDeletion() {
+        guard let pending = pendingDeletion else { return }
+        pendingDeletion = nil
+        performDelete(rowIDs: pending.rowIDs)
+    }
+
+    /// 取消删除：不产生任何暂存改动。
+    public func cancelDeletion() {
+        guard pendingDeletion != nil else { return }
+        pendingDeletion = nil
+        bumpRevision()
+    }
+
+    /// 用行的冻结定位键生成 `WHERE` 子句（不含 `WHERE` 前缀）。
+    private func deletionClause(for locator: RowLocator) -> String? {
+        try? PendingChangeSQL.locationClause(
+            locator,
+            introducer: session.mysql.charsetIntroducer,
+            escaper: session.mysql.makeEscaper()
+        )
+    }
+
+    private func performDelete(rowIDs: [String]) {
         var changed = false
         for rowID in rowIDs {
             guard let row = gridRows.first(where: { $0.id == rowID }) else { continue }
@@ -410,7 +479,7 @@ extension TableDataViewModel {
     public func cancelCommit() {
         guard isCommitting else { return }
         cancelCommitRequested = true
-        Task { await session.cancelCurrentQuery() }
+        Task { try? await session.cancelCurrentQuery() }
     }
 
     public func dismissCommitFailure() {

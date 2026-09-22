@@ -153,7 +153,8 @@ struct TableLiteCommands: Commands {
 
             Button("导入 CSV…") { workspace?.importCSV() }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
-                .disabled(workspace == nil)
+                // 只读连接禁用导入（`specs/09-readonly-mode.md` §4），与对象树右键入口一致。
+                .disabled(workspace == nil || (workspace?.isReadOnly ?? false))
 
             Button("导出…") { workspace?.exportData() }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
@@ -209,14 +210,15 @@ struct TableLiteCommands: Commands {
     private var queryMenu: some Commands {
         CommandMenu("查询") {
             if workspace?.executeStatement != nil {
-                // 查询编辑器前台：⌘↩ 执行当前语句，⇧⌘↩ 执行全部。
-                Button("执行光标所在语句") { workspace?.executeStatement?() }
+                // 查询编辑器前台：`⌘↩` 按偏好「默认执行行为」分派（默认当前语句，可改为全部），
+                // `⇧⌘↩` 永远执行全部（`specs/06-query-editor.md` §3）。
+                Button("执行") { workspace?.executeStatement?() }
                     .keyboardShortcut(.return, modifiers: .command)
                 Button("执行全部") { workspace?.executeAllStatements?() }
                     .keyboardShortcut(.return, modifiers: [.command, .shift])
             } else {
-                // 表数据标签前台：⌘↩ 提交修改（`specs/02-workspace.md` §9）。
-                Button(workspace?.submitChanges != nil ? "提交修改" : "执行光标所在语句") {
+                // 表数据标签前台：`⌘↩` 提交修改（`specs/02-workspace.md` §9）。
+                Button(workspace?.submitChanges != nil ? "提交修改" : "执行") {
                     workspace?.submitChanges?()
                 }
                 .keyboardShortcut(.return, modifiers: .command)

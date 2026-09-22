@@ -60,7 +60,14 @@ public enum SSHTunnelError: Error, Sendable, Equatable {
     }
 
     /// 面向用户的中文说明。UI 另需把 `stderrTail` 放进「查看详细输出」。
-    public var displayMessage: String {
+    ///
+    /// 需要带跳板机端点时用 `message(sshHost:sshPort:)`（`specs/10-ssh-tunnel.md` §5
+    /// 要求「无法连接到 SSH 主机 …:22（连接超时）」）。
+    public var displayMessage: String { message(sshHost: nil, sshPort: nil) }
+
+    /// 带跳板机端点的展示文案。`sshHost` / `sshPort` 来自连接配置，
+    /// stderr 里能解析出端点时优先用 stderr 的（更贴近 ssh 实际尝试的目标）。
+    public func message(sshHost: String?, sshPort: Int?) -> String {
         switch self {
         case .sshExecutableMissing(let path):
             return "找不到系统 SSH 程序（\(path)）"
@@ -74,10 +81,14 @@ public enum SSHTunnelError: Error, Sendable, Equatable {
             return "本地端口被占用，正在重试"
         case .startupTimedOut:
             return "SSH 隧道建立超时"
-        case .connectionFailed:
-            return "无法连接到 SSH 主机"
-        case .authenticationFailed:
-            return "SSH 认证失败"
+        case .connectionFailed(let stderrTail):
+            return SSHErrorText.connectionFailureMessage(
+                sshHost: sshHost,
+                sshPort: sshPort,
+                stderrTail: stderrTail
+            )
+        case .authenticationFailed(let stderrTail):
+            return SSHErrorText.authenticationMessage(stderrTail: stderrTail)
         case .privateKeyRejected:
             return "SSH 认证失败：私钥需要口令，或密钥未被接受"
         case .hostKeyChanged:
@@ -85,6 +96,114 @@ public enum SSHTunnelError: Error, Sendable, Equatable {
         case .tunnelClosed:
             return "SSH 隧道已断开"
         }
+    }
+}
+
+// MARK: - 错误文案拼装
+
+/// 把 `stderr` 尾部拼成 `specs/10-ssh-tunnel.md` §5 规定的用户文案。
+///
+/// 纯函数，可单元测试。ssh 没有结构化错误（`04` §1），只能在文本上做保守提取：
+/// 解析不出端点 / 原因时退回到不带细节的文案，绝不因此吞掉错误。
+enum SSHErrorText {
+
+    /// `无法连接到 SSH 主机 bastion.example.com:22（连接超时）`（`specs/10` §5）。
+    static func connectionFailureMessage(sshHost: String?, sshPort: Int?, stderrTail: String) -> String {
+        let parsed = parseConnectionFailure(stderrTail)
+        let host = parsed.host ?? nonEmpty(sshHost)
+        let port = parsed.port ?? (host == nil ? nil : sshPort)
+
+        var message = "无法连接到 SSH 主机"
+        if let host {
+            if let port {
+                message += " \(host):\(port)"
+            } else {
+                message += " \(host)"
+            }
+        }
+        if let reason = parsed.reason {
+            message += "（\(reason)）"
+        }
+        return message
+    }
+
+    /// `SSH 认证失败：Permission denied (password).`（`specs/10` §5）。
+    static func authenticationMessage(stderrTail: String) -> String {
+        guard let detail = authenticationDetail(stderrTail: stderrTail) else {
+            return "SSH 认证失败"
+        }
+        return "SSH 认证失败：\(detail)"
+    }
+
+    // MARK: 解析
+
+    /// 从 stderr 里提取 `host:port` 与中文原因。
+    static func parseConnectionFailure(_ stderrTail: String) -> (host: String?, port: Int?, reason: String?) {
+        let lowercased = stderrTail.lowercased()
+        return (
+            host: connectionHost(stderrTail),
+            port: connectionPort(stderrTail),
+            reason: connectionReason(lowercased)
+        )
+    }
+
+    /// `ssh: connect to host bastion.example.com port 22: …` 或 `Could not resolve hostname x: …`。
+    static func connectionHost(_ stderrTail: String) -> String? {
+        for line in stderrTail.split(separator: "\n") {
+            if let host = token(after: "connect to host ", in: line) { return host }
+            if let host = token(after: "Could not resolve hostname ", in: line) { return host }
+        }
+        return nil
+    }
+
+    /// `… connect to host bastion.example.com port 22: …`。
+    static func connectionPort(_ stderrTail: String) -> Int? {
+        for line in stderrTail.split(separator: "\n") {
+            guard let marker = line.range(of: " port ", options: .caseInsensitive) else { continue }
+            let rest = line[marker.upperBound...]
+            let digits = rest.prefix { $0.isNumber }
+            if !digits.isEmpty, let port = Int(digits) { return port }
+        }
+        return nil
+    }
+
+    /// 从 `Permission denied …` 处截取，得到 `Permission denied (password).`。
+    static func authenticationDetail(stderrTail: String) -> String? {
+        for line in stderrTail.split(separator: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard let range = trimmed.range(of: "permission denied", options: .caseInsensitive) else { continue }
+            return String(trimmed[range.lowerBound...])
+        }
+        return nil
+    }
+
+    // MARK: 私有
+
+    /// 取指定前缀之后的第一个空白分隔 token，去掉尾部的 `:`（`Could not resolve hostname x:`）。
+    private static func token(after prefix: String, in line: Substring) -> String? {
+        guard let range = line.range(of: prefix, options: .caseInsensitive) else { return nil }
+        let rest = line[range.upperBound...]
+        var token = rest.prefix { !$0.isWhitespace }
+        while token.last == ":" { token = token.dropLast() }
+        return token.isEmpty ? nil : String(token)
+    }
+
+    private static func nonEmpty(_ text: String?) -> String? {
+        guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func connectionReason(_ lowercased: String) -> String? {
+        if lowercased.contains("timed out") || lowercased.contains("timeout") { return "连接超时" }
+        if lowercased.contains("connection refused") { return "连接被拒绝" }
+        if lowercased.contains("no route to host") { return "无法到达主机" }
+        if lowercased.contains("network is unreachable") { return "网络不可达" }
+        if lowercased.contains("could not resolve hostname")
+            || lowercased.contains("name or service not known") { return "无法解析主机名" }
+        if lowercased.contains("connection reset by peer") { return "连接被对方重置" }
+        if lowercased.contains("connection closed by") { return "连接被对方关闭" }
+        if lowercased.contains("kex_exchange_identification") { return "SSH 握手失败" }
+        return nil
     }
 }
 

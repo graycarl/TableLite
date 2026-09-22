@@ -22,6 +22,8 @@ public final class ExportViewModel {
     public var includeHeader: Bool
     public var encoding: CSVTextEncoding
     public var nullRepresentation: CSVNullRepresentation
+    /// 「日期格式」：原样输出 / 自定义（`specs/08-import-export.md` §1）。
+    public var dateFormat: CSVDateFormat = .raw
     /// 「后台导出，完成后通知我」。执行始终在后台，勾选与否只影响完成后的告知方式。
     public var backgroundExport: Bool = true
     public var destinationURL: URL?
@@ -32,8 +34,10 @@ public final class ExportViewModel {
     public private(set) var progress = ExportProgress(rowCount: 0, byteCount: 0)
     public private(set) var errorMessage: String?
 
-    /// 完成后回调（主 session 用它做状态栏提示 / 通知）。
-    public var onFinish: ((ExportSummary) -> Void)?
+    /// 完成后回调（主 session 用它做状态栏提示 / 通知）。第二个参数是「完成后通知我」开关。
+    public var onFinish: ((ExportSummary, Bool) -> Void)?
+    /// 进度回调；面板与状态栏共用同一份进度（`specs/12-feedback.md` §2）。
+    public var onProgress: ((ExportProgress) -> Void)?
 
     // MARK: 依赖
 
@@ -93,14 +97,13 @@ public final class ExportViewModel {
         let options = writeOptions
         runTask = Task { [weak self] in
             guard let self else { return }
-            await self.runExport(destination: destinationURL, options: options, control: control)
-        }
+            await self.runExport(destination: destinationURL, options: options, control: control)        }
     }
 
     public func cancel() {
         control?.cancel()
         phase = .preparing
-        Task { await session.cancelCurrentQuery() }
+        Task { try? await session.cancelCurrentQuery() }
     }
 
     /// 面板关闭前清理（取消进行中的导出）。
@@ -119,15 +122,19 @@ public final class ExportViewModel {
 
             let sink = try CSVExportSink(targetURL: destination, options: options)
             phase = .running
+            onProgress?(progress)
 
             let summary = await CSVExportEngine.run(
                 plan: plan,
                 sink: sink,
                 control: control,
                 source: .session(session),
+                dateFormatPattern: dateFormat.resolvedPattern,
                 progress: { [weak self] rows, bytes in
                     Task { @MainActor in
-                        self?.progress = ExportProgress(rowCount: rows, byteCount: bytes)
+                        let snapshot = ExportProgress(rowCount: rows, byteCount: bytes)
+                        self?.progress = snapshot
+                        self?.onProgress?(snapshot)
                     }
                 }
             )
@@ -135,7 +142,7 @@ public final class ExportViewModel {
             progress = ExportProgress(rowCount: summary.rowCount, byteCount: summary.byteCount)
             errorMessage = summary.failureMessage
             phase = .done(summary)
-            onFinish?(summary)
+            onFinish?(summary, backgroundExport)
         } catch {
             let message: String
             if let exportError = error as? CSVExportError {
@@ -146,7 +153,7 @@ public final class ExportViewModel {
             errorMessage = message
             let summary = ExportSummary(rowCount: progress.rowCount, byteCount: progress.byteCount, failureMessage: message)
             phase = .done(summary)
-            onFinish?(summary)
+            onFinish?(summary, backgroundExport)
         }
     }
 
@@ -163,7 +170,7 @@ public final class ExportViewModel {
                 sourceDetail: source.detailText(rowCountEstimate: structure.table.rowCountEstimate)
             )
 
-        case .filteredTable(let database, let table, let filterClause, let filterSummary):
+        case .filteredTable(let database, let table, let filterClause, _, _):
             let structure = try await session.meta.structure(database: database, table: table, kind: .table)
             return ExportQueryPlanner.planTable(
                 database: database,
@@ -171,7 +178,7 @@ public final class ExportViewModel {
                 columns: structure.columns,
                 primaryKeyColumns: structure.primaryKeyColumns.map(\.name),
                 filterClause: filterClause,
-                sourceDetail: "应用了过滤条件：\(filterSummary)"
+                sourceDetail: source.detailText(rowCountEstimate: structure.table.rowCountEstimate)
             )
 
         case .selectedRows(let database, let table, let whereClause, let rowCount):

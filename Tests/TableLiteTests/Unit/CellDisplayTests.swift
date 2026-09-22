@@ -24,6 +24,24 @@ final class CellDisplayTests: XCTestCase {
         XCTAssertFalse(BinaryFormatDetector.detect(Data([0x00, 0x01, 0x02, 0x03])).isImage)
     }
 
+    func testQuickLookHeaderShowsDetectedFormat() {
+        let png = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+        XCTAssertEqual(QuickLookHeaderText.formatLabel(kind: .image, data: png), "PNG 图片")
+        XCTAssertEqual(QuickLookHeaderText.formatLabel(kind: .binary, data: png), "PNG 图片")
+
+        let pdf = Data([0x25, 0x50, 0x44, 0x46, 0x2D])
+        XCTAssertEqual(QuickLookHeaderText.formatLabel(kind: .binary, data: pdf), "PDF")
+
+        // 未知格式回落到「二进制」，非二进制返回 nil 以便调用方回落到类型名。
+        XCTAssertEqual(
+            QuickLookHeaderText.formatLabel(kind: .binary, data: Data([0x00, 0x01, 0x02, 0x03])),
+            "二进制"
+        )
+        XCTAssertNil(QuickLookHeaderText.formatLabel(kind: .text, data: png))
+        XCTAssertNil(QuickLookHeaderText.formatLabel(kind: .json, data: png))
+        XCTAssertNil(QuickLookHeaderText.formatLabel(kind: .binary, data: nil))
+    }
+
     // MARK: 显示规则
 
     func testNullDisplay() {

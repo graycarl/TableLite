@@ -45,6 +45,8 @@ final class QueryEditorViewModel {
     private(set) var notice: String?
     /// 执行中已接收行数（缓冲执行路径下与最终行数一致）。
     private(set) var receivedRowCount = 0
+    /// 执行中已接收的近似字节数（状态栏 `已接收 X 行（Y MB）`，`specs/06-query-editor.md` §3）。
+    private(set) var receivedByteCount = 0
     /// 大结果提示（L1）。
     private(set) var showsLargeResultHint = false
 
@@ -190,6 +192,7 @@ final class QueryEditorViewModel {
         executedStatementCount = 0
         totalReturnedRows = 0
         receivedRowCount = 0
+        receivedByteCount = 0
         showsLargeResultHint = false
         isRunning = true
         isStopping = false
@@ -205,7 +208,7 @@ final class QueryEditorViewModel {
                 if Task.isCancelled { break }
                 if self.session.isReadOnly, !SQLStatementClassifier.isReadOnlyAllowed(statement.text) {
                     let blocked = QueryResultTab(ordinal: index + 1, statement: statement)
-                    blocked.markBlocked(reason: "只读模式：写操作已被禁用")
+                    blocked.markBlocked(reason: QueryResultTab.readOnlyBlockedMessage)
                     self.append(blocked)
                     blockedCount += 1
                     continue
@@ -223,6 +226,7 @@ final class QueryEditorViewModel {
                     self.executedStatementCount += 1
                     self.totalReturnedRows += result.rowCount
                     self.receivedRowCount += result.rowCount
+                    self.receivedByteCount += resultTab.byteCount
                     if resultTab.isLarge { self.showsLargeResultHint = true }
                     if result.wasCancelled { break }
                     if result.hasErrors, stopOnError { break }
@@ -250,11 +254,20 @@ final class QueryEditorViewModel {
     }
 
     /// 停止（`⌘.`）：取消 Task + 向服务器发 `KILL QUERY`（01 §3.1）。
+    ///
+    /// 取消失败（如权限不足）时提示 `取消失败，查询仍在服务器上运行`（`specs/06-query-editor.md` §9）。
     func stop() {
         guard isRunning else { return }
         isStopping = true
         runTask?.cancel()
-        Task { await session.cancelCurrentQuery() }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await self.session.cancelCurrentQuery()
+            } catch {
+                self.showNotice("取消失败，查询仍在服务器上运行")
+            }
+        }
     }
 
     /// 等待本次执行结束（单测 / 冒烟用）。

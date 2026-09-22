@@ -117,10 +117,10 @@ struct ConnectionSwitcher: View {
                 } label: {
                     HStack {
                         SessionStatusDot(state: candidate.state)
-                        Text(candidate.connection.name)
                         if candidate.connection.isReadOnly {
                             Image(systemName: "lock.fill")
                         }
+                        Text(candidate.connection.name)
                         Spacer()
                         if let database = candidate.selectedDatabase {
                             Text(database)
@@ -137,7 +137,7 @@ struct ConnectionSwitcher: View {
             Button("新建连接…") { onShowConnections() }
             Button("编辑当前连接…") { onShowConnections() }
             Button("重新连接") { reconnect() }
-            Button("断开连接") { disconnect() }
+            Button("断开") { disconnect() }
         } label: {
             HStack(spacing: 6) {
                 SessionStatusDot(state: session.state)

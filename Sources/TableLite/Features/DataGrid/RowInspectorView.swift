@@ -429,6 +429,11 @@ struct InspectorFieldRow: View {
     }
 
     private func cancelEdit() {
+        // 新增行：Esc 取消整行（`specs/04-data-editing.md` §4）；已有行：只放弃当前字段草稿。
+        if viewModel.isInsertionRow(rowID: row.id) {
+            viewModel.undoRow(rowID: row.id)
+            return
+        }
         draft = FieldEditValidator.text(from: currentValue)
         errorMessage = nil
         isFocused = false

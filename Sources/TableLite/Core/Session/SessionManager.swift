@@ -30,6 +30,8 @@ public final class SessionManager {
     /// 启动时从 `session.json` 读出的「按连接标签现场」，连接时套用（05 §8）。
     @ObservationIgnored private var loadedTagSnapshots: [UUID: SessionState] = [:]
     @ObservationIgnored private var didLoadTagSnapshots = false
+    /// 需要 SSH 凭据时转发给会话的弹窗挂载点（`specs/10-ssh-tunnel.md` §3.2 / §3.3）。
+    @ObservationIgnored public var sshSecretRequester: (@MainActor (SSHSecretRequest) async -> String?)?
 
     public init(connections: ConnectionStore, services: SessionServices) {
         self.connections = connections
@@ -60,12 +62,20 @@ public final class SessionManager {
     // MARK: 连接
 
     /// 连接一个连接配置。已有会话时复用；达到上限时抛错。
+    ///
+    /// `sshSecrets` 是表单刚输入、尚未写入钥匙串的 SSH 凭据（可选）。
     @discardableResult
-    public func connect(_ connection: Connection, password: String?) async throws -> ConnectionSession {
+    public func connect(
+        _ connection: Connection,
+        password: String?,
+        sshSecrets: SSHSecrets? = nil
+    ) async throws -> ConnectionSession {
         if let existing = session(id: connection.id) {
             activeSessionID = connection.id
+            existing.sshSecretRequester = sshSecretRequester
             let needsReconnect = existing.updateConnection(connection)
             if let password { existing.updatePassword(password) }
+            if let sshSecrets { existing.setSSHSecrets(password: sshSecrets.password, passphrase: sshSecrets.passphrase) }
             if existing.state.isConnected, !needsReconnect { return existing }
             try await existing.reconnect()
             await persistSessionState()
@@ -79,6 +89,8 @@ public final class SessionManager {
         await loadTagSnapshotsIfNeeded()
 
         let session = ConnectionSession(connection: connection, password: password, services: services)
+        session.sshSecretRequester = sshSecretRequester
+        if let sshSecrets { session.setSSHSecrets(password: sshSecrets.password, passphrase: sshSecrets.passphrase) }
         sessions.append(session)
         activeSessionID = connection.id
         // 套用这个连接上次的标签现场（S36）；失败时也不丢，用户重连后还在。
@@ -152,19 +164,30 @@ public final class SessionManager {
     // MARK: 测试连接（05 §3.1）
 
     /// 走与正式连接同一条代码路径，完成后立即关闭；不进 `sessions`、不写查询历史。
-    public func testConnection(_ connection: Connection, password: String?) async -> ConnectionTestReport {
+    ///
+    /// 测试面板不回走 SSH 凭据弹窗（表单已提供密码，私钥口令由正式连接时再问），
+    /// 避免与「测试连接」结果面板叠两个 sheet。
+    public func testConnection(
+        _ connection: Connection,
+        password: String?,
+        sshSecrets: SSHSecrets? = nil
+    ) async -> ConnectionTestReport {
         let session = ConnectionSession(
             connection: connection,
             password: password,
             services: services,
             recordsQueries: false
         )
+        if let sshSecrets {
+            session.setSSHSecrets(password: sshSecrets.password, passphrase: sshSecrets.passphrase)
+        }
         do {
             try await session.open()
             let report = ConnectionTestReport.success(
                 serverInfo: session.serverInfo,
                 unresolvedDatabase: session.unresolvedDatabase,
-                sshEnabled: connection.ssh.enabled
+                sshEnabled: connection.ssh.enabled,
+                tunnelLocalPort: session.tunnelEndpoint?.port
             )
             await session.close()
             return report

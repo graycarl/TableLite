@@ -117,6 +117,8 @@ public struct TableDataMetadata: Sendable, Equatable {
     public var primaryKeyColumns: [String]
     /// 参与外键约束的列名集合（用于 `↗` 标记）。
     public var foreignKeyColumns: Set<String>
+    /// 外键约束明细（用于 `↗` 跳转：被引用库 / 表 / 列）。
+    public var foreignKeys: [ForeignKeyInfo]
     /// 建表语句（用于「复制表结构」；可能为 nil）。
     public var createStatement: String?
 
@@ -126,14 +128,107 @@ public struct TableDataMetadata: Sendable, Equatable {
         isView: Bool = false,
         primaryKeyColumns: [String] = [],
         foreignKeyColumns: Set<String> = [],
+        foreignKeys: [ForeignKeyInfo] = [],
         createStatement: String? = nil
     ) {
         self.columns = columns
         self.tableInfo = tableInfo
         self.isView = isView
         self.primaryKeyColumns = primaryKeyColumns
-        self.foreignKeyColumns = foreignKeyColumns
+        // `foreignKeyColumns` 是 `foreignKeys` 的派生视图；未显式给出时自动推导。
+        self.foreignKeyColumns = foreignKeyColumns.isEmpty
+            ? Set(foreignKeys.flatMap(\.columns))
+            : foreignKeyColumns
+        self.foreignKeys = foreignKeys
         self.createStatement = createStatement
+    }
+}
+
+// MARK: - 外键跳转（`specs/03-data-browsing.md` §10）
+
+/// 外键跳转目标里的一个定位键：被引用表的列名 + 已转义好的 SQL 字面量。
+public struct ForeignKeyJumpKey: Sendable, Equatable {
+    /// 被引用表的列名。
+    public var column: String
+    /// 用 `SQLValueLiteral` 生成的字面量（含引号 / `0x…` / 数字原样）。
+    public var literal: String
+
+    public init(column: String, literal: String) {
+        self.column = column
+        self.literal = literal
+    }
+}
+
+/// 外键 `↗` 跳转目标：被引用表 + 定位条件。
+public struct ForeignKeyJumpTarget: Sendable, Equatable {
+    public var database: String
+    public var table: String
+    public var keys: [ForeignKeyJumpKey]
+
+    public init(database: String, table: String, keys: [ForeignKeyJumpKey]) {
+        self.database = database
+        self.table = table
+        self.keys = keys
+    }
+
+    /// `col1 = lit1 AND col2 = lit2`；形态与 `PendingChangeSQL.locationClause` 一致。
+    public var whereClause: String {
+        keys.map { "\(SQLIdentifier.quote($0.column)) = \($0.literal)" }.joined(separator: " AND ")
+    }
+}
+
+/// 从行 + 列元数据推导外键跳转目标。纯函数，便于单测。
+public enum ForeignKeyJumpResolver {
+
+    /// 推导 `↗` 跳转目标；无法跳转时返回 nil。
+    ///
+    /// 返回 nil 的情形：
+    /// - 单击的列不属于任何外键；
+    /// - 外键列（复合外键的**任一**列）值为 `NULL`；
+    /// - 本地列与引用列数量不一致，或引用列名缺失；
+    /// - 本地列元数据缺失（无法判定类型 / 是否二进制）。
+    ///
+    /// 复合外键策略：一次点击解析外键的**全部**列，`whereClause` 用 `AND` 连接，
+    /// 等价于 `WHERE (a, b) = (va, vb)`；任一列为 `NULL` 视为整条外键不成立。
+    ///
+    /// 字面量按本地外键列的元数据生成（外键约束要求两侧类型兼容），
+    /// 且**只接受原始 `SQLValue`**——调用方不得传入截断后的展示文本
+    /// （`docs/tech-designs/07-data-grid.md` §3.1）。
+    public static func target(
+        sourceDatabase: String,
+        clickedColumn: String,
+        columns: [ColumnInfo],
+        values: [String: SQLValue],
+        foreignKeys: [ForeignKeyInfo],
+        escaping: SQLStringEscaping = .mysqlDefault,
+        introducer: String? = nil
+    ) -> ForeignKeyJumpTarget? {
+        guard let foreignKey = foreignKeys.first(where: { $0.columns.contains(clickedColumn) }),
+              !foreignKey.columns.isEmpty,
+              foreignKey.columns.count == foreignKey.referencedColumns.count,
+              !foreignKey.referencedTable.isEmpty,
+              foreignKey.referencedColumns.allSatisfy({ !$0.isEmpty }) else {
+            return nil
+        }
+        var keys: [ForeignKeyJumpKey] = []
+        keys.reserveCapacity(foreignKey.columns.count)
+        for (index, sourceColumn) in foreignKey.columns.enumerated() {
+            guard let value = values[sourceColumn], !value.isNull,
+                  let column = columns.first(where: { $0.name == sourceColumn }) else {
+                return nil
+            }
+            let literal = SQLValueLiteral.literal(
+                for: value,
+                column: column,
+                escaping: escaping,
+                introducer: introducer
+            )
+            keys.append(ForeignKeyJumpKey(column: foreignKey.referencedColumns[index], literal: literal))
+        }
+        let database = (foreignKey.referencedDatabase?.isEmpty == false)
+            ? foreignKey.referencedDatabase!
+            : sourceDatabase
+        return ForeignKeyJumpTarget(database: database, table: foreignKey.referencedTable, keys: keys)
     }
 }
 
@@ -167,6 +262,7 @@ public struct LiveTableDataMetadataProvider: TableDataMetadataProviding {
             isView: structure.table.kind == .view,
             primaryKeyColumns: structure.primaryKeyColumns.map(\.name),
             foreignKeyColumns: Set(structure.foreignKeys.flatMap(\.columns)),
+            foreignKeys: structure.foreignKeys,
             createStatement: structure.createStatement
         )
     }

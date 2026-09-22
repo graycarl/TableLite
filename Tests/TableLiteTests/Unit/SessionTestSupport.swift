@@ -48,7 +48,10 @@ enum SessionTestSupport {
         let sessionState = SessionStateStore(layout: made.layout)
         let factory = SessionBackendFactory(
             makeMySQLSession: { mysql },
-            makeTunnel: { _ in tunnel }
+            makeTunnel: { configuration in
+                tunnel.record(configuration)
+                return tunnel
+            }
         )
         let environment = AppEnvironment(
             layout: made.layout,
@@ -83,7 +86,9 @@ enum SessionTestSupport {
         id: UUID = UUID(),
         name: String = "本地开发",
         ssh: Bool = false,
-        database: String = "app_dev"
+        database: String = "app_dev",
+        sshAuthMethod: SSHAuthMethod = .sshConfigOrAgent,
+        sshPrivateKeyPath: String? = nil
     ) -> Connection {
         Connection(
             id: id,
@@ -92,7 +97,9 @@ enum SessionTestSupport {
             ssh: SSHConfig(
                 enabled: ssh,
                 host: ssh ? "bastion.example.com" : "",
-                user: ssh ? "deploy" : ""
+                user: ssh ? "deploy" : "",
+                authMethod: sshAuthMethod,
+                privateKeyPath: sshPrivateKeyPath
             )
         )
     }

@@ -8,6 +8,8 @@ struct QueryResultDetailView: View {
     let fontSize: Double
     let alternateRowColors: Bool
     var onQuickLook: (QuickLookContent) -> Void
+    /// 「导出结果…」入口（`specs/08-import-export.md` §1）。
+    var onExport: () -> Void
 
     var body: some View {
         switch result.kind {
@@ -33,8 +35,11 @@ struct QueryResultDetailView: View {
                 displayContext: displayContext,
                 fontSize: fontSize,
                 alternateRowColors: alternateRowColors,
-                onQuickLook: onQuickLook
+                onQuickLook: onQuickLook,
+                onExport: onExport
             )
+            // 切换结果标签时强制重建 NSTableView，避免复用上一标签的列 / 行与列显隐状态。
+            .id(result.id)
         }
     }
 
@@ -49,20 +54,21 @@ struct QueryResultDetailView: View {
 
     private var failureContent: some View {
         ResultErrorPanel(
-            title: "执行失败",
+            // 面板标题与结果标签 / specs 统一为「错误」（specs/06-query-editor.md §4、manual/06 图 6-4）。
+            title: "错误",
             tint: .red,
-            message: result.error.map { "\($0.code)：\($0.message)" } ?? "未知错误",
+            codeLine: result.error?.codeLine,
             explanation: result.error?.chineseExplanation,
-            statement: result.statementText
+            statement: result.statementText,
+            rawOutput: result.error?.message
         )
     }
 
     private var blockedContent: some View {
         ResultErrorPanel(
             title: "只读拦截",
-            tint: .orange,
-            message: result.blockedReason ?? "只读模式：写操作已被禁用",
-            explanation: "该连接处于只读模式，这条语句没有被下发到服务器。",
+            tint: .red,
+            message: result.blockedReason ?? QueryResultTab.readOnlyBlockedMessage,
             statement: result.statementText
         )
     }
@@ -100,14 +106,19 @@ struct ResultStatusPanel: View {
     }
 }
 
-/// 错误 / 拦截面板：原文 + 中文解释 + 出错语句。
+/// 错误 / 拦截面板：错误码行 + 中文解释 + 出错语句；原始服务器原文收进「查看详细输出」。
 struct ResultErrorPanel: View {
 
     let title: String
     let tint: Color
-    let message: String
+    /// 错误码与 SQLSTATE 行（`specs/12-feedback.md` §5 规则 2，格式见 `MySQLError.codeLine`）。
+    var codeLine: String?
+    /// 面板主体的一句话（只读拦截用它显示被拦原因）。
+    var message: String?
     var explanation: String?
     var statement: String?
+    /// 服务器原文，默认折叠在「查看详细输出」后（`specs/12-feedback.md` §5 规则 4）。
+    var rawOutput: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -117,9 +128,16 @@ struct ResultErrorPanel: View {
                 Text(title)
                     .font(.headline)
             }
-            Text(message)
-                .font(.system(.callout, design: .monospaced))
-                .textSelection(.enabled)
+            if let codeLine, !codeLine.isEmpty {
+                Text(codeLine)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+            }
+            if let message, !message.isEmpty {
+                Text(message)
+                    .font(.system(.callout, design: .monospaced))
+                    .textSelection(.enabled)
+            }
             if let explanation {
                 Text(explanation)
                     .font(.callout)
@@ -137,6 +155,9 @@ struct ResultErrorPanel: View {
                         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
                         .textSelection(.enabled)
                 }
+            }
+            if let rawOutput, !rawOutput.isEmpty {
+                ErrorDetailDisclosure(text: rawOutput)
             }
             Spacer()
         }

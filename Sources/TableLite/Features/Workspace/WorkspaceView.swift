@@ -1,10 +1,5 @@
+import AppKit
 import SwiftUI
-
-/// 导出请求（`Features/ImportExport/ExportPanelView` 的挂载载体）。
-private struct ExportRequest: Identifiable {
-    let id = UUID()
-    let source: ExportSource
-}
 
 /// 导入请求（`Features/ImportExport/ImportWizardView` 的挂载载体）。
 private struct ImportRequest: Identifiable {
@@ -32,9 +27,18 @@ struct WorkspaceView: View {
     @State private var showConnectionList = false
     @State private var searchFocusRequest = 0
     @State private var pendingChanges = PendingChangesCoordinator()
-    @State private var exportRequest: ExportRequest?
+    @State private var exportCenter = ExportRequestCenter()
     @State private var importRequest: ImportRequest?
     @State private var showDisableReadOnlyConfirmation = false
+    /// 轻提示（`specs/12-feedback.md` §3）：顶部中间显示，2.5 秒后淡出。
+    @State private var toastText: String?
+    @State private var toastAction: ToastAction?
+    @State private var toastToken = UUID()
+    /// 短暂状态栏提示（如进入只读连接，`specs/09-readonly-mode.md` §5）。
+    @State private var transientStatusMessage: String?
+    @State private var transientStatusToken = UUID()
+    /// 本会话是否曾经连上过：用于区分「首次连接」与「重连」（`specs/12-feedback.md` §3）。
+    @State private var hasEverConnected = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -57,7 +61,7 @@ struct WorkspaceView: View {
                         session: session,
                         focusSearchRequest: searchFocusRequest,
                         onExport: { object in
-                            exportRequest = ExportRequest(source: .table(database: object.database, table: object.name))
+                            exportCenter.present(.table(database: object.database, table: object.name))
                         },
                         onImportCSV: { object in
                             importRequest = ImportRequest(database: object.database, table: object.name)
@@ -87,18 +91,27 @@ struct WorkspaceView: View {
                 onSwitchDatabase: { showDatabasePicker = true },
                 onExportTable: {
                     guard let model = activeTableViewModel else { return }
-                    exportRequest = ExportRequest(source: model.exportSource)
-                }
+                    exportCenter.present(model.exportSource)
+                },
+                transientMessage: transientStatusMessage,
+                exportProgress: exportCenter.progressText
             )
         }
         .frame(minWidth: 860, minHeight: 560)
+        .overlay(alignment: .top) {
+            toastOverlay
+        }
         .navigationTitle(windowTitle)
-        .onAppear(perform: loadSidebarStateIfNeeded)
+        .onAppear(perform: handleAppear)
+        .onChange(of: session.state) { oldValue, newValue in
+            handleStateChange(from: oldValue, to: newValue)
+        }
         .onChange(of: showSidebar) { _, newValue in
             environment.workspace.sidebarVisible = newValue
         }
         .focusedSceneValue(\.workspaceActions, workspaceActions)
         .environment(pendingChanges)
+        .environment(exportCenter)
         .confirmationDialog(
             pendingChanges.request?.title ?? "有未提交的修改",
             isPresented: Binding(
@@ -108,8 +121,8 @@ struct WorkspaceView: View {
             titleVisibility: .visible,
             presenting: pendingChanges.request
         ) { _ in
-            Button("提交并继续") { pendingChanges.decide(.submit) }
-            Button("放弃修改", role: .destructive) { pendingChanges.decide(.discard) }
+            Button("提交") { pendingChanges.decide(.submit) }
+            Button("放弃并关闭", role: .destructive) { pendingChanges.decide(.discard) }
             Button("取消", role: .cancel) { pendingChanges.decide(.cancel) }
         } message: { request in
             Text(request.message)
@@ -129,13 +142,22 @@ struct WorkspaceView: View {
         .sheet(isPresented: $showConnectionList) {
             ConnectionsView()
         }
-        .sheet(item: $exportRequest) { request in
-            ExportPanelView(session: session, source: request.source)
+        .sheet(item: $exportCenter.request) { request in
+            ExportPanelView(
+                session: session,
+                source: request.source,
+                onFinish: handleExportFinish,
+                onProgress: { progress in
+                    exportCenter.progressText = "正在导出… \(progress.displayText)"
+                }
+            )
         }
         .sheet(item: $importRequest) { request in
-            ImportWizardView(session: session, defaultDatabase: request.database, defaultTable: request.table) { _ in
-                // 导入完成后刷新对象树与当前页（DDL/数据变化已由 session.execute 触发缓存失效）
+            ImportWizardView(session: session, defaultDatabase: request.database, defaultTable: request.table) { summary in
+                // 导入完成后刷新对象树与当前页（DDL/数据变化已由 session.execute 触发缓存失效），
+                // 并按 `specs/12-feedback.md` §3 走轻提示。
                 Task { await session.refreshObjects() }
+                showToast(summary.message)
             }
         }
         .onChange(of: environment.preferences.showSystemDatabases) { _, _ in
@@ -152,6 +174,96 @@ struct WorkspaceView: View {
             Button("关闭只读模式", role: .destructive) { applyReadOnly(false) }
         } message: {
             Text("关闭后可以修改数据、执行写操作。")
+        }
+    }
+
+    // MARK: 轻提示
+
+    /// 轻提示里的可选动作按钮（如导出完成后的「在 Finder 中显示」）。
+    struct ToastAction {
+        var title: String
+        var url: URL
+    }
+
+    /// 顶部中间的轻提示（复制成功 / 提交成功 / 重连 / 导出完成等）。
+    @ViewBuilder
+    private var toastOverlay: some View {
+        if let toastText {
+            HStack(spacing: 10) {
+                Text(toastText)
+                if let toastAction {
+                    Button(toastAction.title) {
+                        NSWorkspace.shared.activateFileViewerSelecting([toastAction.url])
+                        self.toastAction = nil
+                    }
+                    .controlSize(.small)
+                }
+            }
+            .font(.callout)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.regularMaterial, in: Capsule())
+            .padding(.top, 8)
+            .transition(.opacity)
+        }
+    }
+
+    private func showToast(_ text: String, action: ToastAction? = nil) {
+        toastText = text
+        toastAction = action
+        let token = UUID()
+        toastToken = token
+        Task {
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            guard toastToken == token else { return }
+            toastText = nil
+            toastAction = nil
+        }
+    }
+
+    /// 导出完成：清掉状态栏进度，勾选了「后台导出，完成后通知我」且成功时给轻提示
+    /// （带「在 Finder 中显示」按钮，`specs/08-import-export.md` §1、`specs/12-feedback.md` §3）。
+    private func handleExportFinish(_ summary: ExportSummary, notify: Bool) {
+        exportCenter.progressText = nil
+        guard notify, summary.isSuccess else { return }
+        let action = summary.destinationURL.map { ToastAction(title: "在 Finder 中显示", url: $0) }
+        showToast(summary.message, action: action)
+    }
+
+    /// 进入工作区：恢复侧栏状态，并在已连接且只读时给出状态栏短暂提示（`specs/09-readonly-mode.md` §5）。
+    private func handleAppear() {
+        loadSidebarStateIfNeeded()
+        hasEverConnected = session.state.isConnected
+        if session.state.isConnected, session.isReadOnly {
+            showTransientStatus("该连接处于只读模式，所有写操作已被禁用。")
+        }
+    }
+
+    /// 连接状态变化：首次连上且为只读 → 状态栏只读提示；之后重连成功 → `已重新连接` 轻提示。
+    private func handleStateChange(
+        from oldValue: SessionConnectionState,
+        to newValue: SessionConnectionState
+    ) {
+        guard newValue.isConnected, !oldValue.isConnected else { return }
+        if hasEverConnected {
+            showToast("已重新连接")
+        } else {
+            hasEverConnected = true
+            if session.isReadOnly {
+                showTransientStatus("该连接处于只读模式，所有写操作已被禁用。")
+            }
+        }
+    }
+
+    /// 状态栏短暂提示：整条状态栏只显示它 2.5 秒（`specs/09-readonly-mode.md` §5）。
+    private func showTransientStatus(_ text: String) {
+        transientStatusMessage = text
+        let token = UUID()
+        transientStatusToken = token
+        Task {
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            guard transientStatusToken == token else { return }
+            transientStatusMessage = nil
         }
     }
 
@@ -354,7 +466,9 @@ struct WorkspaceView: View {
         var indentSelection: (@MainActor () -> Void)?
         var outdentSelection: (@MainActor () -> Void)?
         if let editor {
-            executeStatement = { editor.executeCurrentStatement() }
+            // `⌘↩` 按偏好「默认执行行为」分派：默认执行当前语句，可改为执行全部
+            // （`specs/06-query-editor.md` §3）。
+            executeStatement = { editor.executeDefault() }
             executeAll = { editor.executeAll() }
             toggleComment = { editor.requestCommand(.toggleComment) }
             indentSelection = { editor.requestCommand(.indent) }
@@ -366,7 +480,7 @@ struct WorkspaceView: View {
             importCSV: { importRequest = ImportRequest(database: session.selectedDatabase, table: nil) },
             exportData: {
                 if let tableModel = activeTableViewModel {
-                    exportRequest = ExportRequest(source: tableModel.exportSource)
+                    exportCenter.present(tableModel.exportSource)
                 } else {
                     // 没有表数据标签时退化为「先选表」：打开对象树搜索
                     showSidebar = true

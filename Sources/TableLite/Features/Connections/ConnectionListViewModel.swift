@@ -24,7 +24,7 @@ final class ConnectionListViewModel {
         case connecting(ConnectStep)
         /// 已连接。
         case connected
-        /// 有会话但没连上（被空闲回收 / 连接失败后已断开）：显示「点击重连」。
+        /// 有会话但没连上（被空闲回收 / 连接失败后已断开）：显示「重新连接」。
         case needsReconnect
         /// 连接失败或运行中失效。
         case failed(ConnectFailure)
@@ -54,6 +54,9 @@ final class ConnectionListViewModel {
     /// 首次连接但没有保存密码时的输入框（`specs/01-connections.md` §2「密码处理」）。
     var passwordPrompt: PasswordPrompt?
 
+    /// SSH 密码 / 私钥口令的输入框（`specs/10-ssh-tunnel.md` §3.2 / §3.3）。
+    var sshSecretPrompt: SSHSecretPrompt?
+
     /// 连接失败详情（列表里点「查看详情」或连接失败时弹出）。
     var failurePresentation: FailurePresentation?
 
@@ -67,9 +70,15 @@ final class ConnectionListViewModel {
 
     private let environment: AppEnvironment
     @ObservationIgnored private var testTask: Task<Void, Never>?
+    @ObservationIgnored private var sshSecretContinuation: CheckedContinuation<String?, Never>?
 
     init(environment: AppEnvironment) {
         self.environment = environment
+        // SSH 密码 / 私钥口令的弹窗挂载点（`specs/10-ssh-tunnel.md` §3.2 / §3.3）。
+        environment.sessionManager.sshSecretRequester = { [weak self] request in
+            guard let self else { return nil }
+            return await self.requestSSHSecret(request)
+        }
     }
 
     private var manager: SessionManager { environment.sessionManager }
@@ -148,6 +157,11 @@ final class ConnectionListViewModel {
         let stored = (try? environment.credentials.password(for: connection.id, kind: .mysqlPassword)) ?? nil
         state.hasStoredPassword = stored != nil
         state.password = stored ?? ""
+        if state.sshAuthMethod == .password, !state.sshUseConfigAlias {
+            let storedSSH = (try? environment.credentials.password(for: connection.id, kind: .sshPassword)) ?? nil
+            state.hasStoredSSHPassword = storedSSH != nil
+            state.sshPassword = storedSSH ?? ""
+        }
         formState = state
         isFormPresented = true
     }
@@ -162,6 +176,7 @@ final class ConnectionListViewModel {
     func saveCurrentForm() async -> FormSaveOutcome? {
         guard isFormPresented else { return nil }
         let update = formState.passwordUpdate
+        let sshUpdate = formState.sshPasswordUpdate
         let connection = formState.makeConnection(now: environment.clock.now)
 
         // 界面已用同一套校验禁用保存；这里再挡一次，避免竞态写入非法数据。
@@ -174,19 +189,29 @@ final class ConnectionListViewModel {
             return nil
         }
 
-        apply(update, connectionID: connection.id)
+        apply(update, connectionID: connection.id, kind: .mysqlPassword)
+        // SSH 密码只存钥匙串（`specs/10-ssh-tunnel.md` §3.3）。
+        apply(sshUpdate, connectionID: connection.id, kind: .sshPassword)
 
         isFormPresented = false
         resetTestState()
         await load()
         selectedConnectionID = connection.id
-        return FormSaveOutcome(connection: connection, sessionPassword: sessionPassword(for: update))
+        return FormSaveOutcome(
+            connection: connection,
+            sessionPassword: sessionPassword(for: update),
+            sessionSSHPassword: sessionPassword(for: sshUpdate)
+        )
     }
 
     /// 「测试连接」面板上的「保存并连接」。
     func saveAndConnectCurrentForm() async {
         guard let outcome = await saveCurrentForm() else { return }
-        await connect(outcome.connection, password: outcome.sessionPassword)
+        await connect(
+            outcome.connection,
+            password: outcome.sessionPassword,
+            sshPassword: outcome.sessionSSHPassword
+        )
     }
 
     // MARK: - 增删改
@@ -259,7 +284,7 @@ final class ConnectionListViewModel {
     /// 连接一个连接配置。
     ///
     /// `password` 为 nil 时从钥匙串取；取不到则弹出密码输入框（不直接连）。
-    func connect(_ connection: Connection, password: String? = nil) async {
+    func connect(_ connection: Connection, password: String? = nil, sshPassword: String? = nil) async {
         var resolved = password
         if resolved == nil {
             resolved = (try? environment.credentials.password(for: connection.id, kind: .mysqlPassword)) ?? nil
@@ -268,7 +293,7 @@ final class ConnectionListViewModel {
             passwordPrompt = PasswordPrompt(connection: connection)
             return
         }
-        await performConnect(connection, password: resolved)
+        await performConnect(connection, password: resolved, sshPassword: sshPassword)
     }
 
     /// 密码输入框提交。
@@ -298,9 +323,40 @@ final class ConnectionListViewModel {
         await manager.reconnectAll()
     }
 
-    private func performConnect(_ connection: Connection, password: String?) async {
+    /// SSH 密码 / 私钥口令弹窗：由 `SessionManager` 转发的会话请求驱动。
+    ///
+    /// 用 `CheckedContinuation` 把会话的连接流程挂起，等用户提交或取消（同
+    /// `PendingChangesCoordinator` 的做法）。
+    func requestSSHSecret(_ request: SSHSecretRequest) async -> String? {
+        sshSecretPrompt = SSHSecretPrompt(request: request)
+        return await withCheckedContinuation { continuation in
+            sshSecretContinuation = continuation
+        }
+    }
+
+    /// 弹窗提交：勾选「记住」时写入钥匙串（口令 / 密码绝不落明文到配置文件）。
+    func submitSSHSecretPrompt(_ value: String, remember: Bool) {
+        guard let prompt = sshSecretPrompt else { return }
+        sshSecretPrompt = nil
+        if remember, !value.isEmpty {
+            let kind: CredentialKind = prompt.request.kind == .passphrase ? .sshPassphrase : .sshPassword
+            try? environment.credentials.setPassword(value, for: prompt.request.connectionID, kind: kind)
+        }
+        sshSecretContinuation?.resume(returning: value)
+        sshSecretContinuation = nil
+    }
+
+    /// 弹窗取消：按「没有凭据」继续，让 ssh 报出确切错误。
+    func cancelSSHSecretPrompt() {
+        sshSecretPrompt = nil
+        sshSecretContinuation?.resume(returning: nil)
+        sshSecretContinuation = nil
+    }
+
+    private func performConnect(_ connection: Connection, password: String?, sshPassword: String? = nil) async {
+        let sshSecrets = sshPassword.map { SSHSecrets(password: $0) }
         do {
-            try await manager.connect(connection, password: password)
+            try await manager.connect(connection, password: password, sshSecrets: sshSecrets)
         } catch {
             presentConnectFailure(error, connection: connection)
         }
@@ -330,12 +386,13 @@ final class ConnectionListViewModel {
         guard isFormPresented else { return }
         let connection = formState.makeConnection(now: environment.clock.now)
         let password = formState.connectionPassword
+        let sshSecrets = formState.connectionSSHPassword.map { SSHSecrets(password: $0) }
 
         isTestPresented = true
         isTesting = true
         testReport = nil
 
-        let report = await manager.testConnection(connection, password: password)
+        let report = await manager.testConnection(connection, password: password, sshSecrets: sshSecrets)
         guard !Task.isCancelled else {
             isTesting = false
             return
@@ -368,12 +425,20 @@ final class ConnectionListViewModel {
     struct FormSaveOutcome {
         let connection: Connection
         let sessionPassword: String?
+        /// 表单刚输入的 SSH 密码（尚未保存 / 已保存的都会带上，供本次会话直接使用）。
+        let sessionSSHPassword: String?
     }
 
     /// 密码输入框的展示模型。
     struct PasswordPrompt: Identifiable, Equatable {
         let connection: Connection
         var id: UUID { connection.id }
+    }
+
+    /// SSH 密码 / 私钥口令输入框的展示模型。
+    struct SSHSecretPrompt: Identifiable, Equatable {
+        let request: SSHSecretRequest
+        var id: UUID { request.connectionID }
     }
 
     /// 失败详情弹层。
@@ -392,13 +457,17 @@ final class ConnectionListViewModel {
         }
     }
 
-    private func apply(_ update: ConnectionFormState.PasswordUpdate, connectionID: UUID) {
+    private func apply(
+        _ update: ConnectionFormState.PasswordUpdate,
+        connectionID: UUID,
+        kind: CredentialKind
+    ) {
         do {
             switch update {
             case .set(let password):
-                try environment.credentials.setPassword(password, for: connectionID, kind: .mysqlPassword)
+                try environment.credentials.setPassword(password, for: connectionID, kind: kind)
             case .sessionOnly, .clear:
-                try environment.credentials.deletePassword(for: connectionID, kind: .mysqlPassword)
+                try environment.credentials.deletePassword(for: connectionID, kind: kind)
             }
         } catch {
             errorMessage = Self.describe(error, fallback: "保存密码到钥匙串失败。")

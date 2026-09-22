@@ -109,7 +109,12 @@ struct ObjectTreeSidebar: View {
                 if session.selectedDatabase == nil {
                     emptyState("请选择一个数据库", systemImage: "cylinder.split.1x2")
                 } else if !session.isLoadingObjects && session.objects.isEmpty {
-                    emptyState("当前数据库没有表", systemImage: "tablecells")
+                    emptyState(
+                        "当前数据库没有表",
+                        systemImage: "tablecells",
+                        actionTitle: "新建查询",
+                        action: { session.newQueryTab() }
+                    )
                 } else {
                     ForEach(groups) { group in
                         groupHeader(group)
@@ -203,8 +208,11 @@ struct ObjectTreeSidebar: View {
 
     @ViewBuilder
     private func contextMenu(for object: TableInfo) -> some View {
-        // 视图只读：只提供定义查看与复制名字。
+        // 视图只读：提供结构（列 / 定义）与定义查看，以及复制名字。
         if object.kind == .view {
+            Button("打开结构") {
+                session.openTableStructure(database: object.database, table: object.name)
+            }
             Button("打开定义") { open(object, forceNew: true) }
             Button("复制名字") { copyName(object.name) }
         } else {
@@ -249,7 +257,12 @@ struct ObjectTreeSidebar: View {
         .buttonStyle(.plain)
     }
 
-    private func emptyState(_ text: String, systemImage: String) -> some View {
+    private func emptyState(
+        _ text: String,
+        systemImage: String,
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil
+    ) -> some View {
         VStack(spacing: 6) {
             Image(systemName: systemImage)
                 .font(.title3)
@@ -257,6 +270,11 @@ struct ObjectTreeSidebar: View {
             Text(text)
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .controlSize(.small)
+                    .padding(.top, 2)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 40)

@@ -117,8 +117,9 @@ final class TableDataEditingTests: XCTestCase {
         XCTAssertEqual(viewModel.pendingStore.counts.insert, 1)
         XCTAssertEqual(viewModel.insertionRows[0].cells["name"]?.draftValue, .text("新增"))
 
-        // 新增行又删除：两者都消失，不产生 SQL。
+        // 新增行又删除：两者都消失，不产生 SQL，且不弹确认（没有 WHERE 条件）。
         viewModel.deleteRows(rowIDs: [insertionID])
+        XCTAssertNil(viewModel.pendingDeletion)
         XCTAssertEqual(viewModel.pendingCount, 0)
         XCTAssertTrue(viewModel.insertionRows.isEmpty)
     }
@@ -132,8 +133,33 @@ final class TableDataEditingTests: XCTestCase {
         let rowID = viewModel.rows[0].id
         await viewModel.applyInspectorEdit(rowID: rowID, column: "name", value: .text("新名"))
         viewModel.deleteRows(rowIDs: [rowID])
+        // 删除已有行先展示 WHERE 条件等用户确认（`specs/04-data-editing.md` §6）。
+        XCTAssertNotNil(viewModel.pendingDeletion)
+        XCTAssertEqual(viewModel.pendingStore.changes.count, 1)
+        viewModel.confirmDeletion()
+        XCTAssertNil(viewModel.pendingDeletion)
         XCTAssertEqual(viewModel.pendingStore.changes.first?.kind, .delete)
         XCTAssertEqual(viewModel.rows[0].changeKind, .deletion)
+    }
+
+    func testDeleteExistingRowShowsConditionBeforeConfirm() async throws {
+        let session = try await makeSession()
+        let (viewModel, _) = makeViewModel(session: session)
+        await harness.mysql.setResponses([twoRowsResponse()])
+        await viewModel.start()
+
+        viewModel.deleteRows(rowIDs: [viewModel.rows[0].id])
+        let pending = try XCTUnwrap(viewModel.pendingDeletion)
+        XCTAssertEqual(pending.conditions.count, 1)
+        XCTAssertTrue(pending.conditions[0].hasPrefix("WHERE `id` = "))
+        XCTAssertTrue(pending.conditions[0].hasSuffix("1"))
+        // 确认前不动暂存区。
+        XCTAssertTrue(viewModel.pendingStore.isEmpty)
+
+        viewModel.cancelDeletion()
+        XCTAssertNil(viewModel.pendingDeletion)
+        XCTAssertTrue(viewModel.pendingStore.isEmpty)
+        XCTAssertNil(viewModel.rows[0].changeKind)
     }
 
     func testUndoRowOnlyRevertsOneRow() async throws {
@@ -162,6 +188,7 @@ final class TableDataEditingTests: XCTestCase {
         viewModel.beginInsert()
         await viewModel.applyInspectorEdit(rowID: viewModel.insertionRows[0].id, column: "name", value: .text("新增"))
         viewModel.deleteRows(rowIDs: [viewModel.rows[1].id])
+        viewModel.confirmDeletion()
         XCTAssertEqual(viewModel.pendingCount, 3)
 
         let before = await harness.mysql.executedSQL.count
@@ -217,6 +244,7 @@ final class TableDataEditingTests: XCTestCase {
 
         await viewModel.applyInspectorEdit(rowID: viewModel.rows[0].id, column: "name", value: .text("改"))
         viewModel.deleteRows(rowIDs: [viewModel.rows[1].id])
+        viewModel.confirmDeletion()
         await harness.mysql.setFailures([
             ("UPDATE", MySQLError.server(code: 1062, sqlState: "23000", message: "Duplicate entry 'x' for key 'uniq'")),
         ])

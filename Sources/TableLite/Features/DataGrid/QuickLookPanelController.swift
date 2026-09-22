@@ -76,6 +76,23 @@ final class QuickLookPanel: NSPanel {
     }
 }
 
+// MARK: - 头部文案
+
+/// 快速查看头部文案的纯逻辑（`specs/03-data-browsing.md` §8、`manual/03` 图 3-5）。
+///
+/// 二进制 / 图片显示 `BinaryFormatDetector` 识别出的格式名，例如 `PNG 图片`；
+/// 未识别或不是二进制时返回 nil，由调用方回落到类型名。
+enum QuickLookHeaderText {
+
+    static func formatLabel(kind: QuickLookKind, data: Data?) -> String? {
+        guard kind == .binary || kind == .image else { return nil }
+        guard let data, !data.isEmpty else { return nil }
+        let info = BinaryFormatDetector.detect(data)
+        if info.isImage { return "\(info.displayName) 图片" }
+        return info.displayName
+    }
+}
+
 // MARK: - 内容
 
 struct QuickLookContentView: View {
@@ -100,7 +117,7 @@ struct QuickLookContentView: View {
                 .font(.headline)
                 .lineLimit(1)
             Spacer()
-            Text(content.kind.displayName)
+            Text(QuickLookHeaderText.formatLabel(kind: content.kind, data: content.data) ?? content.kind.displayName)
                 .font(.callout)
                 .foregroundStyle(.secondary)
             if let byteCount = content.byteCount, byteCount > 0 {

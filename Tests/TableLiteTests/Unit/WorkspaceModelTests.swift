@@ -128,10 +128,138 @@ final class WorkspaceModelTests: XCTestCase {
         XCTAssertEqual(line, "生产 · 未连接 · 只读")
     }
 
+    /// 状态栏把只读段单独渲染，主体与只读段拼接后必须与 `connectionLine` 一致
+    /// （`specs/09-readonly-mode.md` §3）。
+    func testConnectionLinePartsSplitsReadOnlyMarker() {
+        let connection = Connection(name: "生产", isReadOnly: true)
+        let info = ServerInfo(version: "8.0.36", charset: "utf8mb4", connectionCharset: "utf8mb4")
+        let parts = WorkspaceStatusText.connectionLineParts(
+            connection: connection,
+            state: .connected,
+            database: "app_prod",
+            serverInfo: info,
+            isReadOnly: true
+        )
+        XCTAssertEqual(parts.body, "生产 · app_prod · MySQL 8.0.36 · utf8mb4")
+        XCTAssertEqual(parts.readOnlyMarker, "· 只读")
+        XCTAssertEqual(
+            "\(parts.body) \(parts.readOnlyMarker ?? "")",
+            "生产 · app_prod · MySQL 8.0.36 · utf8mb4 · 只读"
+        )
+    }
+
+    func testConnectionLinePartsOmitsReadOnlyMarkerWhenWritable() {
+        let connection = Connection(name: "本地开发")
+        let parts = WorkspaceStatusText.connectionLineParts(
+            connection: connection,
+            state: .disconnected,
+            database: nil,
+            serverInfo: nil,
+            isReadOnly: false
+        )
+        XCTAssertEqual(parts.body, "本地开发 · 未连接")
+        XCTAssertNil(parts.readOnlyMarker)
+    }
+
+    /// 连接中应为转圈，其余状态为圆点（`specs/01-connections.md` §4），
+    /// 工具栏下拉 / 状态栏与连接列表含义一致。
+    func testConnectingStateUsesSpinnerIndicator() {
+        XCTAssertEqual(
+            SessionConnectionState.connecting(.mysql).indicatorStyle,
+            .spinner
+        )
+        XCTAssertEqual(SessionConnectionState.connected.indicatorStyle, .dot)
+        XCTAssertEqual(SessionConnectionState.disconnected.indicatorStyle, .dot)
+        XCTAssertEqual(SessionConnectionState.recycled.indicatorStyle, .dot)
+    }
+
+    func testConsoleLogCountLabelKeepsCountAndRetention() {
+        XCTAssertEqual(
+            WorkspaceStatusText.consoleLogCountLabel(count: 12, capacity: 5000),
+            "12 条 · 保留最近 5000 条"
+        )
+    }
+
+    func testTunnelDetailLine() {
+        XCTAssertEqual(
+            WorkspaceStatusText.tunnelDetailLine(host: "127.0.0.1", port: 53142),
+            "本地转发端口 127.0.0.1:53142"
+        )
+    }
+
+    func testConnectionLineShowsTunnelDisconnectedForClosedTunnel() {
+        let connection = Connection(name: "生产")
+        let failure = ConnectFailure(step: .sshTunnel, reason: .ssh(.tunnelClosed(stderrTail: "")))
+        let line = WorkspaceStatusText.connectionLine(
+            connection: connection,
+            state: .failed(failure),
+            database: nil,
+            serverInfo: nil,
+            isReadOnly: false
+        )
+        XCTAssertEqual(line, "生产 · SSH 隧道已断开")
+    }
+
     func testTabSummaryForConsoleLogUsesCount() {
         XCTAssertEqual(
             WorkspaceStatusText.tabSummary(for: .consoleLog, page: nil, consoleLogCount: 7),
             "已记录 7 条语句"
+        )
+    }
+
+    // MARK: - 加载耗时与查询摘要（`specs/12-feedback.md` §6）
+
+    func testTableDataSummaryHidesFastQueryDuration() {
+        let base = "行 1–300 / 约 12,480 行 · 第 1 页 · 300 行/页"
+        XCTAssertEqual(
+            WorkspaceStatusText.tableDataSummary(base: base, elapsedMilliseconds: nil),
+            base
+        )
+        // 恰好 1 秒不显示。
+        XCTAssertEqual(
+            WorkspaceStatusText.tableDataSummary(base: base, elapsedMilliseconds: 1_000),
+            base
+        )
+    }
+
+    func testTableDataSummaryShowsSlowQueryDuration() {
+        let base = "行 1–300 / 约 12,480 行 · 第 1 页 · 300 行/页"
+        XCTAssertEqual(
+            WorkspaceStatusText.tableDataSummary(base: base, elapsedMilliseconds: 1_001),
+            "\(base) · 1001 ms"
+        )
+    }
+
+    func testCancelButtonAppearsOnlyAfterTenSeconds() {
+        XCTAssertFalse(WorkspaceStatusText.showsCancelButton(elapsedMilliseconds: 10_000))
+        XCTAssertFalse(WorkspaceStatusText.showsCancelButton(elapsedMilliseconds: 9_999))
+        XCTAssertTrue(WorkspaceStatusText.showsCancelButton(elapsedMilliseconds: 10_001))
+    }
+
+    func testQuerySummaryFormatAndNoExecutionFallback() {
+        XCTAssertNil(
+            WorkspaceStatusText.querySummary(
+                executedStatementCount: 0,
+                elapsedMilliseconds: 0,
+                totalReturnedRows: 0
+            )
+        )
+        XCTAssertEqual(
+            WorkspaceStatusText.querySummary(
+                executedStatementCount: 3,
+                elapsedMilliseconds: 42,
+                totalReturnedRows: 1_204
+            ),
+            "已执行 3 条语句 · 耗时 42 ms · 返回 1,204 行"
+        )
+        // 0 行 / 0 ms 时省略对应片段，与编辑器内部状态栏一致。
+        XCTAssertEqual(
+            WorkspaceStatusText.querySummary(
+                executedStatementCount: 1,
+                elapsedMilliseconds: 0,
+                totalReturnedRows: 0
+            ),
+            "已执行 1 条语句"
         )
     }
 }

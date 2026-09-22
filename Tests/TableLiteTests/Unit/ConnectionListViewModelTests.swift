@@ -282,4 +282,87 @@ final class ConnectionListViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.connections.isEmpty)
         XCTAssertTrue(harness.manager.sessions.isEmpty)
     }
+
+    func testRunCurrentFormTestPassesSSHPasswordToTunnel() async throws {
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        viewModel.beginCreate()
+        viewModel.formState.name = "带隧道"
+        viewModel.formState.host = "127.0.0.1"
+        viewModel.formState.user = "root"
+        viewModel.formState.sshEnabled = true
+        viewModel.formState.sshHost = "bastion.example.com"
+        viewModel.formState.sshUser = "deploy"
+        viewModel.formState.sshAuthMethod = .password
+        viewModel.formState.sshPassword = "ssh-secret"
+
+        await viewModel.runCurrentFormTest()
+
+        let report = try XCTUnwrap(viewModel.testReport)
+        XCTAssertTrue(report.succeeded)
+        XCTAssertEqual(harness.tunnel.lastConfiguration?.secret, .password("ssh-secret"))
+        XCTAssertEqual(report.tunnelLocalPort, 53142)
+    }
+
+    // MARK: SSH 密码 / 口令（`specs/10-ssh-tunnel.md` §3.2 / §3.3）
+
+    func testSaveCurrentFormStoresSSHPasswordInKeychain() async throws {
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        viewModel.beginCreate()
+        viewModel.formState.name = "带隧道"
+        viewModel.formState.host = "127.0.0.1"
+        viewModel.formState.user = "root"
+        viewModel.formState.sshEnabled = true
+        viewModel.formState.sshHost = "bastion.example.com"
+        viewModel.formState.sshUser = "deploy"
+        viewModel.formState.sshAuthMethod = .password
+        viewModel.formState.sshPassword = "ssh-secret"
+
+        let outcome = await viewModel.saveCurrentForm()
+
+        let saved = try XCTUnwrap(viewModel.connections.first)
+        XCTAssertEqual(try harness.environment.credentials.password(for: saved.id, kind: .sshPassword), "ssh-secret")
+        XCTAssertEqual(outcome?.sessionSSHPassword, "ssh-secret")
+    }
+
+    func testSubmitSSHSecretPromptRemembersPassphrase() async throws {
+        let viewModel = makeViewModel()
+        let connection = StoreTestSupport.connection(name: "带隧道")
+        let request = SSHSecretRequest(
+            kind: .passphrase,
+            connectionID: connection.id,
+            connectionName: connection.name,
+            host: "bastion.example.com",
+            port: 22,
+            privateKeyPath: "~/.ssh/id_ed25519"
+        )
+        viewModel.sshSecretPrompt = ConnectionListViewModel.SSHSecretPrompt(request: request)
+
+        viewModel.submitSSHSecretPrompt("passphrase", remember: true)
+
+        XCTAssertNil(viewModel.sshSecretPrompt)
+        XCTAssertEqual(
+            try harness.environment.credentials.password(for: connection.id, kind: .sshPassphrase),
+            "passphrase"
+        )
+    }
+
+    func testCancelSSHSecretPromptKeepsNothing() async throws {
+        let viewModel = makeViewModel()
+        let connection = StoreTestSupport.connection(name: "带隧道")
+        let request = SSHSecretRequest(
+            kind: .password,
+            connectionID: connection.id,
+            connectionName: connection.name,
+            host: "bastion.example.com",
+            port: 22
+        )
+        viewModel.sshSecretPrompt = ConnectionListViewModel.SSHSecretPrompt(request: request)
+
+        viewModel.cancelSSHSecretPrompt()
+
+        XCTAssertNil(viewModel.sshSecretPrompt)
+        XCTAssertNil(try harness.environment.credentials.password(for: connection.id, kind: .sshPassword))
+    }
 }

@@ -15,6 +15,8 @@ struct QueryResultGridView: NSViewRepresentable {
     let fontSize: Double
     let alternateRowColors: Bool
     var onQuickLook: (QuickLookContent) -> Void
+    /// 结果网格右键「导出结果…」入口（`specs/08-import-export.md` §1）。
+    var onExport: (() -> Void)?
 
     func makeCoordinator() -> QueryResultGridCoordinator {
         QueryResultGridCoordinator(
@@ -23,7 +25,8 @@ struct QueryResultGridView: NSViewRepresentable {
             displayContext: displayContext,
             fontSize: fontSize,
             alternateRowColors: alternateRowColors,
-            onQuickLook: onQuickLook
+            onQuickLook: onQuickLook,
+            onExport: onExport
         )
     }
 
@@ -69,6 +72,7 @@ struct QueryResultGridView: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.onQuickLook = onQuickLook
+        context.coordinator.onExport = onExport
         context.coordinator.sync()
     }
 }
@@ -86,12 +90,15 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
     var fontSize: Double
     var alternateRowColors: Bool
     var onQuickLook: (QuickLookContent) -> Void
+    var onExport: (() -> Void)?
     weak var tableView: QueryResultTableView?
 
     /// 本地排序（不重新查询，`specs/06-query-editor.md` §4）。
     private var sortColumn: String?
     private var sortAscending = true
     private var order: [Int] = []
+    /// 被隐藏的结果列下标（列显隐，`specs/06-query-editor.md` §4）。按列下标跟踪以允许重名列。
+    private(set) var hiddenColumnIndexes: Set<Int> = []
 
     init(
         columns: [ColumnInfo],
@@ -99,7 +106,8 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         displayContext: CellDisplayContext,
         fontSize: Double,
         alternateRowColors: Bool,
-        onQuickLook: @escaping (QuickLookContent) -> Void
+        onQuickLook: @escaping (QuickLookContent) -> Void,
+        onExport: (() -> Void)? = nil
     ) {
         self.columns = columns
         self.rows = rows
@@ -107,6 +115,7 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         self.fontSize = fontSize
         self.alternateRowColors = alternateRowColors
         self.onQuickLook = onQuickLook
+        self.onExport = onExport
         self.order = Array(rows.indices)
         super.init()
     }
@@ -141,6 +150,7 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         for column in tableView.tableColumns {
             tableView.removeTableColumn(column)
         }
+        hiddenColumnIndexes = hiddenColumnIndexes.filter { $0 >= 0 && $0 < columns.count }
         let rowColumn = NSTableColumn(identifier: Self.rowNumberIdentifier)
         rowColumn.title = "#"
         rowColumn.width = 48
@@ -160,6 +170,15 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
             tableColumn.resizingMask = .userResizingMask
             tableColumn.isEditable = false
             tableView.addTableColumn(tableColumn)
+        }
+        applyColumnVisibility()
+    }
+
+    /// 把 `hiddenColumnIndexes` 应用到 `NSTableView`（行号列永远可见）。
+    private func applyColumnVisibility() {
+        guard let tableView else { return }
+        for (index, tableColumn) in tableView.tableColumns.enumerated() where index > 0 {
+            tableColumn.isHidden = hiddenColumnIndexes.contains(index - 1)
         }
     }
 
@@ -326,7 +345,39 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         let copy = NSMenuItem(title: "复制为 CSV（含表头）", action: #selector(menuCopy(_:)), keyEquivalent: "")
         copy.target = self
         menu.addItem(copy)
+        menu.addItem(.separator())
+        // `specs/08-import-export.md` §1 / `specs/06-query-editor.md` §4：结果集导出。
+        let export = NSMenuItem(title: "导出结果…", action: #selector(menuExport(_:)), keyEquivalent: "")
+        export.target = self
+        export.isEnabled = onExport != nil
+        menu.addItem(export)
         return menu
+    }
+
+    /// 结果网格表头右键菜单：`显示 / 隐藏列`（与表数据网格 `DataGridView.makeColumnMenu` 交互一致）。
+    func makeHeaderMenu(columnIndex: Int) -> NSMenu {
+        let menu = NSMenu()
+        let title = NSMenuItem(title: "显示 / 隐藏列", action: nil, keyEquivalent: "")
+        title.isEnabled = false
+        menu.addItem(title)
+        for (index, column) in columns.enumerated() {
+            let item = NSMenuItem(title: column.name, action: #selector(toggleColumnVisibility(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = index
+            item.state = hiddenColumnIndexes.contains(index) ? .off : .on
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    @objc private func toggleColumnVisibility(_ sender: NSMenuItem) {
+        guard let index = sender.representedObject as? Int, columns.indices.contains(index) else { return }
+        hiddenColumnIndexes = ResultColumnVisibility.toggling(
+            index: index,
+            in: hiddenColumnIndexes,
+            columnCount: columns.count
+        )
+        applyColumnVisibility()
     }
 
     @objc private func menuQuickLook(_ sender: NSMenuItem) {
@@ -336,6 +387,10 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
 
     @objc private func menuCopy(_ sender: NSMenuItem) {
         copySelection()
+    }
+
+    @objc private func menuExport(_ sender: NSMenuItem) {
+        onExport?()
     }
 
     private func presentQuickLook(row: Int, column: Int) {
@@ -426,6 +481,11 @@ final class ResultGridHeaderView: NSTableHeaderView {
             }
         }
         super.mouseDown(with: event)
+    }
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let point = convert(event.locationInWindow, from: nil)
+        return coordinator?.makeHeaderMenu(columnIndex: column(at: point))
     }
 
     private func isOnDivider(_ point: NSPoint) -> Bool {

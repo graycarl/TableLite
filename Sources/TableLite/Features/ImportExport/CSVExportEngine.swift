@@ -45,6 +45,7 @@ public enum CSVExportEngine {
         sink: CSVExportSink,
         control: ExportControl,
         source: ExportStreamSource,
+        dateFormatPattern: String? = nil,
         progress: @escaping @Sendable (Int, Int) -> Void = { _, _ in }
     ) async -> ExportSummary {
         let state = StreamState(columns: plan.columns)
@@ -78,7 +79,13 @@ public enum CSVExportEngine {
                     return
                 }
                 let columns = state.columns
-                let values = MySQLValueMapping.values(for: row, columns: columns)
+                var values = MySQLValueMapping.values(for: row, columns: columns)
+                if let dateFormatPattern {
+                    values = values.enumerated().map { index, value in
+                        guard index < columns.count else { return value }
+                        return CSVDateFormatter.formatted(value, column: columns[index], pattern: dateFormatPattern)
+                    }
+                }
                 do {
                     try sink.append(values.map(CSVField.init))
                 } catch {

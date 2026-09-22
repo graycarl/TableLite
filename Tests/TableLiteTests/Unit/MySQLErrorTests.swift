@@ -16,6 +16,7 @@ final class MySQLErrorTests: XCTestCase {
         XCTAssertEqual(MySQLError.classify(code: 2013), .serverGone)
         XCTAssertEqual(MySQLError.classify(code: 1045), .authentication)
         XCTAssertEqual(MySQLError.classify(code: 1049), .unknownDatabase)
+        XCTAssertEqual(MySQLError.classify(code: 1130), .hostNotAllowed)
     }
 
     func testExecutionClassCodes() {
@@ -59,7 +60,47 @@ final class MySQLErrorTests: XCTestCase {
         let error = MySQLError.server(code: 1049, sqlState: "42000", message: "Unknown database 'nope'")
         XCTAssertEqual(error.kind, .unknownDatabase)
         XCTAssertFalse(error.isConnectionFailure, "1049 不算连接失败：连接本身是成功的")
-        XCTAssertTrue(error.chineseExplanation.contains("不存在"))
+        XCTAssertEqual(error.chineseExplanation, "请检查连接配置里的数据库名，或留空。")
+    }
+
+    func testHostNotAllowedIsConnectionFailure() {
+        let error = MySQLError.server(
+            code: 1130,
+            sqlState: "HY000",
+            message: "Host 'x' is not allowed to connect to this MySQL server"
+        )
+        XCTAssertEqual(error.kind, .hostNotAllowed)
+        XCTAssertEqual(error.category, .connection)
+        XCTAssertTrue(error.isConnectionFailure)
+        XCTAssertEqual(
+            MySQLError.connectionFailure(code: 1130, sqlState: "HY000", message: "Host not allowed").kind,
+            .hostNotAllowed
+        )
+    }
+
+    /// 常见错误的附加说明逐字对齐 `specs/12-feedback.md` §5 固定表。
+    func testFeedbackTableExplanations() {
+        let expected: [(UInt32, String)] = [
+            (1045, "请检查用户名与密码。"),
+            (1049, "请检查连接配置里的数据库名，或留空。"),
+            (1130, "该账号不允许从当前 IP 连接，请检查数据库的访问白名单。"),
+            (1062, "有一行的值与已有数据重复。"),
+            (1064, "请检查这条语句。"),
+            (1205, "有其他事务长时间持有锁，稍后重试。"),
+            (1213, "事务已被回滚，请重试。"),
+            (2006, "连接已断开，请手动重新连接。"),
+            (2013, "连接已断开，请手动重新连接。")
+        ]
+        for (code, expectedText) in expected {
+            let error = MySQLError.server(code: code, sqlState: "", message: "raw")
+            XCTAssertEqual(error.chineseExplanation, expectedText, "错误码 \(code) 的附加说明与 specs/12 §5 不一致")
+        }
+    }
+
+    func testCodeLineFormat() {
+        let error = MySQLError.server(code: 1062, sqlState: "23000", message: "Duplicate entry")
+        XCTAssertEqual(error.codeLine, "[错误 1062] SQLSTATE 23000")
+        XCTAssertNil(MySQLError.notConnected().codeLine, "客户端侧错误没有服务器错误码")
     }
 
     func testConnectionFailureClassification() {

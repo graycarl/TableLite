@@ -141,12 +141,18 @@ public actor MetaRepository {
         let indexRows = try await run(indexesSQL, database: database)
         let foreignKeyRows = try await run(foreignKeysSQL, database: database)
         let triggerRows = try await run(triggersSQL, database: database)
-        let createStatement = try await fetchCreateStatement(database: database, table: table, kind: kind)
 
         // 表信息：如果对象列表已缓存，沿用它的行数估算与注释。
+        // 对象类型以目录为准：视图结构用 `SHOW CREATE VIEW`，
+        // 否则 `SHOW CREATE TABLE` 在视图上会失败（`specs/07-schema-view.md` §3）。
         let tableInfo = (try? await objects(database: database))?.first {
             $0.name == table
         } ?? TableInfo(database: database, name: table, kind: kind)
+        let createStatement = try await fetchCreateStatement(
+            database: database,
+            table: table,
+            kind: tableInfo.kind
+        )
 
         let structure = TableStructure(
             table: tableInfo,

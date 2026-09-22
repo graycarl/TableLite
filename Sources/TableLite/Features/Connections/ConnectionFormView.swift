@@ -285,7 +285,15 @@ struct ConnectionFormView: View {
                 fieldLabel("认证方式")
                 Picker("", selection: $form.sshAuthMethod) {
                     ForEach(SSHAuthMethod.allCases, id: \.self) { method in
-                        Text(method.displayName).tag(method)
+                        HStack(spacing: 6) {
+                            Text(method.displayName)
+                            if let note = method.formNote {
+                                Text(note)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .tag(method)
                     }
                 }
                 .pickerStyle(.radioGroup)
@@ -304,6 +312,15 @@ struct ConnectionFormView: View {
                         .disabled(!form.sshEnabled)
                 }
                 errorLine(.privateKeyPath)
+            }
+
+            if form.sshAuthMethod == .password, !form.sshUseConfigAlias {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    fieldLabel("密码")
+                    SecureField("（SSH 账号密码）", text: $form.sshPassword)
+                        .frame(width: 300)
+                        .disabled(!form.sshEnabled)
+                }
             }
         }
     }

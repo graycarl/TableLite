@@ -9,6 +9,8 @@ struct QueryResultAreaView: View {
     let fontSize: Double
     let alternateRowColors: Bool
     var onQuickLook: (QuickLookContent) -> Void
+    /// 结果标签右键「导出结果…」（`specs/08-import-export.md` §1）。
+    var onExportResult: (QueryResultTab) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,7 +35,8 @@ struct QueryResultAreaView: View {
                             onClose: { viewModel.closeResult(result.id) },
                             onCloseOther: { viewModel.closeOtherResults(keeping: result.id) },
                             onCopyStatement: { viewModel.copyStatement(result) },
-                            onCopyResult: { viewModel.copyResult(result) }
+                            onCopyResult: { viewModel.copyResult(result) },
+                            onExport: { onExportResult(result) }
                         )
                     }
                     if !overflowTabs.isEmpty {
@@ -106,7 +109,8 @@ struct QueryResultAreaView: View {
                 displayContext: displayContext,
                 fontSize: fontSize,
                 alternateRowColors: alternateRowColors,
-                onQuickLook: onQuickLook
+                onQuickLook: onQuickLook,
+                onExport: { onExportResult(result) }
             )
         } else if viewModel.isRunning {
             ResultStatusPanel(
@@ -121,7 +125,7 @@ struct QueryResultAreaView: View {
     }
 
     private var progressText: String {
-        "已接收 \(viewModel.receivedRowCount) 行（\(viewModel.elapsedMilliseconds / 1000).\(viewModel.elapsedMilliseconds % 1000 / 100) 秒）"
+        "已接收 \(viewModel.receivedRowCount) 行（\(ByteSize.format(viewModel.receivedByteCount))）（\(viewModel.elapsedMilliseconds / 1000).\(viewModel.elapsedMilliseconds % 1000 / 100) 秒）"
     }
 }
 
@@ -136,6 +140,7 @@ private struct ResultTabButton: View {
     var onCloseOther: () -> Void
     var onCopyStatement: () -> Void
     var onCopyResult: () -> Void
+    var onExport: () -> Void
 
     var body: some View {
         Button(action: onSelect) {
@@ -143,13 +148,11 @@ private struct ResultTabButton: View {
                 if result.isFailure {
                     Image(systemName: result.symbolName)
                         .font(.caption2)
-                        .foregroundStyle(result.kind == .blocked ? .orange : .red)
+                        .foregroundStyle(.red)
                 }
                 Text(result.title)
                     .font(.callout)
-                    .foregroundStyle(result.isFailure && !isActive
-                        ? (result.kind == .blocked ? Color.orange : Color.red)
-                        : Color.primary)
+                    .foregroundStyle(result.isFailure && !isActive ? Color.red : Color.primary)
             }
             .padding(.horizontal, 12)
             .frame(height: 32)
@@ -168,6 +171,9 @@ private struct ResultTabButton: View {
             Divider()
             Button("复制这条语句") { onCopyStatement() }
             Button("复制结果") { onCopyResult() }
+                .disabled(result.rows.isEmpty)
+            Divider()
+            Button("导出结果…") { onExport() }
                 .disabled(result.rows.isEmpty)
         }
     }

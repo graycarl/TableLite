@@ -11,6 +11,7 @@ struct QueryEditorView: View {
     let tab: Tab
 
     @Environment(AppEnvironment.self) private var environment
+    @Environment(ExportRequestCenter.self) private var exportCenter
     @State private var viewModel: QueryEditorViewModel?
     @State private var quickLook: QuickLookPanelController?
 
@@ -89,7 +90,12 @@ struct QueryEditorView: View {
                         displayContext: displayContext,
                         fontSize: Double(environment.preferences.gridFontSize),
                         alternateRowColors: environment.preferences.alternateRowColors,
-                        onQuickLook: { presentQuickLook($0) }
+                        onQuickLook: { presentQuickLook($0) },
+                        onExportResult: { result in
+                            exportCenter.present(
+                                .queryResult(sql: result.statementText, description: result.title)
+                            )
+                        }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -110,7 +116,7 @@ struct QueryEditorView: View {
             } label: {
                 Label("执行", systemImage: "play.fill")
             }
-            .help("执行（⌘↩）")
+            .help("\(viewModel.defaultScope.displayName)（⌘↩）")
             .disabled(viewModel.isRunning)
 
             Menu {
@@ -177,7 +183,7 @@ struct QueryEditorView: View {
             if viewModel.isRunning {
                 ProgressView()
                     .controlSize(.small)
-                Text("正在执行… 已接收 \(viewModel.receivedRowCount) 行（\(elapsedSeconds(viewModel)) 秒）")
+                Text("正在执行… 已接收 \(viewModel.receivedRowCount) 行（\(ByteSize.format(viewModel.receivedByteCount))）（\(elapsedSeconds(viewModel)) 秒）")
                     .monospacedDigit()
             } else if viewModel.executedStatementCount > 0 {
                 Text(doneSummary(viewModel))
@@ -205,15 +211,11 @@ struct QueryEditorView: View {
     }
 
     private func doneSummary(_ viewModel: QueryEditorViewModel) -> String {
-        var parts: [String] = []
-        parts.append("已执行 \(viewModel.executedStatementCount) 条语句")
-        if viewModel.elapsedMilliseconds > 0 {
-            parts.append("耗时 \(viewModel.elapsedMilliseconds) ms")
-        }
-        if viewModel.totalReturnedRows > 0 {
-            parts.append("返回 \(viewModel.totalReturnedRows) 行")
-        }
-        return parts.joined(separator: " · ")
+        WorkspaceStatusText.querySummary(
+            executedStatementCount: viewModel.executedStatementCount,
+            elapsedMilliseconds: viewModel.elapsedMilliseconds,
+            totalReturnedRows: viewModel.totalReturnedRows
+        ) ?? "就绪"
     }
 
     private func elapsedSeconds(_ viewModel: QueryEditorViewModel) -> String {

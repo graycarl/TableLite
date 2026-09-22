@@ -242,4 +242,94 @@ final class CSVExportTests: XCTestCase {
         XCTAssertFalse(plan.sql.contains("LIMIT"))
         XCTAssertEqual(plan.header, ["id", "name"])
     }
+
+    // MARK: - 导出源说明（`specs/08-import-export.md` §1）
+
+    func testFilteredSourceDetailShowsRealConditionAndEstimate() {
+        let source = ExportSource.filteredTable(
+            database: "app_dev",
+            table: "articles",
+            filterClause: "`status` = 'published'",
+            filterSummary: "`status` = 'published'",
+            rowCountEstimate: 12_480
+        )
+        XCTAssertEqual(
+            source.detailText(rowCountEstimate: nil),
+            "应用了过滤条件：`status` = 'published'，共约 12,480 行"
+        )
+    }
+
+    func testFilteredSourceDetailFallsBackToPassedEstimate() {
+        let source = ExportSource.filteredTable(
+            database: "app_dev",
+            table: "articles",
+            filterClause: "1 = 1",
+            filterSummary: "1 = 1",
+            rowCountEstimate: nil
+        )
+        XCTAssertEqual(source.detailText(rowCountEstimate: 7), "应用了过滤条件：1 = 1，共约 7 行")
+    }
+
+    func testSelectedRowsSourceDetailShowsRowCount() {
+        let source = ExportSource.selectedRows(
+            database: "app_dev",
+            table: "users",
+            whereClause: "(`id` = 1)",
+            rowCount: 3
+        )
+        XCTAssertEqual(source.title, "app_dev.users（选中行）")
+        XCTAssertEqual(source.detailText(rowCountEstimate: nil), "仅导出选中的 3 行")
+    }
+
+    func testQueryResultSourceDetail() {
+        let source = ExportSource.queryResult(sql: "SELECT 1", description: "结果 1")
+        XCTAssertEqual(source.title, "结果 1")
+        XCTAssertEqual(source.detailText(rowCountEstimate: nil), "该查询结果集的全部行")
+    }
+
+    // MARK: - 日期格式（`specs/08-import-export.md` §1）
+
+    func testDateFormatResolvedPatternOnlyForCustom() {
+        XCTAssertNil(CSVDateFormat.raw.resolvedPattern)
+        XCTAssertEqual(
+            CSVDateFormat(style: .custom, customPattern: "yyyy/MM/dd").resolvedPattern,
+            "yyyy/MM/dd"
+        )
+        XCTAssertNil(CSVDateFormat(style: .custom, customPattern: "  ").resolvedPattern)
+    }
+
+    func testDateFormatterConvertsDateAndDateTimeColumns() {
+        let date = ColumnInfo(name: "d", fieldType: .date)
+        let datetime = ColumnInfo(name: "dt", fieldType: .datetime)
+        XCTAssertEqual(
+            CSVDateFormatter.formatted(.text("2025-01-02"), column: date, pattern: "yyyy/MM/dd"),
+            .text("2025/01/02")
+        )
+        XCTAssertEqual(
+            CSVDateFormatter.formatted(.text("2025-01-02 11:30:45"), column: datetime, pattern: "yyyy-MM-dd HH:mm"),
+            .text("2025-01-02 11:30")
+        )
+        // 带小数秒的 DATETIME 也要能解析。
+        XCTAssertEqual(
+            CSVDateFormatter.formatted(.text("2025-01-02 11:30:45.123456"), column: datetime, pattern: "yyyy-MM-dd"),
+            .text("2025-01-02")
+        )
+    }
+
+    func testDateFormatterLeavesNonDateAndUnparseableValues() {
+        let text = ColumnInfo(name: "name", fieldType: .varString)
+        XCTAssertEqual(
+            CSVDateFormatter.formatted(.text("2025-01-02"), column: text, pattern: "yyyy"),
+            .text("2025-01-02")
+        )
+        let date = ColumnInfo(name: "d", fieldType: .date)
+        XCTAssertEqual(
+            CSVDateFormatter.formatted(.text("不是日期"), column: date, pattern: "yyyy"),
+            .text("不是日期")
+        )
+        XCTAssertEqual(
+            CSVDateFormatter.formatted(.null, column: date, pattern: "yyyy"),
+            .null
+        )
+    }
 }

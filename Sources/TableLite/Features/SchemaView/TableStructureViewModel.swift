@@ -117,7 +117,12 @@ final class TableStructureViewModel {
         case .tableStructure(let database, let table):
             self.database = database
             self.objectName = table
-            self.requestedKind = .table
+            // 对象树里视图“打开结构”也走 `.tableStructure`，没有单独的标签种类。
+            // 从已加载的对象目录里认出视图，才能立即把页签收成「列 / 定义」
+            // 并给 `SHOW CREATE VIEW` 传对类型（`specs/07-schema-view.md` §3）。
+            self.requestedKind = session.objects.first {
+                $0.database == database && $0.name == table
+            }?.kind ?? .table
             self.selectedPage = .columns
         case .objectDefinition(let database, let object):
             self.database = database
@@ -144,6 +149,12 @@ final class TableStructureViewModel {
     /// 对象定义标签只显示「定义」页；表结构标签按对象类型给页签。
     var isObjectDefinitionTab: Bool {
         if case .objectDefinition = tab.kind { return true }
+        return false
+    }
+
+    /// 是否为「表结构」标签（状态栏概况只在这一类标签上显示，`specs/02-workspace.md` §7）。
+    var isTableStructureTab: Bool {
+        if case .tableStructure = tab.kind { return true }
         return false
     }
 
