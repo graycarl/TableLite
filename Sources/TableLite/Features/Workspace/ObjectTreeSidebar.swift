@@ -18,9 +18,12 @@ struct ObjectTreeSidebar: View {
     var onImportCSV: ((TableInfo) -> Void)?
 
     @State private var searchText = ""
-    @State private var expandedGroups: Set<ObjectTreeGroup> = Set(ObjectTreeGroup.allCases)
+    // nil 表示尚未从工作区状态加载，按「全部展开」渲染，避免首帧闪烁（L21）。
+    @State private var expandedGroups: Set<ObjectTreeGroup>?
     @State private var pendingOperation: DestructiveTableOperation?
     @FocusState private var searchFocused: Bool
+
+    @Environment(AppEnvironment.self) private var environment
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -46,6 +49,7 @@ struct ObjectTreeSidebar: View {
             .padding(6)
         }
         .background(Color(nsColor: .controlBackgroundColor))
+        .onAppear(perform: loadExpandedGroupsIfNeeded)
         .task(id: focusSearchRequest) {
             // 0 是初始值；只有显式请求（⌘F）时才聚焦，且兼容侧栏隐藏后重新创建的情况。
             if focusSearchRequest > 0 {
@@ -140,11 +144,7 @@ struct ObjectTreeSidebar: View {
 
     private func groupHeader(_ group: ObjectTreeGroupContent) -> some View {
         Button {
-            if expandedGroups.contains(group.group) {
-                expandedGroups.remove(group.group)
-            } else {
-                expandedGroups.insert(group.group)
-            }
+            toggleGroup(group.group)
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: isExpanded(group.group) ? "chevron.down" : "chevron.right")
@@ -270,7 +270,29 @@ struct ObjectTreeSidebar: View {
 
     private func isExpanded(_ group: ObjectTreeGroup) -> Bool {
         // 搜索时自动展开所有分组（`specs/02-workspace.md` §5）。
-        !searchText.isEmpty || expandedGroups.contains(group)
+        if !searchText.isEmpty { return true }
+        guard let expandedGroups else { return true }
+        return expandedGroups.contains(group)
+    }
+
+    // MARK: 分组折叠状态持久化（L21）
+
+    private func loadExpandedGroupsIfNeeded() {
+        guard expandedGroups == nil else { return }
+        let collapsed = environment.workspace.collapsedObjectTreeGroups
+        expandedGroups = Set(ObjectTreeGroup.allCases.filter { !collapsed.contains($0.rawValue) })
+    }
+
+    private func toggleGroup(_ group: ObjectTreeGroup) {
+        var current = expandedGroups ?? Set(ObjectTreeGroup.allCases)
+        if current.contains(group) {
+            current.remove(group)
+        } else {
+            current.insert(group)
+        }
+        expandedGroups = current
+        environment.workspace.collapsedObjectTreeGroups =
+            Set(ObjectTreeGroup.allCases.map(\.rawValue)).subtracting(current.map(\.rawValue))
     }
 
     private func open(_ object: TableInfo, forceNew: Bool) {

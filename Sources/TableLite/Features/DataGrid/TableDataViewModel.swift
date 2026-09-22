@@ -305,6 +305,33 @@ public final class TableDataViewModel {
         )
     }
 
+    // MARK: 导出（`specs/08-import-export.md` §1）
+
+    /// 当前过滤条件的中文摘要，供导出面板说明用。
+    public var filterSummary: String? {
+        guard let filter, filter.isActive else { return nil }
+        var parts: [String] = []
+        if filter.isRawMode {
+            parts.append("高级条件")
+        }
+        let conditionCount = filter.activeConditions.count
+        if conditionCount > 0 {
+            parts.append("\(conditionCount) 个条件")
+        }
+        if filter.hasQuickFilter {
+            parts.append("快速过滤「\(filter.quickFilter)」")
+        }
+        return parts.isEmpty ? "过滤条件" : parts.joined(separator: " · ")
+    }
+
+    /// 「导出…」的数据源：有过滤条件时导出过滤后的全部数据，否则整张表。
+    public var exportSource: ExportSource {
+        if let clause = filterClause, let summary = filterSummary {
+            return .filteredTable(database: database, table: table, filterClause: clause, filterSummary: summary)
+        }
+        return .table(database: database, table: table)
+    }
+
     // MARK: 排序
 
     /// 点列头：无 → 升序 → 降序 → 无；`⇧` 点击追加多列排序。

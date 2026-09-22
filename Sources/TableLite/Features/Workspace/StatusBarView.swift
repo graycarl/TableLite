@@ -9,6 +9,8 @@ struct StatusBarView: View {
     let session: ConnectionSession
     var onEditConnection: () -> Void
     var onSwitchDatabase: () -> Void
+    /// 表数据标签的「导出…」入口（`specs/02-workspace.md` §7）。
+    var onExportTable: (() -> Void)?
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(PendingChangesCoordinator.self) private var pendingChanges
@@ -22,6 +24,11 @@ struct StatusBarView: View {
                 Divider().frame(height: 12)
             }
             Spacer(minLength: 12)
+            if activeTableViewModel != nil, let onExportTable {
+                Button("导出…", action: onExportTable)
+                    .controlSize(.small)
+                    .help("导出当前过滤条件下的全部数据（⇧⌘E）")
+            }
             Text(summary)
                 .font(.callout)
                 .foregroundStyle(.secondary)

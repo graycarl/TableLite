@@ -161,7 +161,7 @@ enum EditSmokeRunner {
                 throw EditSmokeFailure("找不到第二行")
             }
             await viewModel.applyInspectorEdit(rowID: second.id, column: "email", value: .text("a@b.c"))
-            let before = await viewModel.pendingCount
+            let before = viewModel.pendingCount
             let succeeded = await viewModel.submitChanges()
             guard !succeeded else { throw EditSmokeFailure("重复的 email 应导致提交失败") }
             guard viewModel.pendingCount == before else { throw EditSmokeFailure("失败后暂存应保留") }

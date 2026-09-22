@@ -247,8 +247,18 @@ public final class ConnectionSession: Identifiable {
     // MARK: 保活
 
     /// 心跳。失败（`2006` / `2013`）时标记失效并抛错（不自动重连，L7）。
+    ///
+    /// 有 SSH 隧道时先探测隧道是否还在：隧道进程先于 MySQL 断开时，状态里说的是
+    /// 「SSH 隧道已断开」而不是笼统的 MySQL 连接失败（`specs/10-ssh-tunnel.md` §4）。
     public func ping() async {
         guard state.isConnected else { return }
+        if let tunnel, await tunnel.healthCheck() == false {
+            let error = await tunnel.state.error ?? .tunnelClosed(stderrTail: "")
+            let failure = ConnectFailure(step: .sshTunnel, reason: .ssh(error))
+            state = .failed(failure)
+            recordConnectFailure(failure)
+            return
+        }
         do {
             try await mysql.ping()
         } catch {

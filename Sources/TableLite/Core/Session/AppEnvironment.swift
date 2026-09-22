@@ -139,4 +139,21 @@ public final class AppEnvironment {
     public func prepareForTermination() async {
         await sessionManager.prepareForTermination()
     }
+
+    // MARK: 偏好联动
+
+    /// 把 Console Log 的容量与落盘偏好应用到运行中的 `ConsoleLogStore`（改了立刻生效）。
+    ///
+    /// 容量直接重建环形缓冲；落盘只在开关跳变时创建 / 释放 `ConsoleLogFileWriter`，
+    /// 避免每次偏好变更都泄漏一个 actor。
+    public func syncConsoleLogSettings() {
+        consoleLog.setCapacity(preferences.consoleLogCapacity)
+        if preferences.consoleLogWriteToFile {
+            guard !consoleLog.hasFileWriter else { return }
+            consoleLog.setFileWriter(ConsoleLogFileWriter(directory: layout.consoleLogDirectory, clock: clock))
+        } else {
+            guard consoleLog.hasFileWriter else { return }
+            consoleLog.setFileWriter(nil)
+        }
+    }
 }

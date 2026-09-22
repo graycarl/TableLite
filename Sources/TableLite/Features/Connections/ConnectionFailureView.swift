@@ -7,8 +7,22 @@ import SwiftUI
 struct ConnectionFailureBody: View {
     let failure: ConnectFailure
 
+    /// 主机指纹变化单独高亮（`specs/10-ssh-tunnel.md` §4）。
+    private var isHostKeyChanged: Bool {
+        failure.sshError?.isHostKeyChanged == true
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if isHostKeyChanged {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .foregroundStyle(.red)
+                    Text("主机指纹变化")
+                        .font(.headline)
+                        .foregroundStyle(.red)
+                }
+            }
             if !failure.underlyingMessage.isEmpty {
                 Text(failure.underlyingMessage)
                     .font(.system(.callout, design: .monospaced))

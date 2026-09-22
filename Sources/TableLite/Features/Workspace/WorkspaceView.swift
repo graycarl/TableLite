@@ -26,6 +26,7 @@ struct WorkspaceView: View {
     @Environment(AppEnvironment.self) private var environment
 
     @State private var showSidebar = true
+    @State private var didLoadSidebarState = false
     @State private var showOpenTable = false
     @State private var showDatabasePicker = false
     @State private var showConnectionList = false
@@ -33,6 +34,7 @@ struct WorkspaceView: View {
     @State private var pendingChanges = PendingChangesCoordinator()
     @State private var exportRequest: ExportRequest?
     @State private var importRequest: ImportRequest?
+    @State private var showDisableReadOnlyConfirmation = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -82,11 +84,19 @@ struct WorkspaceView: View {
             StatusBarView(
                 session: session,
                 onEditConnection: { showConnectionList = true },
-                onSwitchDatabase: { showDatabasePicker = true }
+                onSwitchDatabase: { showDatabasePicker = true },
+                onExportTable: {
+                    guard let model = activeTableViewModel else { return }
+                    exportRequest = ExportRequest(source: model.exportSource)
+                }
             )
         }
         .frame(minWidth: 860, minHeight: 560)
         .navigationTitle(windowTitle)
+        .onAppear(perform: loadSidebarStateIfNeeded)
+        .onChange(of: showSidebar) { _, newValue in
+            environment.workspace.sidebarVisible = newValue
+        }
         .focusedSceneValue(\.workspaceActions, workspaceActions)
         .environment(pendingChanges)
         .confirmationDialog(
@@ -127,6 +137,21 @@ struct WorkspaceView: View {
                 // 导入完成后刷新对象树与当前页（DDL/数据变化已由 session.execute 触发缓存失效）
                 Task { await session.refreshObjects() }
             }
+        }
+        .onChange(of: environment.preferences.showSystemDatabases) { _, _ in
+            // 偏好改了立刻生效：重新拉一遍库列表（`specs/11-preferences.md` §6）。
+            Task { await session.reloadDatabases() }
+        }
+        // 关闭只读模式前给一次轻确认（`specs/09-readonly-mode.md` §6）。
+        .confirmationDialog(
+            "确定要关闭「\(session.connection.name)」的只读模式吗？",
+            isPresented: $showDisableReadOnlyConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("取消", role: .cancel) {}
+            Button("关闭只读模式", role: .destructive) { applyReadOnly(false) }
+        } message: {
+            Text("关闭后可以修改数据、执行写操作。")
         }
     }
 
@@ -181,6 +206,13 @@ struct WorkspaceView: View {
 
     // MARK: 动作
 
+    /// 左侧栏显隐的持久化（L21、`specs/02-workspace.md` §5）。
+    private func loadSidebarStateIfNeeded() {
+        guard !didLoadSidebarState else { return }
+        didLoadSidebarState = true
+        showSidebar = environment.workspace.sidebarVisible
+    }
+
     private func newQuery() {
         session.newQueryTab()
     }
@@ -221,6 +253,15 @@ struct WorkspaceView: View {
         } else {
             session.openConsoleLogTab()
         }
+    }
+
+    /// 切换只读模式并写回连接配置（`specs/09-readonly-mode.md` §6：状态要持久化）。
+    private func applyReadOnly(_ value: Bool) {
+        session.setReadOnly(value)
+        var updated = session.connection
+        updated.isReadOnly = value
+        updated.updatedAt = environment.clock.now
+        Task { try? await environment.connections.upsert(updated) }
     }
 
     private func refresh() async {
@@ -325,7 +366,7 @@ struct WorkspaceView: View {
             importCSV: { importRequest = ImportRequest(database: session.selectedDatabase, table: nil) },
             exportData: {
                 if let tableModel = activeTableViewModel {
-                    exportRequest = ExportRequest(source: .table(database: tableModel.database, table: tableModel.table))
+                    exportRequest = ExportRequest(source: tableModel.exportSource)
                 } else {
                     // 没有表数据标签时退化为「先选表」：打开对象树搜索
                     showSidebar = true
@@ -343,7 +384,13 @@ struct WorkspaceView: View {
             refresh: {
                 Task { await refresh() }
             },
-            toggleReadOnly: { session.setReadOnly(!session.isReadOnly) },
+            toggleReadOnly: {
+                if session.isReadOnly {
+                    showDisableReadOnlyConfirmation = true
+                } else {
+                    applyReadOnly(true)
+                }
+            },
             submitChanges: pendingSubmitAction,
             previewSQL: pendingPreviewAction,
             discardChanges: pendingDiscardAction,
@@ -365,21 +412,5 @@ struct WorkspaceView: View {
             find: findAction,
             findColumns: findColumnsAction
         )
-    }
-}
-
-extension ConnectionColor {
-    /// 连接颜色 → SwiftUI 颜色。`none` 不画颜色带。
-    var swiftUIColor: Color {
-        switch self {
-        case .none: return .clear
-        case .red: return .red
-        case .orange: return .orange
-        case .yellow: return .yellow
-        case .green: return .green
-        case .blue: return .blue
-        case .purple: return .purple
-        case .gray: return .gray
-        }
     }
 }

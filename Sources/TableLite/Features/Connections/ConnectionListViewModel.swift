@@ -134,7 +134,11 @@ final class ConnectionListViewModel {
 
     func beginCreate() {
         resetTestState()
-        formState = ConnectionFormState()
+        formState = ConnectionFormState(
+            queryTimeout: environment.preferences.defaultQueryTimeout,
+            keepAlive: environment.preferences.defaultKeepAlive,
+            keepAliveInterval: environment.preferences.keepAliveInterval
+        )
         isFormPresented = true
     }
 

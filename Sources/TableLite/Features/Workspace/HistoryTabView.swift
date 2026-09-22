@@ -17,6 +17,8 @@ struct HistoryTabView: View {
     @State private var timeFilter: HistoryTimeFilter = .all
     @State private var selection: Int64?
     @State private var loadError: String?
+    @State private var showClearConfirmation = false
+    @State private var pendingClearAll = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,6 +31,15 @@ struct HistoryTabView: View {
             }
         }
         .task(id: reloadKey) { await load() }
+        // 清空是破坏性操作，需要一次普通确认（`specs/12-feedback.md` §4）。
+        .confirmationDialog(
+            pendingClearAll ? "确定要清空全部连接的查询历史吗？" : "确定要清空当前连接的查询历史吗？",
+            isPresented: $showClearConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("清空", role: .destructive) { clear() }
+            Button("取消", role: .cancel) {}
+        }
     }
 
     // MARK: 工具栏
@@ -66,9 +77,12 @@ struct HistoryTabView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            Button("清空历史") { clear() }
-                .disabled(entries.isEmpty)
-                .help("清空当前连接的记录；按住 ⌥ 清空所有连接")
+            Button("清空历史") {
+                pendingClearAll = NSEvent.modifierFlags.contains(.option)
+                showClearConfirmation = true
+            }
+            .disabled(entries.isEmpty)
+            .help("清空当前连接的记录；按住 ⌥ 清空所有连接")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -166,7 +180,7 @@ struct HistoryTabView: View {
     }
 
     private func clear() {
-        let clearAll = NSEvent.modifierFlags.contains(.option)
+        let clearAll = pendingClearAll
         Task {
             if clearAll {
                 try? await environment.history.clearAll()

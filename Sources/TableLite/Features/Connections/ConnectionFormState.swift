@@ -77,7 +77,14 @@ struct ConnectionFormState: Equatable {
     // MARK: - 初始化
 
     /// 新建连接的空白表单。
-    init() {}
+    ///
+    /// 三个默认值可由偏好覆盖（`specs/11-preferences.md` §2）：新建连接时的默认查询超时、
+    /// 默认「保持连接活跃」、心跳间隔。无参调用时与 `specs/01-connections.md` §2 的初值一致。
+    init(queryTimeout: Int = 300, keepAlive: Bool = true, keepAliveInterval: Int = 30) {
+        queryTimeoutText = String(queryTimeout)
+        self.keepAlive = keepAlive
+        keepAliveIntervalText = String(keepAliveInterval)
+    }
 
     /// 编辑已有连接：回填全部字段（密码由调用方从钥匙串取出后另行传入）。
     init(connection: Connection) {

@@ -68,7 +68,9 @@ public struct ConnectFailure: Error, Sendable, Equatable {
         case .ssh(let error):
             return error.stderrTail.isEmpty ? error.displayMessage : error.stderrTail
         case .mysql(let error):
-            return "错误 \(error.code)：\(error.message)"
+            // 错误码 + SQLSTATE + 服务器原文（`specs/12-feedback.md` §5 规则 2）。
+            let state = error.sqlState.isEmpty ? "-" : error.sqlState
+            return "[错误 \(error.code)] SQLSTATE \(state) · \(error.message)"
         case .unknown(let text):
             return text
         }

@@ -96,6 +96,9 @@ public final class ConsoleLogStore {
 
     // MARK: - 容量 / 清空 / 落盘
 
+    /// 当前是否挂了落盘 writer（偏好联动用）。
+    public var hasFileWriter: Bool { fileWriter != nil }
+
     /// 调整容量（偏好变化时调用）；保留最近 N 条。
     public func setCapacity(_ capacity: Int) {
         let newCapacity = max(1, capacity)

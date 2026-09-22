@@ -16,8 +16,8 @@ public final class SessionManager {
     public static let idleCheckInterval: TimeInterval = 30
     /// 空闲多久才允许回收（`specs/01-connections.md` §5）。
     public static let idleThreshold: TimeInterval = 5 * 60
-    /// 保活检查周期。
-    public static let keepAliveCheckInterval: TimeInterval = 30
+    /// 保活检查周期（秒）。实际值取自偏好「心跳间隔」（`specs/11-preferences.md` §2）。
+    public static let defaultKeepAliveCheckInterval: TimeInterval = 30
 
     public private(set) var sessions: [ConnectionSession] = []
     public var activeSessionID: UUID?
@@ -196,7 +196,8 @@ public final class SessionManager {
         guard keepAliveTask == nil else { return }
         keepAliveTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(Self.keepAliveCheckInterval))
+                let interval = max(1, self?.services.preferences.keepAliveInterval ?? Int(Self.defaultKeepAliveCheckInterval))
+                try? await Task.sleep(for: .seconds(interval))
                 guard !Task.isCancelled else { return }
                 await self?.pingActiveSessions()
             }

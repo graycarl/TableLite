@@ -144,8 +144,16 @@ struct TableDataTabView: View {
         switch viewModel.loadState {
         case .failed(let message):
             errorOverlay(message: message, viewModel: viewModel)
-        case .loading where viewModel.rows.isEmpty:
-            StatusOverlay { ProgressView("正在加载…") }
+        case .loading where viewModel.rows.isEmpty && viewModel.insertionRows.isEmpty:
+            // 首次读取：骨架占位，不用转圈（`specs/12-feedback.md` §6）。
+            GridSkeletonView()
+        case .loading:
+            // 翻页 / 排序 / 过滤：保留旧数据，叠一层半透明加载遮罩。
+            ZStack {
+                Color(nsColor: .textBackgroundColor).opacity(0.45)
+                ProgressView()
+                    .controlSize(.small)
+            }
         case .loaded where viewModel.rows.isEmpty && viewModel.insertionRows.isEmpty:
             StatusOverlay {
                 VStack(spacing: 6) {
@@ -234,7 +242,7 @@ struct TableDataTabView: View {
     }
 }
 
-/// 覆盖在网格上的居中提示（空表 / 加载中 / 失败）。
+/// 覆盖在网格上的居中提示（空表 / 失败）。
 private struct StatusOverlay<Content: View>: View {
 
     private let content: Content
@@ -247,5 +255,37 @@ private struct StatusOverlay<Content: View>: View {
         content
             .padding(18)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+/// 首次加载的骨架占位（`specs/12-feedback.md` §6）。
+private struct GridSkeletonView: View {
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            skeletonRow(emphasized: true)
+            Divider()
+            ForEach(0..<8, id: \.self) { index in
+                skeletonRow(emphasized: false)
+                if index < 7 {
+                    Divider()
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color(nsColor: .textBackgroundColor))
+    }
+
+    private func skeletonRow(emphasized: Bool) -> some View {
+        HStack(spacing: 14) {
+            ForEach(0..<4, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.secondary.opacity(emphasized ? 0.24 : 0.12))
+                    .frame(height: emphasized ? 12 : 10)
+            }
+        }
+        .padding(.vertical, 8)
     }
 }

@@ -12,12 +12,24 @@ struct ConsoleLogTabView: View {
     @State private var filter: ConsoleLogFilter = .all
     @State private var expandedIDs: Set<UInt64> = []
     @State private var isFollowing = true
+    @State private var showClearConfirmation = false
 
     var body: some View {
         VStack(spacing: 0) {
             toolbar
             Divider()
             content
+        }
+        // 清空是破坏性操作，需要一次普通确认（`specs/12-feedback.md` §4）。
+        .confirmationDialog(
+            "确定要清空 Console Log 吗？",
+            isPresented: $showClearConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("清空", role: .destructive) { environment.consoleLog.clear() }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("只清空内存中的记录，已写入的日志文件不受影响。")
         }
     }
 
@@ -46,7 +58,7 @@ struct ConsoleLogTabView: View {
 
             Button("复制") { copyAll() }
                 .disabled(visibleEntries.isEmpty)
-            Button("清空") { environment.consoleLog.clear() }
+            Button("清空") { showClearConfirmation = true }
                 .disabled(environment.consoleLog.entries.isEmpty)
         }
         .padding(.horizontal, 12)

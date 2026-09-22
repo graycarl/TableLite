@@ -15,7 +15,6 @@ struct RootView: View {
 
     @State private var showConnectionList = false
     @State private var showPreferences = false
-    @State private var showHelp = false
 
     var body: some View {
         Group {
@@ -40,10 +39,14 @@ struct RootView: View {
             if newValue != nil { showConnectionList = false }
         }
         .sheet(isPresented: $showPreferences) {
-            preferencesPlaceholder
+            PreferencesView()
         }
-        .sheet(isPresented: $showHelp) {
-            helpPlaceholder
+        // Console Log 的容量 / 落盘偏好改了立刻生效（`specs/11-preferences.md` §7）。
+        .onChange(of: environment.preferences.consoleLogCapacity) { _, _ in
+            environment.syncConsoleLogSettings()
+        }
+        .onChange(of: environment.preferences.consoleLogWriteToFile) { _, _ in
+            environment.syncConsoleLogSettings()
         }
     }
 
@@ -56,43 +59,16 @@ struct RootView: View {
         return AppActions(
             newConnection: newConnection,
             openPreferences: { showPreferences = true },
-            showHelp: { showHelp = true },
+            showHelp: { openManual() },
             openDataDirectory: {
                 NSWorkspace.shared.open(environment.layout.rootDirectory)
             }
         )
     }
 
-    // 偏好设置属于 P11，本阶段给一个明确占位。
-    private var preferencesPlaceholder: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "gearshape")
-                .font(.system(size: 30))
-                .foregroundStyle(.tertiary)
-            Text("偏好设置")
-                .font(.title3)
-            Text("偏好设置面板待 P11 实现")
-                .foregroundStyle(.secondary)
-            Button("关闭") { showPreferences = false }
-                .keyboardShortcut(.defaultAction)
-        }
-        .padding(28)
-        .frame(width: 360, height: 220)
-    }
-
-    private var helpPlaceholder: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "book")
-                .font(.system(size: 30))
-                .foregroundStyle(.tertiary)
-            Text("使用说明")
-                .font(.title3)
-            Text("图形化使用说明书见仓库 `manual/` 目录")
-                .foregroundStyle(.secondary)
-            Button("关闭") { showHelp = false }
-                .keyboardShortcut(.defaultAction)
-        }
-        .padding(28)
-        .frame(width: 360, height: 220)
+    /// 「帮助 → 使用说明」打开已发布的图形化说明书（`12-build-and-deps.md` §5.1）。
+    private func openManual() {
+        guard let url = URL(string: "https://graycarl.github.io/TableLite/") else { return }
+        NSWorkspace.shared.open(url)
     }
 }

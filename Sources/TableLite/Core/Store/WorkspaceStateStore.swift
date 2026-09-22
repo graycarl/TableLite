@@ -39,16 +39,35 @@ public final class WorkspaceStateStore {
     public enum Key {
         public static let tableLayouts = "workspace.tableLayouts"
         public static let tableFilters = "workspace.tableFilters"
+        public static let sidebarVisible = "workspace.sidebarVisible"
+        public static let collapsedObjectTreeGroups = "workspace.collapsedObjectTreeGroups"
     }
 
     private let store: KeyValueStore
     private var tableLayouts: [String: TableLayout]
     private var tableFilters: [String: FilterState]
 
+    /// 左侧栏是否显示（L21）。默认显示。
+    public var sidebarVisible: Bool {
+        didSet { store.set(sidebarVisible, forKey: Key.sidebarVisible) }
+    }
+
+    /// 被折叠的对象树分组 rawValue（L21）。空集合表示全部分组展开。
+    public var collapsedObjectTreeGroups: Set<String> {
+        didSet { store.set(Array(collapsedObjectTreeGroups), forKey: Key.collapsedObjectTreeGroups) }
+    }
+
     public init(store: KeyValueStore) {
         self.store = store
         self.tableLayouts = Self.decode([String: TableLayout].self, from: store, key: Key.tableLayouts) ?? [:]
         self.tableFilters = Self.decode([String: FilterState].self, from: store, key: Key.tableFilters) ?? [:]
+        // 没有存过时默认显示 / 全部展开。
+        if store.object(forKey: Key.sidebarVisible) == nil {
+            self.sidebarVisible = true
+        } else {
+            self.sidebarVisible = store.object(forKey: Key.sidebarVisible) as? Bool ?? true
+        }
+        self.collapsedObjectTreeGroups = Set(store.object(forKey: Key.collapsedObjectTreeGroups) as? [String] ?? [])
     }
 
     // MARK: - 列布局
