@@ -29,8 +29,8 @@ struct TableLiteApp: App {
         }
         .windowResizability(.contentMinSize)
         .commands {
-            // 单窗口应用：不要「新建窗口」
-            CommandGroup(replacing: .newItem) { }
+            // 单窗口应用：不要「新建窗口」；其余菜单见 `TableLiteCommands`。
+            TableLiteCommands()
         }
     }
 }

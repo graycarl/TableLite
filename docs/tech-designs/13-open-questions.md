@@ -69,6 +69,9 @@
 | L18 | 连接转义器（`escape`）是同步的 | 正在执行大查询时调用转义会阻塞到查询结束 | Preview 生成避开查询执行窗口；查询串行执行本身是协议约束 |
 | L19 | SSH 健康检查单次探测失败即判死 | 网络抖动可能误报隧道断开 | `04-ssh-tunnel.md` §6 未定失败阈值；误报后用户手动重连（L7 不自动重连） |
 | L20 | 偏好 `gridLazyLargeColumns`（大字段两阶段加载开关）未在 `specs/11-preferences.md` 列出 | 实现按 `07-data-grid.md` §3.1 补了该键（默认开），specs 待用户拍板补写 | 功能上等价于「超长内容截断阈值」的开关版 |
+| L21 | 左侧栏显隐与对象树分组折叠状态未持久化 | 重启后恢复默认（侧栏显示、分组展开）；`specs/02` §5 要求记住，待 P11 补持久化 | 运行期内由 @State 记住；P11 加 PreferenceKey |
+| L22 | 标签中键点击关闭未实现 | 可用 ⌘W / 关闭按钮 / 右键菜单替代 | SwiftUI 无中键事件，需 AppKit 事件监控，收益低 |
+| L23 | 测试连接无实时分步进度、取消仅丢弃结果 | 等待时面板只转圈，拿到整份报告后渲染 ✓/✗；点取消后 Core 仍会把测试连接跑完再关 | 结果正确（不留痕），体验可接受；真取消需 Core 加中断点 |
 
 ## 3. 待定事项
 
@@ -106,5 +109,6 @@
 | 2026-09-22 | Core/Model + Core/SQL 落地（W1-T1）：登记 S28（LIKE ESCAPE 按 sql_mode 适配，修正 `09` §1.4 矛盾）、S29（Preview 与下发共用连接转义器）、S30（语句分类从严）、L15（CSV 读全量解析）、L16（TSV NULL 文本表示）；行定位键 `RowKeyValue` 携带 `fieldType`/`isBinary` 以生成正确字面量 |
 | 2026-09-22 | Core/MySQL + Core/Store + Core/SSH 落地（W1-T2/T3/T4）：冒烟 7/7 通过；登记 S31（删连接 Keychain 顺序）、S32（SSH BatchMode 策略）、L17–L20；`session.json` schema 由 Core/Store 首定（`SessionStateFile`），W2 的 SessionManager 对接时可调整；SSH 别名模式下 `Connection.validationIssues()` 仍强制要求 `ssh.user`，待 W2 连接表单放宽 |
 | 2026-09-22 | Core/Meta + Core/Session 落地（W2-T5）：MetaRepository（information_schema + TTL 缓存 + DDL 失效）、SessionManager/ConnectionSession/Tab/AppEnvironment；`MySQLSessionProtocol`/`SSHTunnelProtocol` 抽协议供测试替身（S26 手写协议）；SSH 别名模式校验已放宽（`Connection.validationIssues()` 不再强制 `ssh.user`/私钥）；保活用固定 30s 周期（未按连接各自间隔）；退出前的未提交确认待编辑 wave 补 |
+| 2026-09-22 | Features/Connections + Features/Workspace 落地（W2-T6/T7）：菜单快捷键走 `Commands + @FocusedValue`（`WorkspaceActions`/`AppActions`，后续 wave 在 WorkspaceView 里把 nil 换成真实现，nil 自动禁用）；对象树用 SwiftUI LazyVStack 不下沉 AppKit；登记 L21–L23；窗口最小尺寸取 860×560（specs 未定）；ConnectionColor 的 SwiftUI 颜色映射有两处（`swatchColor`/`swiftUIColor`）待收敛 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。
