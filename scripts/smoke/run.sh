@@ -102,7 +102,7 @@ if [[ $status -eq 0 ]]; then
   fi
   # -------------------------------------------------------------- 过滤链路
   if [[ "${SMOKE_FILTER:-1}" == "1" ]]; then
-    printf "\n${DIM}过滤链路端到端（--filter-smoke）：行过滤器 / 快速过滤 / Raw / 列显隐 …${RESET}\n"
+    printf "\n${DIM}过滤链路端到端（--filter-smoke）：行过滤器 / 条件叠加 / Raw / 列显隐 …${RESET}\n"
     set +e
     MYSQL_HOST="$MYSQL_HOST" \
     MYSQL_PORT="$MYSQL_PORT" \

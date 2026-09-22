@@ -2,7 +2,7 @@ import Foundation
 
 /// 过滤器的端到端冒烟验证（隐藏参数 `--filter-smoke`）。
 ///
-/// 覆盖：行过滤器 SQL 正确性、`LIKE` 通配符转义、Raw 模式、快速过滤与条件叠加、
+/// 覆盖：行过滤器 SQL 正确性、`LIKE` 通配符转义、Raw 模式、多条件叠加、
 /// 列显隐不影响 SQL、错误处理。用真实 MySQL 校验生成语句确实能查到预期行。
 ///
 /// 用法（环境变量与 `scripts/smoke/run.sh` 一致）：
@@ -27,7 +27,7 @@ enum FilterSmokeRunner {
 
     private static func runAll() async -> Int {
         let config = FilterSmokeConfig.fromEnvironment()
-        print("== TableLite 过滤冒烟（行过滤器 / 快速过滤 / Raw / 列显示）==")
+        print("== TableLite 过滤冒烟（行过滤器 / 条件叠加 / Raw / 列显示）==")
         print("   目标：\(config.user)@\(config.host):\(config.port)/\(config.database)\n")
 
         let environment = AppEnvironment.makeFallback()
@@ -150,18 +150,18 @@ enum FilterSmokeRunner {
             return ""
         }
 
-        await check("快速过滤 + 行条件叠加 + 列显隐不改 SQL") {
+        await check("行条件叠加 + 列显隐不改 SQL") {
             let (viewModel, count) = try await filteredRows(environment, session) { model in
                 model.applyColumnVisibility(hidden: ["note"])
                 model.addFilterCondition(column: "status", op: .equal, value: "published")
-                model.setQuickFilter("钱")
+                model.addFilterCondition(column: "age", op: .equal, value: "25")
             }
             guard count == 1 else { throw FilterSmokeFailure("期望 1 行，实得 \(count)") }
-            // 条件与快速过滤叠加，且隐藏的列仍出现在单元格里（仍被查询）。
+            // 两条条件叠加，且隐藏的列仍出现在单元格里（仍被查询）。
             guard viewModel.rows.first?.cells["note"]?.value == .text("500") else {
                 throw FilterSmokeFailure("隐藏列 note 仍应被查询到")
             }
-            return "status=published AND 可见列含 钱"
+            return "status=published AND age=25"
         }
 
         print("")

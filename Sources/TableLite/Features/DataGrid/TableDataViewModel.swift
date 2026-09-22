@@ -82,9 +82,9 @@ public final class TableDataViewModel {
     public private(set) var filterErrorConditionIDs: Set<UUID> = []
     /// 列显隐浮层是否打开。
     public private(set) var isColumnFilterPresented = false
-    /// 请求面板聚焦的计数器（⌘F / 快捷筛选后由视图响应）。
+    /// 请求面板聚焦的计数器（快捷筛选 / 切 Raw 模式后由视图响应）。
     public internal(set) var filterFocusToken = 0
-    /// 需要聚焦的条件 id；nil 表示聚焦快速过滤框。
+    /// 需要聚焦的条件 id；nil 表示聚焦 Raw 模式输入框。
     public internal(set) var filterFocusConditionID: UUID?
     public private(set) var columnWidths: [String: Double]
 
@@ -140,9 +140,6 @@ public final class TableDataViewModel {
     @ObservationIgnored private var activeTask: Task<Void, Never>?
     @ObservationIgnored private var fullLoadTask: Task<Void, Never>?
     @ObservationIgnored private var persistTask: Task<Void, Never>?
-    @ObservationIgnored private var quickFilterTask: Task<Void, Never>?
-    /// 快速过滤防抖时长；单测可置零。
-    internal static var quickFilterDebounceDelay: Duration = .milliseconds(250)
 
     // MARK: 初始化
 
@@ -211,14 +208,11 @@ public final class TableDataViewModel {
         fullLoadTask = nil
         persistTask?.cancel()
         persistTask = nil
-        quickFilterTask?.cancel()
-        quickFilterTask = nil
         Task { await session.cancelCurrentQuery() }
     }
 
     /// 等待当前挂起的加载（单测用）。
     public func waitForPendingWork() async {
-        await quickFilterTask?.value
         await activeTask?.value
         await fullLoadTask?.value
     }
@@ -317,9 +311,6 @@ public final class TableDataViewModel {
         let conditionCount = filter.activeConditions.count
         if conditionCount > 0 {
             parts.append("\(conditionCount) 个条件")
-        }
-        if filter.hasQuickFilter {
-            parts.append("快速过滤「\(filter.quickFilter)」")
         }
         return parts.isEmpty ? "过滤条件" : parts.joined(separator: " · ")
     }
@@ -448,13 +439,12 @@ public final class TableDataViewModel {
         startQuery()
     }
 
-    /// 打开 / 关闭过滤横条（`⌘F`）；打开时聚焦快速过滤框。
+    /// 打开 / 关闭过滤横条（`⌘F`）。
     public func toggleFilterVisible() {
         if filterDraft.isVisible {
             setFilterVisible(false)
         } else {
             setFilterVisible(true)
-            requestFilterFocus()
         }
     }
 
@@ -469,7 +459,7 @@ public final class TableDataViewModel {
         bumpRevision()
     }
 
-    /// 请求视图把焦点放到快速过滤框（`conditionID == nil`）或某条条件的值输入。
+    /// 请求视图把焦点放到某条条件的值输入（`conditionID == nil` 时为 Raw 模式输入框）。
     public func requestFilterFocus(conditionID: UUID? = nil) {
         filterFocusConditionID = conditionID
         filterFocusToken &+= 1
@@ -510,7 +500,7 @@ public final class TableDataViewModel {
         startQuery()
     }
 
-    /// 点「重置」：清空全部条件（含快速过滤）并重新加载。
+    /// 点「重置」：清空全部条件并重新加载。
     public func resetFilter() {
         filterDraft.reset()
         filterDraft.isVisible = true
@@ -662,51 +652,6 @@ public final class TableDataViewModel {
         persistFilter()
         syncTab()
         bumpRevision()
-    }
-
-    // MARK: 跨列快速过滤
-
-    /// 输入即触发（防抖）；文本为空时等价于清除。
-    public func setQuickFilter(_ text: String) {
-        filterDraft.quickFilter = text
-        persistFilter()
-        syncTab()
-        bumpRevision()
-        quickFilterTask?.cancel()
-        let delay = Self.quickFilterDebounceDelay
-        quickFilterTask = Task { [weak self] in
-            try? await Task.sleep(for: delay)
-            guard !Task.isCancelled else { return }
-            self?.applyQuickFilter()
-        }
-    }
-
-    /// 立即应用快速过滤（防抖到期 / 单测）。
-    public func applyQuickFilter() {
-        var applied = filter ?? filterDraft
-        applied.quickFilter = filterDraft.quickFilter
-        applied.isVisible = true
-        filter = applied
-        filterDraft.isVisible = true
-        pageIndex = 0
-        persistFilter()
-        syncTab()
-        bumpRevision()
-        startQuery()
-    }
-
-    /// 清空快速过滤并重新加载。
-    public func clearQuickFilter() {
-        quickFilterTask?.cancel()
-        quickFilterTask = nil
-        guard !filterDraft.quickFilter.isEmpty else { return }
-        filterDraft.quickFilter = ""
-        filter?.quickFilter = ""
-        pageIndex = 0
-        persistFilter()
-        syncTab()
-        bumpRevision()
-        startQuery()
     }
 
     // MARK: 快速筛选入口（右键 / 列头）
@@ -1109,19 +1054,12 @@ public final class TableDataViewModel {
     private var filterClause: String? {
         guard let filter, filter.isActive else { return nil }
         let options = queryOptions
-        let conditions = try? FilterSQLBuilder.whereClause(
+        return try? FilterSQLBuilder.whereClause(
             for: filter,
             columns: columns,
             escaping: options.escaping,
             introducer: options.introducer
         ).clause
-        let quick = FilterSQLBuilder.quickFilterClause(
-            filter.quickFilter,
-            columns: visibleColumns,
-            escaping: options.escaping,
-            introducer: options.introducer
-        )
-        return FilterSQLBuilder.combine(conditions, quick)
     }
 
     private func exactCountSQL() -> String {

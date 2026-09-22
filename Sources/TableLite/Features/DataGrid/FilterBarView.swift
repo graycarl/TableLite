@@ -4,19 +4,17 @@ import SwiftUI
 ///
 /// 网格上方的一条可折叠横条：
 /// - 每行是「启用勾选 + 列下拉（可搜索）+ 操作符下拉 + 值输入」，支持增删行；
-/// - 跨列快速过滤框对所有可见列做 `LIKE`，与条件行 / Raw 并存；
 /// - AND / OR 组合、切到 Raw SQL、重置、应用；
 /// - `Esc` 关闭但保留条件；`⌘I` 由数据网格转发到「添加条件」。
 struct FilterBarView: View {
 
     let viewModel: TableDataViewModel
 
-    @FocusState private var quickFilterFocused: Bool
+    @FocusState private var rawWhereFocused: Bool
 
     var body: some View {
         if viewModel.isFilterVisible {
             VStack(spacing: 6) {
-                quickFilterRow
                 if let error = viewModel.filterError {
                     errorBanner(error)
                 }
@@ -32,57 +30,14 @@ struct FilterBarView: View {
             .background(.bar)
             .overlay(alignment: .bottom) { Divider() }
             .onExitCommand { viewModel.setFilterVisible(false) }
-            .onAppear {
-                // ⌘F 打开时把焦点放到快速过滤框。
-                if viewModel.filterFocusConditionID == nil {
-                    quickFilterFocused = true
-                }
-            }
             .onChange(of: viewModel.filterFocusToken) { _, _ in
-                // 需要聚焦条件值时由对应行自己处理；这里只在聚焦快速过滤框时响应。
-                if viewModel.filterFocusConditionID == nil {
-                    quickFilterFocused = true
+                // 需要聚焦条件值时由对应行自己处理；这里响应 Raw 模式输入框的聚焦请求。
+                if viewModel.filterFocusConditionID == nil,
+                   viewModel.filterDraft.isRawMode {
+                    rawWhereFocused = true
                 }
             }
         }
-    }
-
-    // MARK: 快速过滤
-
-    private var quickFilterRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "line.3.horizontal.decrease.circle")
-                .foregroundStyle(.secondary)
-            TextField("快速过滤：对所有可见列包含…", text: quickFilterBinding)
-                .textFieldStyle(.roundedBorder)
-                .focused($quickFilterFocused)
-                .frame(maxWidth: 360)
-                .onSubmit { viewModel.applyQuickFilter() }
-            if viewModel.filterDraft.hasQuickFilter {
-                Button {
-                    viewModel.clearQuickFilter()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                }
-                .buttonStyle(.borderless)
-                .help("清除快速过滤")
-            }
-            Spacer()
-            Button {
-                viewModel.setFilterVisible(false)
-            } label: {
-                Image(systemName: "xmark")
-            }
-            .buttonStyle(.borderless)
-            .help("关闭过滤器（条件保留）")
-        }
-    }
-
-    private var quickFilterBinding: Binding<String> {
-        Binding(
-            get: { viewModel.filterDraft.quickFilter },
-            set: { viewModel.setQuickFilter($0) }
-        )
     }
 
     // MARK: 错误提示
@@ -134,6 +89,7 @@ struct FilterBarView: View {
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1...4)
                     .font(.system(.callout, design: .monospaced))
+                    .focused($rawWhereFocused)
             }
             Text("高级条件不会被校验，请自行确认语法正确。与条件行互斥，切换会清空条件行。")
                 .font(.caption)

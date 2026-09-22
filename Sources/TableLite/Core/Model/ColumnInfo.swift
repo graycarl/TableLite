@@ -153,7 +153,7 @@ public struct ColumnInfo: Sendable, Codable, Equatable, Hashable, Identifiable {
         return Self.parseEnumValues(from: text)
     }
 
-    /// 解析 `enum(...)` / `set(...)` 里的值。纯函数，供字段栏下拉与快速过滤使用。
+    /// 解析 `enum(...)` / `set(...)` 里的值。纯函数，供字段栏下拉与过滤条件值下拉使用。
     public static func parseEnumValues(from columnType: String) -> [String]? {
         guard let open = columnType.firstIndex(of: "("),
               let close = columnType.lastIndex(of: ")"),

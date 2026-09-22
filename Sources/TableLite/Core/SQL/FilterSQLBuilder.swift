@@ -113,41 +113,6 @@ public enum FilterSQLBuilder {
         return result
     }
 
-    // MARK: 跨列快速过滤
-
-    /// 快速过滤：对给定的每一列做 `col LIKE '%文本%'`，用 `OR` 连接。
-    ///
-    /// 与条件行 / Raw 并存：由调用方用 `combine(_:_:)` 再与主条件 `AND` 组合。
-    /// 二进制列会被跳过（对二进制做 `LIKE` 无意义且易误导）。
-    public static func quickFilterClause(
-        _ text: String,
-        columns: [ColumnInfo],
-        escaping: SQLStringEscaping = .mysqlDefault,
-        introducer: String? = nil
-    ) -> String? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        let eligible = columns.filter { !$0.isBinary && $0.fieldType != .null }
-        guard !eligible.isEmpty else { return nil }
-        let pattern = "%\(escapeLikePattern(trimmed))%"
-        let parts = eligible.map { column in
-            likeClause(
-                SQLIdentifier.quote(column.name),
-                pattern: pattern,
-                negated: false,
-                escaping: escaping,
-                introducer: introducer
-            )
-        }
-        return "(\(parts.joined(separator: " OR ")))"
-    }
-
-    /// 把两段 `WHERE` 片段用 `AND` 组合；任一侧为 nil 时直接返回另一侧。
-    public static func combine(_ lhs: String?, _ rhs: String?) -> String? {
-        if let lhs, let rhs { return "(\(lhs)) AND (\(rhs))" }
-        return lhs ?? rhs
-    }
-
     // MARK: 单条条件
 
     static func clause(

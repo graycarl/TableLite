@@ -1,77 +1,40 @@
 import XCTest
 @testable import TableLite
 
-// MARK: - 纯函数：快速过滤 SQL 生成 / 组合 / 状态模型
+// MARK: - 状态模型：编解码与持久化向前兼容
 
-/// 快速过滤与状态模型（`docs/tech-designs/09-filtering.md` §1.3、§1.4）。
-final class FilterQuickFilterTests: XCTestCase {
+/// `FilterState` 的编解码与生效判定（`docs/tech-designs/09-filtering.md` §1.1、§1.6）。
+final class FilterStateModelTests: XCTestCase {
 
-    private let columns: [ColumnInfo] = [
-        TestSupport.column("id", type: .long, flags: ColumnFlag.primaryKey, charset: 63),
-        TestSupport.column("name", type: .varString),
-        TestSupport.column("email", type: .varString),
-    ]
-
-    // MARK: 快速过滤
-
-    func testQuickFilterClauseJoinsVisibleColumnsWithOr() {
-        let clause = FilterSQLBuilder.quickFilterClause("张", columns: [columns[1], columns[2]])
-        XCTAssertEqual(clause, "(`name` LIKE '%张%' ESCAPE '\\\\' OR `email` LIKE '%张%' ESCAPE '\\\\')")
-    }
-
-    func testQuickFilterClauseEscapesWildcards() {
-        let clause = FilterSQLBuilder.quickFilterClause("a_b%", columns: [columns[1]])
-        XCTAssertEqual(clause, "(`name` LIKE '%a\\\\_b\\\\%%' ESCAPE '\\\\')")
-    }
-
-    func testQuickFilterClauseEmptyOrNoColumnsIsNil() {
-        XCTAssertNil(FilterSQLBuilder.quickFilterClause("   ", columns: columns))
-        XCTAssertNil(FilterSQLBuilder.quickFilterClause("x", columns: []))
-    }
-
-    func testQuickFilterClauseSkipsBinaryColumns() {
-        let binary = TestSupport.column("payload", type: .blob, charset: 63)
-        XCTAssertNil(FilterSQLBuilder.quickFilterClause("x", columns: [binary]))
-    }
-
-    // MARK: 组合
-
-    func testCombine() {
-        XCTAssertEqual(FilterSQLBuilder.combine("A", "B"), "(A) AND (B)")
-        XCTAssertEqual(FilterSQLBuilder.combine("A", nil), "A")
-        XCTAssertEqual(FilterSQLBuilder.combine(nil, "B"), "B")
-        XCTAssertNil(FilterSQLBuilder.combine(nil, nil))
-    }
-
-    // MARK: 状态模型
-
-    func testQuickFilterKeepsStateActive() {
-        var state = FilterState()
-        XCTAssertFalse(state.isActive)
-        state.quickFilter = "张"
-        XCTAssertTrue(state.isActive)
-        XCTAssertTrue(state.hasQuickFilter)
-        state.reset()
-        XCTAssertFalse(state.isActive)
-        XCTAssertEqual(state.quickFilter, "")
-    }
-
-    func testFilterStateRoundTripsQuickFilter() throws {
+    func testFilterStateRoundTrips() throws {
         var state = FilterState(conditions: [
             FilterCondition(column: "name", op: .contains, value: "张"),
-        ], isVisible: true, quickFilter: "abc")
+        ], isVisible: true)
         state.combination = .any
         let data = try JSONEncoder().encode(state)
         let decoded = try JSONDecoder().decode(FilterState.self, from: data)
         XCTAssertEqual(decoded, state)
     }
 
-    /// 向前兼容（`02-persistence.md` §9）：旧数据没有 `quickFilter` 字段时按空串处理。
-    func testFilterStateDecodesLegacyJSONWithoutQuickFilter() throws {
-        let json = #"{"conditions":[],"combination":"all","rawWhere":"","isRawMode":false,"isVisible":true}"#
+    func testFilterStateIsActiveOnlyWithConditionsOrRaw() {
+        var state = FilterState()
+        XCTAssertFalse(state.isActive)
+        state.conditions = [FilterCondition(column: "name", op: .equal, value: "x")]
+        XCTAssertTrue(state.isActive)
+        state.reset()
+        XCTAssertFalse(state.isActive)
+        state.isRawMode = true
+        state.rawWhere = "id > 0"
+        XCTAssertTrue(state.isActive)
+    }
+
+    /// 向前兼容（`02-persistence.md` §9）：旧数据里已被移除的 `quickFilter` 字段直接忽略，
+    /// 缺失的字段取默认值。
+    func testFilterStateDecodesLegacyJSONWithRemovedQuickFilterField() throws {
+        let json = #"{"conditions":[],"combination":"all","rawWhere":"","isRawMode":false,"isVisible":true,"quickFilter":"abc"}"#
         let state = try JSONDecoder().decode(FilterState.self, from: Data(json.utf8))
-        XCTAssertEqual(state.quickFilter, "")
         XCTAssertTrue(state.isVisible)
+        XCTAssertFalse(state.isActive)
     }
 }
 
@@ -86,11 +49,9 @@ final class TableDataFilteringTests: XCTestCase {
     override func setUp() async throws {
         harness = SessionTestSupport.makeHarness()
         await harness.mysql.setResponses(SessionTestSupport.successfulResponses())
-        TableDataViewModel.quickFilterDebounceDelay = .zero
     }
 
     override func tearDown() async throws {
-        TableDataViewModel.quickFilterDebounceDelay = .milliseconds(250)
         harness?.clean()
         harness = nil
     }
@@ -264,61 +225,6 @@ final class TableDataFilteringTests: XCTestCase {
         viewModel.setRawWhere("id = 1; DROP TABLE t")
         viewModel.applyFilter()
         XCTAssertEqual(viewModel.filterError, "高级条件里不能包含分号「;」")
-    }
-
-    // MARK: 快速过滤
-
-    func testQuickFilterCombinesWithRowConditions() async throws {
-        let session = try await makeSession()
-        let (viewModel, _) = makeViewModel(session: session)
-        await harness.mysql.setResponses([pageResponse(rowCount: 10)])
-        await viewModel.start()
-
-        viewModel.addFilterCondition(column: "status", op: .equal, value: "draft")
-        viewModel.applyFilter()
-        await viewModel.waitForPendingWork()
-
-        viewModel.setQuickFilter("张")
-        await viewModel.waitForPendingWork()
-
-        let sql = await harness.mysql.executedSQL.last ?? ""
-        XCTAssertTrue(sql.contains("`status` = 'draft'"), sql)
-        XCTAssertTrue(sql.contains("`name` LIKE '%张%'"), sql)
-        XCTAssertTrue(sql.contains(") AND ("), sql)
-    }
-
-    func testQuickFilterIsDebounced() async throws {
-        TableDataViewModel.quickFilterDebounceDelay = .milliseconds(200)
-        let session = try await makeSession()
-        let (viewModel, _) = makeViewModel(session: session)
-        await harness.mysql.setResponses([pageResponse(rowCount: 10)])
-        await viewModel.start()
-        let before = await harness.mysql.executedSQL.count
-
-        viewModel.setQuickFilter("张")
-        let immediate = await harness.mysql.executedSQL.count
-        XCTAssertEqual(immediate, before, "防抖期内不应立即发查询")
-
-        await viewModel.waitForPendingWork()
-        let after = await harness.mysql.executedSQL.count
-        XCTAssertGreaterThan(after, before)
-        let sql = await harness.mysql.executedSQL.last ?? ""
-        XCTAssertTrue(sql.contains("LIKE '%张%'"), sql)
-    }
-
-    func testClearQuickFilterReloadsUnfiltered() async throws {
-        let session = try await makeSession()
-        let (viewModel, _) = makeViewModel(session: session)
-        await harness.mysql.setResponses([pageResponse(rowCount: 10)])
-        await viewModel.start()
-
-        viewModel.setQuickFilter("张")
-        await viewModel.waitForPendingWork()
-        viewModel.clearQuickFilter()
-        await viewModel.waitForPendingWork()
-
-        let sql = await harness.mysql.executedSQL.last ?? ""
-        XCTAssertFalse(sql.contains("LIKE"), sql)
     }
 
     // MARK: 快速筛选入口

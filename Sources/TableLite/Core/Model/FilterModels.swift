@@ -132,23 +132,19 @@ public struct FilterState: Sendable, Codable, Equatable {
     public var isRawMode: Bool
     /// 过滤器横条是否可见（`Esc` 关闭但保留条件）。
     public var isVisible: Bool
-    /// 跨列快速过滤：对所有可见列做 `LIKE %文本%`，与条件行 / Raw 并存。
-    public var quickFilter: String
 
     public init(
         conditions: [FilterCondition] = [],
         combination: FilterCombination = .all,
         rawWhere: String = "",
         isRawMode: Bool = false,
-        isVisible: Bool = false,
-        quickFilter: String = ""
+        isVisible: Bool = false
     ) {
         self.conditions = conditions
         self.combination = combination
         self.rawWhere = rawWhere
         self.isRawMode = isRawMode
         self.isVisible = isVisible
-        self.quickFilter = quickFilter
     }
 
     public static let empty = FilterState()
@@ -156,7 +152,7 @@ public struct FilterState: Sendable, Codable, Equatable {
     // MARK: 向前兼容解码（`02-persistence.md` §9）
 
     private enum CodingKeys: String, CodingKey {
-        case conditions, combination, rawWhere, isRawMode, isVisible, quickFilter
+        case conditions, combination, rawWhere, isRawMode, isVisible
     }
 
     public init(from decoder: Decoder) throws {
@@ -166,7 +162,6 @@ public struct FilterState: Sendable, Codable, Equatable {
         rawWhere = try container.decodeIfPresent(String.self, forKey: .rawWhere) ?? ""
         isRawMode = try container.decodeIfPresent(Bool.self, forKey: .isRawMode) ?? false
         isVisible = try container.decodeIfPresent(Bool.self, forKey: .isVisible) ?? false
-        quickFilter = try container.decodeIfPresent(String.self, forKey: .quickFilter) ?? ""
     }
 
     /// 启用且填写完整的条件。
@@ -177,16 +172,9 @@ public struct FilterState: Sendable, Codable, Equatable {
     /// 是否有任何会进入 `WHERE` 的内容。
     public var isActive: Bool {
         if isRawMode {
-            if !rawWhere.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return true }
-        } else if !activeConditions.isEmpty {
-            return true
+            return !rawWhere.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
-        return hasQuickFilter
-    }
-
-    /// 跨列快速过滤是否有内容。
-    public var hasQuickFilter: Bool {
-        !quickFilter.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return !activeConditions.isEmpty
     }
 
     /// 引用到的列名。
@@ -210,7 +198,6 @@ public struct FilterState: Sendable, Codable, Equatable {
     public mutating func reset() {
         conditions.removeAll()
         rawWhere = ""
-        quickFilter = ""
     }
 
     /// 供右键「按此值筛选 / 排除此值」使用。
