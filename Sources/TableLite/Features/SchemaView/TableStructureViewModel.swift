@@ -93,7 +93,6 @@ final class TableStructureViewModel {
     private(set) var structure: TableStructure?
     private(set) var loadState: TableStructureLoadState = .idle
     private(set) var loadError: SchemaLoadError?
-    private(set) var rowCountEstimate: RowCountEstimate?
     private(set) var copyNotice: String?
 
     var selectedPage: SchemaStructurePage
@@ -203,20 +202,10 @@ final class TableStructureViewModel {
             // 读到最新结构后过期提示条消失（`specs/07-schema-view.md` §4）。
             if tab.isStale { tab.isStale = false }
             loadState = .loaded
-            await loadRowCount(forceRefresh: forceRefresh)
         } catch {
             loadError = SchemaLoadError(error: error)
             loadState = .failed
         }
-    }
-
-    /// 行数估算失败不影响结构展示，所以静默吞掉。
-    private func loadRowCount(forceRefresh: Bool) async {
-        rowCountEstimate = try? await provider.loadRowCountEstimate(
-            database: database,
-            table: objectName,
-            forceRefresh: forceRefresh
-        )
     }
 
     /// 标签关闭时取消在途的轻提示，避免泄漏。

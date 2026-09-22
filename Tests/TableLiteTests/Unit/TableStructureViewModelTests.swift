@@ -6,11 +6,8 @@ actor FakeTableStructureProvider: TableStructureProviding {
 
     private var structureResult: TableStructure?
     private var structureError: MySQLError?
-    private var rowCountResult: RowCountEstimate?
-    private var rowCountError: MySQLError?
 
     private(set) var loadStructureCalls: [(database: String, table: String, kind: TableKind, forceRefresh: Bool)] = []
-    private(set) var loadRowCountCalls = 0
 
     func setStructure(_ structure: TableStructure) {
         structureResult = structure
@@ -19,15 +16,6 @@ actor FakeTableStructureProvider: TableStructureProviding {
 
     func setStructureError(_ error: MySQLError) {
         structureError = error
-    }
-
-    func setRowCount(_ estimate: RowCountEstimate?) {
-        rowCountResult = estimate
-        rowCountError = nil
-    }
-
-    func setRowCountError(_ error: MySQLError) {
-        rowCountError = error
     }
 
     var lastForceRefresh: Bool? { loadStructureCalls.last?.forceRefresh }
@@ -44,16 +32,6 @@ actor FakeTableStructureProvider: TableStructureProviding {
             throw MySQLError.server(code: 0, sqlState: "", message: "没有脚本化结构结果")
         }
         return structureResult
-    }
-
-    func loadRowCountEstimate(
-        database: String,
-        table: String,
-        forceRefresh: Bool
-    ) async throws -> RowCountEstimate? {
-        loadRowCountCalls += 1
-        if let rowCountError { throw rowCountError }
-        return rowCountResult
     }
 }
 
@@ -132,7 +110,7 @@ final class TableStructureViewModelTests: XCTestCase {
 
     // MARK: 加载
 
-    func testStartLoadsStructureAndRowCount() async throws {
+    func testStartLoadsStructure() async throws {
         let harness = SessionTestSupport.makeHarness()
         defer { harness.clean() }
         let session = try await makeSession(harness)
@@ -140,14 +118,12 @@ final class TableStructureViewModelTests: XCTestCase {
 
         let provider = FakeTableStructureProvider()
         await provider.setStructure(makeStructure())
-        await provider.setRowCount(RowCountEstimate(approximate: 12480, isReliable: true, isExact: false))
 
         let model = TableStructureViewModel(session: session, tab: tab, provider: provider)
         await model.start()
 
         XCTAssertEqual(model.loadState, .loaded)
         XCTAssertEqual(model.structure?.columns.count, 2)
-        XCTAssertEqual(model.rowCountEstimate?.displayText, "约 12,480 行")
         XCTAssertEqual(model.statusSummary, "2 列 · 1 索引 · 1 外键 · 1 触发器")
         let calls = await provider.loadStructureCalls
         XCTAssertEqual(calls.count, 1)
@@ -194,7 +170,6 @@ final class TableStructureViewModelTests: XCTestCase {
         XCTAssertEqual(model.structure?.columns.count, 1)
         XCTAssertEqual(model.structure?.indexes.first?.kind, .primary)
         XCTAssertEqual(model.structure?.createStatement, "CREATE TABLE `users` (`id` bigint NOT NULL);")
-        XCTAssertEqual(model.rowCountEstimate?.approximate, 10)
     }
 
     func testStartIsIdempotent() async throws {
@@ -270,23 +245,6 @@ final class TableStructureViewModelTests: XCTestCase {
         XCTAssertEqual(model.loadError?.sqlState, "42S02")
         // 服务器原文不翻译、不改写。
         XCTAssertEqual(model.loadError?.message, "Table 'app_dev.users' doesn't exist")
-    }
-
-    func testRowCountFailureKeepsStructure() async throws {
-        let harness = SessionTestSupport.makeHarness()
-        defer { harness.clean() }
-        let session = try await makeSession(harness)
-        let tab = Tab(kind: .tableStructure(database: "app_dev", table: "users"))
-
-        let provider = FakeTableStructureProvider()
-        await provider.setStructure(makeStructure())
-        await provider.setRowCountError(MySQLError.server(code: 1044, sqlState: "42000", message: "Access denied"))
-        let model = TableStructureViewModel(session: session, tab: tab, provider: provider)
-        await model.start()
-
-        XCTAssertEqual(model.loadState, .loaded)
-        XCTAssertNotNil(model.structure)
-        XCTAssertNil(model.rowCountEstimate)
     }
 
     // MARK: 子页签

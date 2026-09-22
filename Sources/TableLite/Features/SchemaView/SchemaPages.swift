@@ -94,12 +94,6 @@ struct SchemaColumnsPage: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if let estimate = viewModel.rowCountEstimate, !viewModel.isView {
-                Text(estimate.displayText)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .help("行数来自 information_schema 的估算值，可能不准确")
-            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)

@@ -12,12 +12,6 @@ protocol TableStructureProviding: Sendable {
         kind: TableKind,
         forceRefresh: Bool
     ) async throws -> TableStructure
-
-    func loadRowCountEstimate(
-        database: String,
-        table: String,
-        forceRefresh: Bool
-    ) async throws -> RowCountEstimate?
 }
 
 /// 走 `MetaRepository` 的生产实现。
@@ -39,18 +33,6 @@ struct LiveTableStructureProvider: TableStructureProviding {
             database: database,
             table: table,
             kind: kind,
-            forceRefresh: forceRefresh
-        )
-    }
-
-    func loadRowCountEstimate(
-        database: String,
-        table: String,
-        forceRefresh: Bool
-    ) async throws -> RowCountEstimate? {
-        try await repository.rowCountEstimate(
-            database: database,
-            table: table,
             forceRefresh: forceRefresh
         )
     }
