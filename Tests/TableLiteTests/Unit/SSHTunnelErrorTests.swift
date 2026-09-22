@@ -138,4 +138,42 @@ final class SSHTunnelErrorTests: XCTestCase {
     func testHostKeyChangedMessageMentionsRisk() {
         XCTAssertTrue(SSHTunnelError.hostKeyChanged(stderrTail: "").displayMessage.contains("安全风险"))
     }
+
+    // MARK: 错误文案（`specs/10-ssh-tunnel.md` §5）
+
+    func testConnectionFailureMessageIncludesHostPortAndReason() {
+        let error = SSHTunnelError.connectionFailed(
+            stderrTail: "ssh: connect to host bastion.example.com port 22: Connection timed out\n"
+        )
+        XCTAssertEqual(
+            error.message(sshHost: nil, sshPort: nil),
+            "无法连接到 SSH 主机 bastion.example.com:22（连接超时）"
+        )
+    }
+
+    func testConnectionFailureMessageFallsBackToConfiguredEndpoint() {
+        let error = SSHTunnelError.connectionFailed(stderrTail: "weird failure\n")
+        XCTAssertEqual(error.message(sshHost: "proxy", sshPort: 2222), "无法连接到 SSH 主机 proxy:2222")
+    }
+
+    func testConnectionFailureMessageForDNSFailureHasHostWithoutPort() {
+        let error = SSHTunnelError.connectionFailed(
+            stderrTail: "ssh: Could not resolve hostname nope.invalid: Name or service not known\n"
+        )
+        XCTAssertEqual(
+            error.message(sshHost: nil, sshPort: nil),
+            "无法连接到 SSH 主机 nope.invalid（无法解析主机名）"
+        )
+    }
+
+    func testAuthenticationMessageCarriesPermissionDenied() {
+        let error = SSHTunnelError.authenticationFailed(
+            stderrTail: "deploy@bastion: Permission denied (password).\n"
+        )
+        XCTAssertEqual(error.message(sshHost: nil, sshPort: nil), "SSH 认证失败：Permission denied (password).")
+    }
+
+    func testTunnelClosedMessageIsDisconnected() {
+        XCTAssertEqual(SSHTunnelError.tunnelClosed(stderrTail: "").displayMessage, "SSH 隧道已断开")
+    }
 }

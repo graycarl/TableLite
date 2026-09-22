@@ -1,20 +1,47 @@
 import AppKit
+import Observation
 import SwiftUI
+
+/// 导出请求中心：把「查询结果标签右键 → 导出结果…」「网格右键 → 导出选中行…」等
+/// 深层入口的请求上抛给 `WorkspaceView`，由它用一个 `sheet` 承载 `ExportPanelView`。
+///
+/// 同时承载进行中导出的状态栏进度文案（`specs/12-feedback.md` §2）。
+@MainActor
+@Observable
+final class ExportRequestCenter {
+
+    struct Request: Identifiable {
+        let id = UUID()
+        let source: ExportSource
+    }
+
+    /// 待呈现的导出请求；非 nil 时弹出导出面板。
+    var request: Request?
+    /// 正在进行的导出进度文案；nil 表示没有导出在进行。
+    var progressText: String?
+
+    /// 发起一次导出（面板开关由用户决定，导入后自行关闭）。
+    func present(_ source: ExportSource) {
+        request = Request(source: source)
+    }
+}
 
 /// 导出面板。入口契约：
 /// ```swift
-/// .sheet(item: $exportSource) { source in
-///     ExportPanelView(session: session, source: source) { summary in ... }
+/// .sheet(item: $exportCenter.request) { request in
+///     ExportPanelView(session: session, source: request.source) { summary, notify in ... }
 /// }
 /// ```
 ///
-/// 面板自管尺寸与关闭（`@Environment(\.dismiss)`），完成后通过 `onFinish` 回调。
+/// 面板自管尺寸与关闭（`@Environment(\.dismiss)`），完成后通过 `onFinish` 回调
+/// （第二个参数为「后台导出，完成后通知我」开关），进度通过 `onProgress` 上抛给状态栏。
 /// 需求见 `specs/08-import-export.md` §1；大表内存平稳的硬约束在 `CSVExportEngine`。
 struct ExportPanelView: View {
 
     let session: ConnectionSession
     let source: ExportSource
-    var onFinish: ((ExportSummary) -> Void)? = nil
+    var onFinish: ((ExportSummary, Bool) -> Void)? = nil
+    var onProgress: ((ExportProgress) -> Void)? = nil
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
@@ -62,6 +89,7 @@ struct ExportPanelView: View {
                     preferences: environment.preferences
                 )
                 model?.onFinish = onFinish
+                model?.onProgress = onProgress
             }
         }
     }
@@ -214,15 +242,28 @@ private struct ExportOptionsSection: View {
                 }
                 SwiftUI.GridRow {
                     Text("日期格式")
-                    Text("原样输出")
-                        .frame(width: 140, alignment: .leading)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Color(nsColor: .textBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                    Text("不做时区 / 格式转换")
+                    Picker("", selection: $model.dateFormat.style) {
+                        ForEach(CSVDateFormat.Style.allCases, id: \.self) { style in
+                            Text(style.displayName).tag(style)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 140)
+                    Text("原样输出 / 自定义")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+                if model.dateFormat.style == .custom {
+                    SwiftUI.GridRow {
+                        Text("")
+                        TextField(CSVDateFormatter.defaultPattern, text: $model.dateFormat.customPattern)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(.callout, design: .monospaced))
+                            .frame(width: 200)
+                        Text("日期 / 日期时间列按此格式输出（如 yyyy-MM-dd）")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 

@@ -53,4 +53,63 @@ final class SSHAskpassTests: XCTestCase {
         // 幂等。
         script.remove()
     }
+
+    // MARK: 私钥是否加密（`specs/10-ssh-tunnel.md` §3.2）
+
+    func testUnencryptedOpenSSHKeyIsNotEncrypted() {
+        XCTAssertFalse(SSHPrivateKeyInspector.isEncrypted(pem: openSSHKeyPEM(cipher: "none")))
+    }
+
+    func testEncryptedOpenSSHKeyIsEncrypted() {
+        XCTAssertTrue(SSHPrivateKeyInspector.isEncrypted(pem: openSSHKeyPEM(cipher: "aes256-ctr")))
+    }
+
+    func testPKCS8EncryptedHeaderIsEncrypted() {
+        let pem = "-----BEGIN ENCRYPTED PRIVATE KEY-----\nAAAA\n-----END ENCRYPTED PRIVATE KEY-----\n"
+        XCTAssertTrue(SSHPrivateKeyInspector.isEncrypted(pem: pem))
+    }
+
+    func testLegacyPEMEncryptedHeaderIsEncrypted() {
+        let pem = """
+        -----BEGIN RSA PRIVATE KEY-----
+        Proc-Type: 4,ENCRYPTED
+        DEK-Info: AES-128-CBC,0123456789ABCDEF
+
+        AAAA
+        -----END RSA PRIVATE KEY-----
+        """
+        XCTAssertTrue(SSHPrivateKeyInspector.isEncrypted(pem: pem))
+    }
+
+    func testReadsKeyFileFromDisk() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("TableLiteKeyInspector-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let plain = directory.appendingPathComponent("plain")
+        try openSSHKeyPEM(cipher: "none").write(to: plain, atomically: true, encoding: .utf8)
+        let encrypted = directory.appendingPathComponent("encrypted")
+        try openSSHKeyPEM(cipher: "aes256-ctr").write(to: encrypted, atomically: true, encoding: .utf8)
+
+        XCTAssertFalse(SSHPrivateKeyInspector.isEncrypted(path: plain.path))
+        XCTAssertTrue(SSHPrivateKeyInspector.isEncrypted(path: encrypted.path))
+        XCTAssertFalse(SSHPrivateKeyInspector.isEncrypted(path: directory.appendingPathComponent("missing").path))
+    }
+
+    // MARK: 辅助
+
+    /// 构造一个足够让 inspector 读到 ciphername 的 OpenSSH 私钥文本。
+    private func openSSHKeyPEM(cipher: String) -> String {
+        var data = Data("openssh-key-v1\u{0}".utf8)
+        let cipherData = Data(cipher.utf8)
+        let length = UInt32(cipherData.count)
+        data.append(UInt8((length >> 24) & 0xFF))
+        data.append(UInt8((length >> 16) & 0xFF))
+        data.append(UInt8((length >> 8) & 0xFF))
+        data.append(UInt8(length & 0xFF))
+        data.append(cipherData)
+        data.append(Data(repeating: 0, count: 8))
+        return "-----BEGIN OPENSSH PRIVATE KEY-----\n\(data.base64EncodedString())\n-----END OPENSSH PRIVATE KEY-----\n"
+    }
 }

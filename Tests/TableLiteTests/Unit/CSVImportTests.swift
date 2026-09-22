@@ -200,4 +200,83 @@ final class CSVImportTests: XCTestCase {
         XCTAssertTrue(ImportNewTableColumnFactory.columnInfo(name: "id", type: .int).fieldType.isNumeric)
         XCTAssertEqual(ImportNewTableColumnFactory.columnInfo(name: "t", type: .text).isBinary, false)
     }
+
+    // MARK: - 列映射展示（`specs/08-import-export.md` §2 第二步）
+
+    func testMappingDisplayShowsTypeAndRequirement() {
+        let id = TestSupport.column("id", type: .long, flags: ColumnFlag.primaryKey, charset: 63, columnType: "int unsigned")
+        let name = TestSupport.column("name", type: .varString, flags: ColumnFlag.notNull, columnType: "varchar(50)")
+        let columns = [id, name]
+
+        let matched = ImportColumnMapping(
+            csvIndex: 0,
+            csvName: "id",
+            targetColumn: "id",
+            deducedType: .varchar,
+            note: ""
+        )
+        XCTAssertEqual(ImportMappingDisplay.typeText(for: matched, targetColumns: columns), "int unsigned")
+        XCTAssertEqual(ImportMappingDisplay.noteText(for: matched, targetColumns: columns), "主键")
+        XCTAssertEqual(
+            ImportMappingDisplay.optionText(for: name),
+            "name（varchar(50) · 非空）"
+        )
+    }
+
+    func testMappingDisplaySkipAndUnmatchedNotes() {
+        let columns = [TestSupport.column("id", type: .long, columnType: "int")]
+        // 目标表里有同名列但被跳过的（如手动跳过 / 目标列已被占用）。
+        let skipped = ImportColumnMapping(
+            csvIndex: 1,
+            csvName: "id",
+            targetColumn: nil,
+            deducedType: .varchar,
+            note: "目标列已被占用"
+        )
+        XCTAssertEqual(ImportMappingDisplay.typeText(for: skipped, targetColumns: columns), "—")
+        XCTAssertEqual(ImportMappingDisplay.noteText(for: skipped, targetColumns: columns), "不参与插入")
+
+        // 目标表里根本没有这个列名。
+        let unmatched = ImportColumnMapping(
+            csvIndex: 2,
+            csvName: "phone",
+            targetColumn: nil,
+            deducedType: .varchar,
+            note: "未匹配到"
+        )
+        XCTAssertEqual(ImportMappingDisplay.typeText(for: unmatched, targetColumns: columns), "未匹配到")
+        XCTAssertEqual(ImportMappingDisplay.noteText(for: unmatched, targetColumns: columns), "CSV 列名在表里没有")
+    }
+
+    // MARK: - 进度 / 完成文案 / 换行符
+
+    func testImportProgressPercent() {
+        XCTAssertEqual(ImportProgress.percentText(rowsWritten: 7_420, planned: 12_480), "约 59%")
+        XCTAssertEqual(ImportProgress.percentText(rowsWritten: 0, planned: 10), "约 0%")
+        XCTAssertEqual(ImportProgress.percentText(rowsWritten: 20, planned: 10), "约 100%")
+        XCTAssertNil(ImportProgress.percentText(rowsWritten: 3, planned: 0))
+        XCTAssertEqual(ImportProgress.fraction(rowsWritten: 5, planned: 10), 0.5)
+    }
+
+    func testImportSummaryMessageAlwaysIncludesFailureCount() {
+        XCTAssertEqual(
+            ImportSummaryText.message(success: 12_480, failure: 0, cancelled: false),
+            "导入完成：成功 12,480 行，失败 0 行"
+        )
+        XCTAssertEqual(
+            ImportSummaryText.message(success: 12_472, failure: 8, cancelled: false),
+            "导入结束：成功 12,472 行，失败 8 行"
+        )
+        XCTAssertEqual(
+            ImportSummaryText.message(success: 3, failure: 1, cancelled: true),
+            "导入已取消：成功 3 行，失败 1 行"
+        )
+    }
+
+    func testLineEndingDetection() {
+        XCTAssertEqual(CSVLineEndingDetector.detect(in: Data("a\r\nb\r\n".utf8)), .crlf)
+        XCTAssertEqual(CSVLineEndingDetector.detect(in: Data("a\nb\n".utf8)), .lf)
+        XCTAssertEqual(CSVLineEndingDetector.detect(in: Data("a\rb\r".utf8)), .cr)
+        XCTAssertEqual(CSVLineEndingDetector.detect(in: Data("abc".utf8)), .auto)
+    }
 }

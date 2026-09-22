@@ -73,6 +73,10 @@ struct ConnectionFormState: Equatable {
     var sshPrivateKeyPath: String = ""
     var sshUseConfigAlias: Bool = false
     var sshJumpHost: String = ""
+    /// SSH 账号密码（`authMethod == .password`）。只进钥匙串，不落配置文件。
+    var sshPassword: String = ""
+    /// 钥匙串里当前是否已有保存的 SSH 密码（决定编辑时是否回填）。
+    var hasStoredSSHPassword: Bool = false
 
     // MARK: - 初始化
 
@@ -189,6 +193,27 @@ struct ConnectionFormState: Equatable {
     /// 「测试连接」「保存并连接」时直接使用的密码；`nil` 表示让连接流程去钥匙串取。
     var connectionPassword: String? {
         switch passwordUpdate {
+        case .clear:
+            return nil
+        case .set(let value), .sessionOnly(let value):
+            return value
+        }
+    }
+
+    // MARK: - SSH 密码
+
+    /// 保存表单时对钥匙串里 SSH 密码的处置意图。
+    ///
+    /// `specs/10-ssh-tunnel.md` §3.3：密码认证的密码保存在系统钥匙串里。
+    /// 密码框为空（或编辑时被清空）等价于删除钥匙串条目。
+    var sshPasswordUpdate: PasswordUpdate {
+        if sshPassword.isEmpty { return .clear }
+        return .set(sshPassword)
+    }
+
+    /// 测试 / 保存并连接时直接传给会话的 SSH 密码；`nil` 表示去钥匙串取。
+    var connectionSSHPassword: String? {
+        switch sshPasswordUpdate {
         case .clear:
             return nil
         case .set(let value), .sessionOnly(let value):

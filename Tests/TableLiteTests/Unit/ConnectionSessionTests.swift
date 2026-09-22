@@ -51,6 +51,109 @@ final class ConnectionSessionTests: XCTestCase {
         }
     }
 
+    func testSSHSuccessExposesTunnelEndpoint() async throws {
+        let connection = SessionTestSupport.connection(ssh: true)
+        let session = try await harness.manager.connect(connection, password: nil)
+        XCTAssertEqual(session.tunnelEndpoint, SSHTunnelEndpoint(port: 53142))
+    }
+
+    func testSSHConnectionFailureExplanationIncludesBastionEndpoint() async throws {
+        let connection = SessionTestSupport.connection(ssh: true)
+        await harness.tunnel.setStartError(.connectionFailed(stderrTail: ""))
+
+        do {
+            _ = try await harness.manager.connect(connection, password: nil)
+            XCTFail("应当抛出 ConnectFailure")
+        } catch let failure as ConnectFailure {
+            XCTAssertEqual(failure.step, .sshTunnel)
+            XCTAssertEqual(failure.title, "SSH 隧道建立失败")
+            XCTAssertTrue(failure.explanation.contains("bastion.example.com:22"), failure.explanation)
+        }
+    }
+
+    func testMySQLUnreachableThroughTunnelMentionsBastionBypass() async throws {
+        let connection = SessionTestSupport.connection(ssh: true)
+        await harness.mysql.setConnectError(MySQLError.connectionFailure(
+            code: 2003,
+            sqlState: "HY000",
+            message: "Can't connect to MySQL server"
+        ))
+
+        do {
+            _ = try await harness.manager.connect(connection, password: nil)
+            XCTFail("应当抛出 ConnectFailure")
+        } catch let failure as ConnectFailure {
+            XCTAssertEqual(failure.step, .mysql)
+            XCTAssertEqual(failure.explanation, "SSH 隧道建立成功，但无法从跳板机访问 127.0.0.1:3306")
+        }
+    }
+
+    func testTunnelClosedTitleUsesDisconnectedText() {
+        let failure = ConnectFailure(step: .sshTunnel, reason: .ssh(.tunnelClosed(stderrTail: "")))
+        XCTAssertEqual(failure.title, "SSH 隧道已断开")
+    }
+
+    // MARK: 私钥口令弹窗（`specs/10-ssh-tunnel.md` §3.2）
+
+    func testEncryptedPrivateKeyRequestsPassphraseAndForwardsItToTunnel() async throws {
+        let keyPath = try writeTestKey(cipher: "aes256-ctr")
+        defer { try? FileManager.default.removeItem(atPath: keyPath) }
+        let connection = SessionTestSupport.connection(
+            ssh: true,
+            sshAuthMethod: .privateKey,
+            sshPrivateKeyPath: keyPath
+        )
+        var captured: SSHSecretRequest?
+        harness.manager.sshSecretRequester = { request in
+            captured = request
+            return "passphrase"
+        }
+
+        _ = try await harness.manager.connect(connection, password: nil)
+
+        XCTAssertEqual(captured?.kind, .passphrase)
+        XCTAssertEqual(captured?.privateKeyPath, keyPath)
+        XCTAssertEqual(harness.tunnel.lastConfiguration?.secret, .passphrase("passphrase"))
+    }
+
+    func testUnencryptedPrivateKeyDoesNotPrompt() async throws {
+        let keyPath = try writeTestKey(cipher: "none")
+        defer { try? FileManager.default.removeItem(atPath: keyPath) }
+        let connection = SessionTestSupport.connection(
+            ssh: true,
+            sshAuthMethod: .privateKey,
+            sshPrivateKeyPath: keyPath
+        )
+        var called = false
+        harness.manager.sshSecretRequester = { _ in
+            called = true
+            return "unused"
+        }
+
+        _ = try await harness.manager.connect(connection, password: nil)
+
+        XCTAssertFalse(called)
+        XCTAssertNil(harness.tunnel.lastConfiguration?.secret)
+    }
+
+    /// 写一个足以让 `SSHPrivateKeyInspector` 读到 ciphername 的 OpenSSH 私钥文件。
+    private func writeTestKey(cipher: String) throws -> String {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tl-test-key-\(UUID().uuidString).pem")
+        var data = Data("openssh-key-v1\u{0}".utf8)
+        let cipherData = Data(cipher.utf8)
+        let length = UInt32(cipherData.count)
+        data.append(UInt8((length >> 24) & 0xFF))
+        data.append(UInt8((length >> 16) & 0xFF))
+        data.append(UInt8((length >> 8) & 0xFF))
+        data.append(UInt8(length & 0xFF))
+        data.append(cipherData)
+        data.append(Data(repeating: 0, count: 8))
+        let pem = "-----BEGIN OPENSSH PRIVATE KEY-----\n\(data.base64EncodedString())\n-----END OPENSSH PRIVATE KEY-----\n"
+        try pem.write(to: url, atomically: true, encoding: .utf8)
+        return url.path
+    }
+
     func testMySQLFailureIsReportedOnMySQLStep() async throws {
         let connection = SessionTestSupport.connection()
         await harness.mysql.setConnectError(MySQLError.server(code: 1045, sqlState: "28000", message: "Access denied"))

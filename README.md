@@ -84,6 +84,11 @@ make test      # 单元测试（含 UI 层依赖方向检查）
 make smoke     # 访问层端到端冒烟验证（自动起一个 Docker MySQL，需要 docker-compose）
 #              用已有服务器：MYSQL_HOST=127.0.0.1 MYSQL_PORT=3306 MYSQL_USER=root \
 #                            MYSQL_PASSWORD=xxx make smoke
+make db        # 起一个常驻的 Docker MySQL 供手工测试（127.0.0.1:13307，root/tablelite，
+#              库 tablelite_dev，首次自动灌示例数据），容器与数据一直留着
+make db-reset  # 重灌手工测试库的示例数据
+make db-shell  # 进手工测试库的 mysql 客户端
+make db-stop   # 停掉手工测试库并删除数据
 make doctor    # 打印依赖与链接情况，排查构建问题
 make dist      # 构建 Release 并打包成 dist/TableLite-<版本>.zip
 make clean
@@ -115,7 +120,7 @@ TableLite/
 ├── docs/
 │   ├── roadmap.md       实现路线图
 │   └── tech-designs/    技术设计
-├── scripts/             依赖检查、工程生成、App 图标、冒烟验证
+├── scripts/             依赖检查、工程生成、App 图标、冒烟验证、手工测试库
 ├── Sources/
 │   ├── CMySQLClient/    libmysqlclient 的 C 封装
 │   └── TableLite/       应用本体（Swift）

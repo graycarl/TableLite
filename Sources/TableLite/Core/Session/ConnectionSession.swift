@@ -30,6 +30,11 @@ public final class ConnectionSession: Identifiable {
 
     /// 当前 SSH 隧道（未启用 SSH 时为 nil）。
     public private(set) var tunnel: (any SSHTunnelProtocol)?
+    /// 隧道建立后的本地转发端点；未启用 / 未建立时为 nil。
+    ///
+    /// 测试面板与状态栏悬停详情用它显示 `本地转发端口 127.0.0.1:<port>`
+    /// （`specs/10-ssh-tunnel.md` §4、`specs/01-connections.md` §3）。
+    public private(set) var tunnelEndpoint: SSHTunnelEndpoint?
 
     // MARK: 状态
 
@@ -122,6 +127,12 @@ public final class ConnectionSession: Identifiable {
         if let passphrase { sshPassphrase = passphrase }
     }
 
+    /// 需要 SSH 凭据时由 UI 弹窗回填的挂载点；返回 nil 表示用户取消。
+    ///
+    /// `specs/10-ssh-tunnel.md` §3.2：带口令的私钥首次连接弹输入框；§3.3：
+    /// 密码认证在表单里填过密码，个别情况下（未保存）也走同一个弹窗。
+    @ObservationIgnored public var sshSecretRequester: (@MainActor (SSHSecretRequest) async -> String?)?
+
     public func setReadOnly(_ value: Bool) {
         isReadOnly = value
         connection.isReadOnly = value
@@ -142,15 +153,17 @@ public final class ConnectionSession: Identifiable {
 
         if connection.ssh.enabled {
             state = .connecting(.sshTunnel)
-            let configuration = SSHTunnelConfiguration.make(connection: connection, secret: makeSSHSecret())
+            let secret = await resolveSSHSecret()
+            let configuration = SSHTunnelConfiguration.make(connection: connection, secret: secret)
             let tunnel = services.factory.makeTunnel(configuration)
             self.tunnel = tunnel
             do {
                 let endpoint = try await tunnel.start()
+                tunnelEndpoint = endpoint
                 host = endpoint.host
                 port = Int(endpoint.port)
             } catch {
-                let failure = Self.sshFailure(error)
+                let failure = sshFailure(error)
                 state = .failed(failure)
                 recordConnectFailure(failure)
                 throw failure
@@ -170,7 +183,7 @@ public final class ConnectionSession: Identifiable {
         do {
             try await mysql.connect(parameters)
         } catch {
-            let failure = Self.mysqlFailure(error)
+            let failure = mysqlFailure(error)
             state = .failed(failure)
             recordConnectFailure(failure)
             throw failure
@@ -215,6 +228,7 @@ public final class ConnectionSession: Identifiable {
             await tunnel.stop()
         }
         tunnel = nil
+        tunnelEndpoint = nil
         await mysql.disconnect()
         switch reason {
         case .disconnected: state = .disconnected
@@ -223,7 +237,7 @@ public final class ConnectionSession: Identifiable {
         noteActivity()
     }
 
-    /// 空闲回收：断开但保留会话对象与标签，界面显示「点击重连」。
+    /// 空闲回收：断开但保留会话对象与标签，界面显示「重新连接」。
     public func recycleResources() async {
         await close(reason: .recycled)
     }
@@ -265,7 +279,7 @@ public final class ConnectionSession: Identifiable {
         do {
             try await mysql.ping()
         } catch {
-            let failure = Self.mysqlFailure(error)
+            let failure = mysqlFailure(error)
             state = .failed(failure)
             recordConnectFailure(failure)
         }
@@ -454,9 +468,9 @@ public final class ConnectionSession: Identifiable {
         }
     }
 
-    /// 取消当前查询。
-    public func cancelCurrentQuery() async {
-        try? await mysql.cancel()
+    /// 取消当前查询。失败时抛错，由上层提示「取消失败，查询仍在服务器上运行」（`03-mysql-layer.md` §5）。
+    public func cancelCurrentQuery() async throws {
+        try await mysql.cancel()
     }
 
     private func handleExecutedSQL(_ sql: String) async {
@@ -513,8 +527,12 @@ public final class ConnectionSession: Identifiable {
     // MARK: 标签
 
     @discardableResult
-    public func openTableData(database: String, table: String, forceNew: Bool = false) -> Tab {
-        openTab(kind: .tableData(database: database, table: table), forceNew: forceNew)
+    public func openTableData(database: String, table: String, forceNew: Bool = false, initialFilter: FilterState? = nil) -> Tab {
+        let tab = openTab(kind: .tableData(database: database, table: table), forceNew: forceNew)
+        if let initialFilter {
+            tab.initialFilter = initialFilter
+        }
+        return tab
     }
 
     @discardableResult
@@ -700,6 +718,51 @@ public final class ConnectionSession: Identifiable {
         }
     }
 
+    /// 解析本次连接要用的 SSH 凭据：先查内存 / 钥匙串，都没有再按需向 UI 索要。
+    ///
+    /// - 密码认证缺密码、或加密私钥缺口令时，调 `sshSecretRequester` 弹窗；
+    /// - 未加密的私钥不弹窗（`SSHPrivateKeyInspector` 预先判断）；
+    /// - 用户取消时按「没有 secret」继续，让 ssh 自己报出确切错误。
+    private func resolveSSHSecret() async -> SSHSecret? {
+        if let existing = makeSSHSecret() { return existing }
+        guard connection.ssh.enabled, !connection.ssh.useSSHConfigAlias else { return nil }
+
+        let request: SSHSecretRequest
+        switch connection.ssh.authMethod {
+        case .password:
+            request = SSHSecretRequest(
+                kind: .password,
+                connectionID: id,
+                connectionName: connection.name,
+                host: connection.ssh.host,
+                port: connection.ssh.port
+            )
+        case .privateKey:
+            let path = connection.ssh.privateKeyPath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !path.isEmpty, SSHPrivateKeyInspector.isEncrypted(path: path) else { return nil }
+            request = SSHSecretRequest(
+                kind: .passphrase,
+                connectionID: id,
+                connectionName: connection.name,
+                host: connection.ssh.host,
+                port: connection.ssh.port,
+                privateKeyPath: path
+            )
+        case .sshConfigOrAgent:
+            return nil
+        }
+
+        guard let value = await sshSecretRequester?(request), !value.isEmpty else { return nil }
+        switch request.kind {
+        case .password:
+            sshPassword = value
+            return .password(value)
+        case .passphrase:
+            sshPassphrase = value
+            return .passphrase(value)
+        }
+    }
+
     private func recordConnectFailure(_ failure: ConnectFailure) {
         guard recordsQueries else { return }
         let consoleLog = services.consoleLog
@@ -713,20 +776,26 @@ public final class ConnectionSession: Identifiable {
         }
     }
 
-    private static func mysqlFailure(_ error: Error) -> ConnectFailure {
+    private func mysqlFailure(_ error: Error) -> ConnectFailure {
         if let failure = error as? ConnectFailure { return failure }
         if let mysqlError = error as? MySQLError {
-            return ConnectFailure(step: .mysql, reason: .mysql(mysqlError))
+            // 隧道已建立却连不上目标库：文案要说清是「从跳板机访问不到」，
+            // 而不是笼统的网络 / 防火墙问题（`specs/10-ssh-tunnel.md` §5）。
+            let tunneled = connection.ssh.enabled && mysqlError.kind == .connectionFailed
+                ? HostPort(host: connection.mysql.host, port: connection.mysql.port)
+                : nil
+            return ConnectFailure(step: .mysql, reason: .mysql(mysqlError), tunneledMySQL: tunneled)
         }
         return ConnectFailure(step: .mysql, reason: .unknown(String(describing: error)))
     }
 
-    private static func sshFailure(_ error: Error) -> ConnectFailure {
+    private func sshFailure(_ error: Error) -> ConnectFailure {
         if let failure = error as? ConnectFailure { return failure }
+        let endpoint = HostPort(host: connection.ssh.host, port: connection.ssh.port)
         if let tunnelError = error as? SSHTunnelError {
-            return ConnectFailure(step: .sshTunnel, reason: .ssh(tunnelError))
+            return ConnectFailure(step: .sshTunnel, reason: .ssh(tunnelError), sshEndpoint: endpoint)
         }
-        return ConnectFailure(step: .sshTunnel, reason: .unknown(String(describing: error)))
+        return ConnectFailure(step: .sshTunnel, reason: .unknown(String(describing: error)), sshEndpoint: endpoint)
     }
 
     private static func normalizedPort(_ port: Int) -> UInt32 {

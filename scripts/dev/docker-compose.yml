@@ -1,0 +1,28 @@
+# 手工测试用的 MySQL 服务器，由 scripts/dev/db.sh 起停。
+#
+# 与冒烟用的 scripts/smoke/docker-compose.yml **完全独立**：独立容器名、
+# 独立 project、独立端口（默认 13307，避开冒烟的 13306），两者可以同时运行。
+# 镜像版本与冒烟保持一致，见 docs/tech-designs/15-testing.md §1。
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: tablelite-dev-mysql
+    command:
+      - --skip-name-resolve
+      - --local-infile=0
+    environment:
+      MYSQL_ROOT_PASSWORD: tablelite
+    ports:
+      - "127.0.0.1:${DEV_MYSQL_PORT:-13307}:3306"
+    volumes:
+      # 数据留着，手工改的东西不会因为重启容器就没了；要清掉用 make db-stop
+      - tablelite-dev-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-ptablelite"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+      start_period: 10s
+
+volumes:
+  tablelite-dev-data:

@@ -31,6 +31,76 @@ public enum ConnectStep: String, Sendable, Codable, CaseIterable, Equatable, Has
     }
 }
 
+// MARK: - 端点
+
+/// 一个 `host:port` 端点。用于错误文案里的跳板机 / 目标库地址（`specs/10-ssh-tunnel.md` §5）。
+public struct HostPort: Sendable, Equatable {
+    public var host: String
+    public var port: Int
+
+    public init(host: String, port: Int) {
+        self.host = host
+        self.port = port
+    }
+
+    /// `bastion.example.com:22`。
+    public var display: String { "\(host):\(port)" }
+}
+
+// MARK: - SSH 凭据
+
+/// 建立隧道时上层传入的一次性 SSH 凭据（内存覆盖，不落盘）。
+///
+/// 密码 / 口令的正常持久化路径是系统钥匙串（`CredentialKind.sshPassword` /
+/// `sshPassphrase`）；本类型只用于「表单刚输入、还没保存」或「弹窗刚回填」的当前会话。
+public struct SSHSecrets: Sendable, Equatable {
+    public var password: String?
+    public var passphrase: String?
+
+    public init(password: String? = nil, passphrase: String? = nil) {
+        self.password = password
+        self.passphrase = passphrase
+    }
+}
+
+/// 会话向 UI 索要 SSH 凭据的请求（`specs/10-ssh-tunnel.md` §3.2 / §3.3）。
+///
+/// 私钥有口令、或密码认证没有可用密码时，`ConnectionSession` 用它请求弹窗；
+/// UI 弹窗回填口令，勾选「记住」时由 UI 写入钥匙串。**不含任何凭据值**。
+public struct SSHSecretRequest: Sendable, Equatable {
+
+    public enum Kind: Sendable, Equatable {
+        /// SSH 账号密码（`authMethod == .password`）。
+        case password
+        /// 私钥口令（`authMethod == .privateKey` 且私钥加密）。
+        case passphrase
+    }
+
+    public let kind: Kind
+    public let connectionID: UUID
+    public let connectionName: String
+    public let host: String
+    public let port: Int
+    /// 需要口令的私钥路径（仅 `.passphrase`）。
+    public let privateKeyPath: String?
+
+    public init(
+        kind: Kind,
+        connectionID: UUID,
+        connectionName: String,
+        host: String,
+        port: Int,
+        privateKeyPath: String? = nil
+    ) {
+        self.kind = kind
+        self.connectionID = connectionID
+        self.connectionName = connectionName
+        self.host = host
+        self.port = port
+        self.privateKeyPath = privateKeyPath
+    }
+}
+
 // MARK: - 连接失败
 
 /// 连接失败的统一类型。`step` 区分「失败发生在哪一步」。
@@ -47,16 +117,33 @@ public struct ConnectFailure: Error, Sendable, Equatable {
 
     public let step: ConnectStep
     public let reason: Reason
+    /// SSH 步骤失败时的跳板机端点，用于拼 `无法连接到 SSH 主机 …:22（…）`（`specs/10` §5）。
+    public let sshEndpoint: HostPort?
+    /// 隧道已建立、但 MySQL 不可达时的目标库端点，用于拼
+    /// `SSH 隧道建立成功，但无法从跳板机访问 10.0.2.5:3306`（`specs/10` §5）。
+    public let tunneledMySQL: HostPort?
 
-    public init(step: ConnectStep, reason: Reason) {
+    public init(
+        step: ConnectStep,
+        reason: Reason,
+        sshEndpoint: HostPort? = nil,
+        tunneledMySQL: HostPort? = nil
+    ) {
         self.step = step
         self.reason = reason
+        self.sshEndpoint = sshEndpoint
+        self.tunneledMySQL = tunneledMySQL
     }
 
     /// 失败步骤的标题。
+    ///
+    /// 隧道启动失败与运行中断开要分开（`specs/10-ssh-tunnel.md` §4）：
+    /// 运行中断开时状态栏显示 `SSH 隧道已断开`。
     public var title: String {
         switch step {
-        case .sshTunnel: return "SSH 隧道建立失败"
+        case .sshTunnel:
+            if case .ssh(.tunnelClosed) = reason { return "SSH 隧道已断开" }
+            return "SSH 隧道建立失败"
         case .mysql: return "MySQL 连接失败"
         case .serverInfo: return "读取服务器信息失败"
         }
@@ -79,9 +166,15 @@ public struct ConnectFailure: Error, Sendable, Equatable {
     /// 中文解释行。
     public var explanation: String {
         switch reason {
-        case .ssh(let error): return error.displayMessage
-        case .mysql(let error): return error.chineseExplanation
-        case .unknown: return "发生未知错误。"
+        case .ssh(let error):
+            return error.message(sshHost: sshEndpoint?.host, sshPort: sshEndpoint?.port)
+        case .mysql(let error):
+            if let tunneledMySQL, error.kind == .connectionFailed {
+                return "SSH 隧道建立成功，但无法从跳板机访问 \(tunneledMySQL.display)"
+            }
+            return error.chineseExplanation
+        case .unknown:
+            return "发生未知错误。"
         }
     }
 
@@ -91,7 +184,7 @@ public struct ConnectFailure: Error, Sendable, Equatable {
         case .ssh(let error):
             switch error {
             case .authenticationFailed, .privateKeyRejected:
-                return "检查 SSH 用户名、密码或私钥，以及私钥是否需要口令。"
+                return "请检查 SSH 用户、密钥或密码。"
             case .hostKeyChanged:
                 return "确认服务器是否被重装；核对无误后清理 known_hosts 里的旧记录再连。"
             case .connectionFailed, .startupTimedOut:
@@ -103,8 +196,6 @@ public struct ConnectFailure: Error, Sendable, Equatable {
             }
         case .mysql(let error):
             switch error.kind {
-            case .authentication:
-                return "检查用户名与密码；确认该用户允许从本机登录。"
             case .connectionFailed:
                 return "若启用了 SSH，确认目标库从跳板机侧可达。"
             default:
@@ -143,7 +234,7 @@ public enum SessionConnectionState: Sendable, Equatable {
     case connecting(ConnectStep)
     /// 已连接。
     case connected
-    /// 被空闲回收：已断开，但会话对象与标签保留，界面显示「点击重连」。
+    /// 被空闲回收：已断开，但会话对象与标签保留，界面显示「重新连接」。
     case recycled
     /// 连接失败或运行中失效。
     case failed(ConnectFailure)
@@ -275,7 +366,7 @@ public enum SessionManagerError: Error, LocalizedError, Equatable {
         case .connectionLimitReached:
             return "同时保持的连接已达上限，请先断开一个不用的连接。"
         case .sessionNotFound:
-            return "找不到对应的连接会话。"
+            return "找不到对应的连接。"
         }
     }
 }
@@ -314,6 +405,8 @@ public struct ConnectionTestReport: Sendable, Equatable {
     public var serverInfo: ServerInfo?
     /// 配置里的库不存在时的提示（不算失败）。
     public var unresolvedDatabase: String?
+    /// 隧道建立成功后的本地转发端口（`specs/01-connections.md` §3）。
+    public var tunnelLocalPort: UInt16?
     /// 失败步骤（成功时为 nil）。
     public var failure: ConnectFailure?
 
@@ -323,11 +416,13 @@ public struct ConnectionTestReport: Sendable, Equatable {
         steps: [ConnectionTestStep],
         serverInfo: ServerInfo? = nil,
         unresolvedDatabase: String? = nil,
+        tunnelLocalPort: UInt16? = nil,
         failure: ConnectFailure? = nil
     ) {
         self.steps = steps
         self.serverInfo = serverInfo
         self.unresolvedDatabase = unresolvedDatabase
+        self.tunnelLocalPort = tunnelLocalPort
         self.failure = failure
     }
 
@@ -353,10 +448,20 @@ public struct ConnectionTestReport: Sendable, Equatable {
     }
 
     /// 全部步骤成功。
-    public static func success(serverInfo: ServerInfo?, unresolvedDatabase: String?, sshEnabled: Bool) -> ConnectionTestReport {
+    public static func success(
+        serverInfo: ServerInfo?,
+        unresolvedDatabase: String?,
+        sshEnabled: Bool,
+        tunnelLocalPort: UInt16? = nil
+    ) -> ConnectionTestReport {
         let steps = ConnectStep.allCases
             .filter { $0 != .sshTunnel || sshEnabled }
             .map { ConnectionTestStep(step: $0, outcome: .success) }
-        return ConnectionTestReport(steps: steps, serverInfo: serverInfo, unresolvedDatabase: unresolvedDatabase)
+        return ConnectionTestReport(
+            steps: steps,
+            serverInfo: serverInfo,
+            unresolvedDatabase: unresolvedDatabase,
+            tunnelLocalPort: tunnelLocalPort
+        )
     }
 }

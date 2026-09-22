@@ -230,4 +230,29 @@ final class ConnectionFormStateTests: XCTestCase {
 
         XCTAssertEqual(form.passwordUpdate, .clear)
     }
+
+    // MARK: SSH 密码处置（`specs/10-ssh-tunnel.md` §3.3）
+
+    func testSSHPasswordUpdateSetsKeychainIntent() {
+        var form = validForm()
+        form.sshPassword = "ssh-secret"
+
+        XCTAssertEqual(form.sshPasswordUpdate, .set("ssh-secret"))
+        XCTAssertEqual(form.connectionSSHPassword, "ssh-secret")
+    }
+
+    func testSSHPasswordUpdateEmptyClears() {
+        var form = validForm()
+        form.hasStoredSSHPassword = true
+        form.sshPassword = ""
+
+        XCTAssertEqual(form.sshPasswordUpdate, .clear)
+        XCTAssertNil(form.connectionSSHPassword)
+    }
+
+    func testAuthMethodFormNotesMatchManual() {
+        XCTAssertEqual(SSHAuthMethod.sshConfigOrAgent.formNote, "（推荐，平时怎么连就怎么连）")
+        XCTAssertEqual(SSHAuthMethod.password.formNote, "（密码保存在系统钥匙串里）")
+        XCTAssertNil(SSHAuthMethod.privateKey.formNote)
+    }
 }

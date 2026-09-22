@@ -34,6 +34,8 @@ public struct MySQLError: Error, Sendable, Equatable, CustomStringConvertible {
         case authentication
         /// 库不存在（1049）。连接本身成功，只是配置里的库不可用。
         case unknownDatabase
+        /// 主机不允许连接（1130）：账号的访问白名单里没有当前 IP。
+        case hostNotAllowed
         /// 服务器断开（2006 / 2013）。
         case serverGone
         /// SQL 语法错误（1064 等）。
@@ -90,7 +92,7 @@ public struct MySQLError: Error, Sendable, Equatable, CustomStringConvertible {
         switch kind {
         case .notConnected, .invalidInput:
             return .client
-        case .connectionFailed, .authentication, .unknownDatabase, .serverGone, .unknownThread:
+        case .connectionFailed, .authentication, .unknownDatabase, .hostNotAllowed, .serverGone, .unknownThread:
             return .connection
         default:
             return .execution
@@ -107,7 +109,7 @@ public struct MySQLError: Error, Sendable, Equatable, CustomStringConvertible {
     /// `1049`（库不存在）**不算**连接失败：连接本身是成功的（`03-mysql-layer.md` §7）。
     public var isConnectionFailure: Bool {
         switch kind {
-        case .connectionFailed, .authentication:
+        case .connectionFailed, .authentication, .hostNotAllowed:
             return true
         default:
             return false
@@ -118,6 +120,9 @@ public struct MySQLError: Error, Sendable, Equatable, CustomStringConvertible {
     public var isCancellation: Bool { kind == .interrupted || kind == .timeout }
 
     /// 中文解释行。与服务器原文一起展示。
+    ///
+    /// 常见错误的文案**逐字**对齐 `specs/12-feedback.md` §5「常见错误的附加说明」固定表，
+    /// 改动这里前必须先改规格。
     public var chineseExplanation: String {
         switch kind {
         case .notConnected:
@@ -127,13 +132,15 @@ public struct MySQLError: Error, Sendable, Equatable, CustomStringConvertible {
         case .connectionFailed:
             return "无法建立连接：请检查主机、端口、网络与防火墙。"
         case .authentication:
-            return "认证失败：用户名或密码不正确，或该用户不允许从本机登录。"
+            return "请检查用户名与密码。"
         case .unknownDatabase:
-            return "连接配置里的数据库不存在。连接本身是成功的。"
+            return "请检查连接配置里的数据库名，或留空。"
+        case .hostNotAllowed:
+            return "该账号不允许从当前 IP 连接，请检查数据库的访问白名单。"
         case .serverGone:
-            return "与服务器的连接已断开，需要重新连接。"
+            return "连接已断开，请手动重新连接。"
         case .syntax:
-            return "SQL 语法错误。"
+            return "请检查这条语句。"
         case .permission:
             return "当前账号没有执行该操作的权限。"
         case .interrupted:
@@ -141,11 +148,11 @@ public struct MySQLError: Error, Sendable, Equatable, CustomStringConvertible {
         case .timeout:
             return "查询超时，已自动中止。"
         case .constraintViolation:
-            return "违反唯一键或其它约束，数据未写入。"
+            return "有一行的值与已有数据重复。"
         case .lockWaitTimeout:
-            return "等待行锁超时。"
+            return "有其他事务长时间持有锁，稍后重试。"
         case .deadlock:
-            return "检测到死锁，事务已回滚。"
+            return "事务已被回滚，请重试。"
         case .unknownTable:
             return "表或视图不存在。"
         case .unknownThread:
@@ -153,6 +160,17 @@ public struct MySQLError: Error, Sendable, Equatable, CustomStringConvertible {
         case .server:
             return "服务器返回错误（错误码 \(code)）。"
         }
+    }
+
+    /// 错误码与 SQLSTATE 的展示行，格式 `[错误 1062] SQLSTATE 23000`
+    /// （`specs/12-feedback.md` §5 规则 2）。无错误码（客户端侧错误）时返回 nil。
+    public var codeLine: String? {
+        guard code != 0 else { return nil }
+        var parts = ["[错误 \(code)]"]
+        if !sqlState.isEmpty {
+            parts.append("SQLSTATE \(sqlState)")
+        }
+        return parts.joined(separator: " ")
     }
 
     public var description: String {
@@ -176,6 +194,8 @@ public struct MySQLError: Error, Sendable, Equatable, CustomStringConvertible {
             return .authentication
         case 1049:
             return .unknownDatabase
+        case 1130:
+            return .hostNotAllowed
         case 1044, 1142, 1143, 1227, 1370:
             return .permission
         case 1062:
@@ -221,7 +241,7 @@ public struct MySQLError: Error, Sendable, Equatable, CustomStringConvertible {
     ) -> MySQLError {
         let kind: Kind
         switch code {
-        case 1045, 1049, 2006, 2013:
+        case 1045, 1049, 1130, 2006, 2013:
             kind = classify(code: code)
         default:
             kind = .connectionFailed

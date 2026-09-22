@@ -79,6 +79,10 @@ public final class ImportViewModel {
 
     public private(set) var fileURL: URL?
     public var delimiterOption: DelimiterOption = .auto
+    /// 换行符选项（`specs/08-import-export.md` §2 第一步）。解析本身兼容 LF / CRLF / CR。
+    public var lineEndingOption: ImportLineEndingOption = .auto
+    /// 解析时检测到的换行符（用于提示）。
+    public private(set) var detectedLineEnding: ImportLineEndingOption = .auto
     public var hasHeader: Bool = true
     public var encodingOption: CSVInputEncoding = .auto
     public private(set) var parsedResult: CSVParseResult?
@@ -180,8 +184,10 @@ public final class ImportViewModel {
         )
         do {
             let data = try await Task.detached { try Data(contentsOf: url) }.value
+            let detected = CSVLineEndingDetector.detect(in: data)
             let result = try await Task.detached { try CSVCodec.parse(data: data, options: options) }.value
             parsedResult = result
+            detectedLineEnding = detected
             parseError = nil
         } catch let error as CSVParseError {
             parsedResult = nil
@@ -208,7 +214,7 @@ public final class ImportViewModel {
         Array(parsedResult?.records.prefix(previewRowLimit) ?? [])
     }
 
-    /// 解析状态提示：自动识别到分隔符 / 编码。
+    /// 解析状态提示：自动识别到分隔符 / 编码 / 换行符。
     public var parseHint: String? {
         guard let parsedResult else { return nil }
         let delimiterName: String
@@ -219,8 +225,16 @@ public final class ImportViewModel {
         case CSVCodec.pipe: delimiterName = "竖线（|）"
         default: delimiterName = String(UnicodeScalar(parsedResult.delimiter))
         }
-        let detected = parsedResult.delimiterWasDetected ? "自动识别到分隔符" : "分隔符无法确定，已回退到"
-        return "\(detected)：\(delimiterName) · 编码：\(parsedResult.encoding.displayName)"
+        let delimiterPart: String
+        if parsedResult.delimiterWasDetected {
+            delimiterPart = "自动识别到分隔符：\(delimiterName)"
+        } else {
+            // `specs/08-import-export.md` §2 第一步：分隔符无法确定时提示手动选择。
+            delimiterPart = "分隔符无法确定，已回退到：\(delimiterName)；请手动选择分隔符"
+        }
+        let lineEnding = lineEndingOption.isAuto ? detectedLineEnding : lineEndingOption
+        let lineEndingPart = lineEnding.isAuto ? "换行符：未知" : "换行符：\(lineEnding.displayName)"
+        return "\(delimiterPart) · 编码：\(parsedResult.encoding.displayName) · \(lineEndingPart)"
     }
 
     public func canProceedFromPicker() -> Bool {
@@ -335,11 +349,21 @@ public final class ImportViewModel {
 
     public func cancel() {
         cancelled = true
-        Task { await session.cancelCurrentQuery() }
+        Task { try? await session.cancelCurrentQuery() }
     }
 
     public var progressText: String {
         "已写入 \(rowsWritten) 行 / \(plannedRowCount)"
+    }
+
+    /// 进度百分比（`manual/08` 图 8-5）。
+    public var progressFraction: Double {
+        ImportProgress.fraction(rowsWritten: rowsWritten, planned: plannedRowCount)
+    }
+
+    /// `约 60%`；无可导入行时为 nil。
+    public var progressPercentText: String? {
+        ImportProgress.percentText(rowsWritten: rowsWritten, planned: plannedRowCount)
     }
 
     /// 失败行 CSV 文本（最多 100 条）。
@@ -433,7 +457,7 @@ public final class ImportViewModel {
             failureCount: failureCount,
             wasCancelled: wasCancelled,
             createdTableSQL: createdSQL,
-            message: Self.summaryMessage(
+            message: ImportSummaryText.message(
                 success: rowsWritten,
                 failure: failureCount,
                 cancelled: wasCancelled
@@ -534,16 +558,6 @@ public final class ImportViewModel {
         let base = url.deletingPathExtension().lastPathComponent
         let sanitized = base.isEmpty ? "imported" : base
         return "\(sanitized)_imported"
-    }
-
-    private static func summaryMessage(success: Int, failure: Int, cancelled: Bool) -> String {
-        if cancelled {
-            return "导入已取消：成功 \(success) 行，失败 \(failure) 行"
-        }
-        if failure > 0 {
-            return "导入结束：成功 \(success) 行，失败 \(failure) 行"
-        }
-        return "导入完成：成功 \(success) 行"
     }
 
     static func message(_ error: Error) -> String {

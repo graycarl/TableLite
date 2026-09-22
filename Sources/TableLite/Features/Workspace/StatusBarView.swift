@@ -11,28 +11,65 @@ struct StatusBarView: View {
     var onSwitchDatabase: () -> Void
     /// 表数据标签的「导出…」入口（`specs/02-workspace.md` §7）。
     var onExportTable: (() -> Void)?
+    /// 短暂状态栏提示（如进入只读连接，`specs/09-readonly-mode.md` §5）。非空时整条状态栏只显示它。
+    var transientMessage: String?
+    /// 正在进行的导出进度（`specs/12-feedback.md` §2）：`正在导出… 已写入 N 行（X MB）`。
+    var exportProgress: String?
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(PendingChangesCoordinator.self) private var pendingChanges
 
     var body: some View {
         HStack(spacing: 8) {
-            connectionMenu
-            Divider().frame(height: 12)
-            if let viewModel = activeTableViewModel, viewModel.pendingCount > 0 {
-                pendingStrip(viewModel)
-                Divider().frame(height: 12)
-            }
-            Spacer(minLength: 12)
-            if activeTableViewModel != nil, let onExportTable {
-                Button("导出…", action: onExportTable)
+            if let transientMessage {
+                Text(transientMessage)
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            } else if let exportProgress {
+                // 导出在后台进行时，状态栏显示进度（`specs/12-feedback.md` §2）。
+                ProgressView()
                     .controlSize(.small)
-                    .help("导出当前过滤条件下的全部数据（⇧⌘E）")
+                Text(exportProgress)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            } else {
+                connectionMenu
+                Divider().frame(height: 12)
+                if let viewModel = activeTableViewModel, viewModel.pendingCount > 0 {
+                    pendingStrip(viewModel)
+                    Divider().frame(height: 12)
+                }
+                Spacer(minLength: 12)
+                Text(summary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if let viewModel = activeTableViewModel {
+                    // 表数据标签右侧的操作入口（`specs/02-workspace.md` §7）。
+                    Button("筛选") { viewModel.toggleFilterVisible() }
+                        .controlSize(.small)
+                        .help("打开或关闭行过滤器（⌘F）")
+                    Button("列") { viewModel.presentColumnFilter() }
+                        .controlSize(.small)
+                        .help("选择要显示的列（⌥⌘F）")
+                    if let onExportTable {
+                        Button("导出…", action: onExportTable)
+                            .controlSize(.small)
+                            .help("导出当前过滤条件下的全部数据（⇧⌘E）")
+                    }
+                    // 超过 10 秒的加载在状态栏附「取消」（`specs/12-feedback.md` §6）。
+                    if viewModel.loadState.isLoading,
+                       WorkspaceStatusText.showsCancelButton(elapsedMilliseconds: viewModel.elapsedMilliseconds) {
+                        Button("取消") { viewModel.cancelInFlight() }
+                            .controlSize(.small)
+                            .help("取消正在进行的查询（⌘.）")
+                    }
+                }
             }
-            Text(summary)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
         }
         .padding(.horizontal, 10)
         .frame(height: 24)
@@ -79,11 +116,12 @@ struct StatusBarView: View {
         } label: {
             HStack(spacing: 6) {
                 SessionStatusDot(state: session.state)
-                Text(baseLine)
+                Text(baseLineParts.body)
                     .font(.callout)
                     .lineLimit(1)
-                if session.isReadOnly {
-                    Text("只读")
+                if let marker = baseLineParts.readOnlyMarker {
+                    // 只读段用醒目颜色单独渲染（`specs/09-readonly-mode.md` §3）。
+                    Text(marker)
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(.orange)
                 }
@@ -91,16 +129,26 @@ struct StatusBarView: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .help("连接操作")
+        .help(connectionHelp)
     }
 
-    private var baseLine: String {
-        WorkspaceStatusText.connectionLine(
+    /// 状态栏连接区的悬停详情。
+    ///
+    /// 启用了 SSH 隧道时带上本地转发端口（`specs/10-ssh-tunnel.md` §4：隧道信息
+    /// 只在悬停详情里显示，主界面正文不显示本地端口）。
+    private var connectionHelp: String {
+        guard let endpoint = session.tunnelEndpoint else { return "连接操作" }
+        let tunnelLine = WorkspaceStatusText.tunnelDetailLine(host: endpoint.host, port: endpoint.port)
+        return "连接操作\n\(tunnelLine)"
+    }
+
+    private var baseLineParts: WorkspaceStatusText.ConnectionLineParts {
+        WorkspaceStatusText.connectionLineParts(
             connection: session.connection,
             state: session.state,
             database: session.selectedDatabase,
             serverInfo: session.serverInfo,
-            isReadOnly: false
+            isReadOnly: session.isReadOnly
         )
     }
 
@@ -113,9 +161,32 @@ struct StatusBarView: View {
             if let reason = viewModel.uneditableStatusText {
                 return reason
             }
-            if let text = viewModel.statusBarText {
-                return text
+            let base = viewModel.statusBarText
+                ?? WorkspaceStatusText.tabSummary(
+                    for: tab.kind,
+                    page: tab.page,
+                    consoleLogCount: environment.consoleLog.entries.count
+                )
+            return WorkspaceStatusText.tableDataSummary(
+                base: base,
+                elapsedMilliseconds: viewModel.elapsedMilliseconds
+            )
+        }
+        if let editor = tab.content as? QueryEditorViewModel {
+            if editor.isRunning {
+                return "正在执行…"
             }
+            return WorkspaceStatusText.querySummary(
+                executedStatementCount: editor.executedStatementCount,
+                elapsedMilliseconds: editor.elapsedMilliseconds,
+                totalReturnedRows: editor.totalReturnedRows
+            ) ?? "等待执行"
+        }
+        // 表结构标签显示概况（`specs/07-schema-view.md` §5）；对象定义标签保持占位文案。
+        if let structure = tab.content as? TableStructureViewModel,
+           structure.isTableStructureTab,
+           let statusSummary = structure.statusSummary {
+            return statusSummary
         }
         return WorkspaceStatusText.tabSummary(
             for: tab.kind,

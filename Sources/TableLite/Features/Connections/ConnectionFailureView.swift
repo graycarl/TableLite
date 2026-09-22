@@ -23,20 +23,56 @@ struct ConnectionFailureBody: View {
                         .foregroundStyle(.red)
                 }
             }
-            if !failure.underlyingMessage.isEmpty {
-                Text(failure.underlyingMessage)
-                    .font(.system(.callout, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .background(Color.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
-            }
             Text(failure.explanation)
                 .font(.callout)
             if let suggestion = failure.suggestion {
                 Text(suggestion)
                     .font(.callout)
                     .foregroundStyle(.secondary)
+            }
+            // 原始错误（服务器原文 / SSH stderr）默认折叠（`specs/12-feedback.md` §5 规则 4）。
+            if !failure.underlyingMessage.isEmpty {
+                ErrorDetailDisclosure(text: failure.underlyingMessage)
+            }
+        }
+    }
+}
+
+/// 「查看详细输出」折叠区（`specs/12-feedback.md` §5 规则 4）。
+///
+/// 错误面板默认只显示中文标题 / 解释 / 建议；服务器返回的原文、SSH stderr 这类
+/// 未经改写 / 翻译的输出收在这一个入口后面，展开后才原样展示。
+struct ErrorDetailDisclosure: View {
+
+    let text: String
+
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                isExpanded.toggle()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.caption)
+                    Text("查看详细输出")
+                        .font(.callout)
+                }
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+
+            if isExpanded {
+                ScrollView {
+                    Text(text)
+                        .font(.system(.callout, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 180)
+                .padding(8)
+                .background(Color.gray.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
             }
         }
     }

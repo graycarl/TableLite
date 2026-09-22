@@ -100,7 +100,6 @@ public enum ImportColumnMapper {
         if column.isNotNull && !column.isPrimaryKey { parts.append("非空") }
         return parts.isEmpty ? "—" : parts.joined(separator: " · ")
     }
-
     /// 已映射的目标列（按 CSV 顺序）。
     public static func mappedColumns(
         mappings: [ImportColumnMapping],
@@ -123,6 +122,67 @@ public enum ImportColumnMapper {
             if column.hasDefaultValue == true { return false }
             return !mapped.contains(column.name)
         }
+    }
+}
+
+// MARK: - 列映射展示
+
+/// 导入第二步「列映射」表格的展示文案。纯函数，供视图与单测复用。
+///
+/// 对应 `specs/08-import-export.md` §2 第二步 / `manual/08-import-export.html` 图 8-4：
+/// 已被跳过的列说明为「不参与插入」，匹配不上目标列的说明为「CSV 列名在表里没有」。
+public enum ImportMappingDisplay {
+
+    /// 映射到的目标列（仅目标表模式）。
+    public static func matchedColumn(
+        for mapping: ImportColumnMapping,
+        targetColumns: [ColumnInfo]
+    ) -> ColumnInfo? {
+        guard let target = mapping.targetColumn else { return nil }
+        return targetColumns.first { $0.name == target }
+    }
+
+    /// 「类型」列文案：匹配到的列显示 `COLUMN_TYPE`；跳过时显示「未匹配到」或「—」。
+    public static func typeText(
+        for mapping: ImportColumnMapping,
+        targetColumns: [ColumnInfo]
+    ) -> String {
+        if let column = matchedColumn(for: mapping, targetColumns: targetColumns) {
+            return column.typeDisplayText
+        }
+        return isUnmatched(mapping, targetColumns: targetColumns) ? "未匹配到" : "—"
+    }
+
+    /// 「说明」列文案。
+    public static func noteText(
+        for mapping: ImportColumnMapping,
+        targetColumns: [ColumnInfo]
+    ) -> String {
+        if let column = matchedColumn(for: mapping, targetColumns: targetColumns) {
+            return note(for: column)
+        }
+        return isUnmatched(mapping, targetColumns: targetColumns) ? "CSV 列名在表里没有" : "不参与插入"
+    }
+
+    /// 目标列下拉项文案：`name（type · 必填/可空）`。
+    public static func optionText(for column: ColumnInfo) -> String {
+        let requirement = column.isNotNull ? "非空" : "可空"
+        return "\(column.name)（\(column.typeDisplayText) · \(requirement)）"
+    }
+
+    /// CSV 列名在目标表里是否存在（大小写不敏感）。
+    static func isUnmatched(_ mapping: ImportColumnMapping, targetColumns: [ColumnInfo]) -> Bool {
+        !targetColumns.contains {
+            $0.name.compare(mapping.csvName, options: .caseInsensitive) == .orderedSame
+        }
+    }
+
+    static func note(for column: ColumnInfo) -> String {
+        var parts: [String] = []
+        if column.isPrimaryKey { parts.append("主键") }
+        if column.isAutoIncrement { parts.append("自增") }
+        if column.isNotNull && !column.isPrimaryKey { parts.append("非空") }
+        return parts.isEmpty ? "—" : parts.joined(separator: " · ")
     }
 }
 
@@ -221,6 +281,86 @@ public enum ImportPhase: Sendable, Equatable {
     public var isRunning: Bool {
         if case .running = self { return true }
         return false
+    }
+}
+
+// MARK: - 第一步选项 / 进度 / 完成文案
+
+/// 导入向导第一步的换行符选项（`specs/08-import-export.md` §2 第一步）。
+/// 解析本身兼容 LF / CRLF / CR，本选项用于展示与用户确认。
+public enum ImportLineEndingOption: String, Sendable, CaseIterable, Equatable, Hashable {
+    case auto
+    case lf
+    case crlf
+    case cr
+
+    public var displayName: String {
+        switch self {
+        case .auto: return "自动检测"
+        case .lf: return "LF（\\n）"
+        case .crlf: return "CRLF（\\r\\n）"
+        case .cr: return "CR（\\r）"
+        }
+    }
+
+    public var isAuto: Bool { self == .auto }
+}
+
+/// 文件换行符检测。纯函数。
+public enum CSVLineEndingDetector {
+    /// 按字节统计 CRLF / LF / CR；优先识别 CRLF。都不存在时返回 `.auto`。
+    public static func detect(in data: Data) -> ImportLineEndingOption {
+        var sawCRLF = false
+        var sawLF = false
+        var sawCR = false
+        var previousWasCR = false
+        for byte in data {
+            switch byte {
+            case 0x0A: // \n
+                if previousWasCR { sawCRLF = true } else { sawLF = true }
+                previousWasCR = false
+            case 0x0D: // \r
+                sawCR = true
+                previousWasCR = true
+            default:
+                previousWasCR = false
+            }
+        }
+        if sawCRLF { return .crlf }
+        if sawLF { return .lf }
+        if sawCR { return .cr }
+        return .auto
+    }
+}
+
+/// 导入进度文案。纯函数（`specs/08-import-export.md` §2 第三步 / `manual/08` 图 8-5）。
+public enum ImportProgress {
+    public static func fraction(rowsWritten: Int, planned: Int) -> Double {
+        guard planned > 0 else { return 0 }
+        return min(1, max(0, Double(rowsWritten) / Double(planned)))
+    }
+
+    /// `约 60%`；计划行数为 0 时返回 nil。
+    public static func percentText(rowsWritten: Int, planned: Int) -> String? {
+        guard planned > 0 else { return nil }
+        let percent = Int((fraction(rowsWritten: rowsWritten, planned: planned) * 100).rounded())
+        return "约 \(percent)%"
+    }
+}
+
+/// 导入完成文案（`specs/12-feedback.md` §3）。
+public enum ImportSummaryText {
+    public static func message(success: Int, failure: Int, cancelled: Bool) -> String {
+        let successText = RowCountEstimate.grouped(Int64(success))
+        let failureText = RowCountEstimate.grouped(Int64(failure))
+        if cancelled {
+            return "导入已取消：成功 \(successText) 行，失败 \(failureText) 行"
+        }
+        if failure > 0 {
+            return "导入结束：成功 \(successText) 行，失败 \(failureText) 行"
+        }
+        // 即使没有失败行也保留「失败 0 行」（`specs/12-feedback.md` §3）。
+        return "导入完成：成功 \(successText) 行，失败 0 行"
     }
 }
 

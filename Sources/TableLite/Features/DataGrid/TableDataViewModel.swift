@@ -52,6 +52,8 @@ public final class TableDataViewModel {
     public private(set) var isView = false
     public private(set) var primaryKeyColumns: [String] = []
     public private(set) var foreignKeyColumns: Set<String> = []
+    /// 外键约束明细（用于 `↗` 跳转）。
+    public private(set) var foreignKeys: [ForeignKeyInfo] = []
     public private(set) var createStatement: String?
     public private(set) var isMetadataLoaded = false
 
@@ -63,6 +65,9 @@ public final class TableDataViewModel {
     public private(set) var loadState: TableDataLoadState = .idle
     public private(set) var hasNextPage = false
     public private(set) var lastQueryMilliseconds: Int?
+    /// 当前页加载已用时（毫秒）。加载中每 100 ms 自增，加载结束后停在本次耗时上；
+    /// 状态栏据此在 > 1 s 时显示耗时、> 10 s 时附「取消」（`specs/12-feedback.md` §6）。
+    public private(set) var elapsedMilliseconds = 0
     public private(set) var rowCountEstimate: RowCountEstimate?
     public private(set) var isCountingExact = false
 
@@ -117,6 +122,8 @@ public final class TableDataViewModel {
     public internal(set) var commitTotal = 0
     /// 提交失败详情；非 nil 时弹错误面板。
     public internal(set) var commitFailure: CommitFailure?
+    /// 删除行前展示的将执行条件（`specs/04-data-editing.md` §6）；非 nil 时弹确认。
+    public internal(set) var pendingDeletion: PendingRowDeletion?
     /// 预览面板的语句快照（与提交走同一条生成路径）。
     public internal(set) var previewStatements: [String] = []
     public internal(set) var isPreviewPresented = false
@@ -138,8 +145,11 @@ public final class TableDataViewModel {
 
     @ObservationIgnored private var didStart = false
     @ObservationIgnored private var activeTask: Task<Void, Never>?
+    @ObservationIgnored private var elapsedTask: Task<Void, Never>?
     @ObservationIgnored private var fullLoadTask: Task<Void, Never>?
     @ObservationIgnored private var persistTask: Task<Void, Never>?
+    /// 外键 `↗` 带入的过滤条件；未改动前不写回「按表记住的过滤」。
+    @ObservationIgnored private var navigationFilter: FilterState?
 
     // MARK: 初始化
 
@@ -166,9 +176,16 @@ public final class TableDataViewModel {
         self.pageIndex = tab.page.pageIndex
         self.sortOrders = tab.sort
         self.hiddenColumns = Set(tab.hiddenColumns)
-        let rememberedFilter = session.tableFilter(database: self.database, table: self.table) ?? tab.filter
-        self.filter = rememberedFilter
-        self.filterDraft = rememberedFilter ?? FilterState()
+        if let initialFilter = tab.initialFilter {
+            // 外键 `↗` 跳转：强制使用带入的过滤条件，覆盖「按表记住的过滤」。
+            self.filter = initialFilter
+            self.filterDraft = initialFilter
+            self.navigationFilter = initialFilter
+        } else {
+            let rememberedFilter = session.tableFilter(database: self.database, table: self.table) ?? tab.filter
+            self.filter = rememberedFilter
+            self.filterDraft = rememberedFilter ?? FilterState()
+        }
         self.columnWidths = session.tableLayout(database: self.database, table: self.table)?.columnWidths ?? [:]
     }
 
@@ -185,6 +202,10 @@ public final class TableDataViewModel {
 
     /// 重新加载当前页（`⌘R` / 刷新）；清空大字段缓存（`specs/03-data-browsing.md` §12）。
     public func refresh() async {
+        // 有未提交改动时刷新不打断，只在状态栏提示暂存原样保留（`specs/04-data-editing.md` §12）。
+        if hasPendingChanges {
+            showToast("刷新会重新加载数据，你的修改会保留在暂存区")
+        }
         fullRowCache.removeAll()
         await loadMetadata(force: true)
         guard isMetadataLoaded else { return }
@@ -204,11 +225,12 @@ public final class TableDataViewModel {
     public func cancelInFlight() {
         activeTask?.cancel()
         activeTask = nil
+        stopElapsedTimer()
         fullLoadTask?.cancel()
         fullLoadTask = nil
         persistTask?.cancel()
         persistTask = nil
-        Task { await session.cancelCurrentQuery() }
+        Task { try? await session.cancelCurrentQuery() }
     }
 
     /// 等待当前挂起的加载（单测用）。
@@ -258,14 +280,38 @@ public final class TableDataViewModel {
         return columns.first { $0.name == focusedColumn }
     }
 
-    /// 状态栏文案：`行 1–300 / 约 12,480 行 · 第 1 页 · 300 行/页 · 128 ms`。
+    /// 状态栏文案：`行 1–300 / 约 12,480 行 · 第 1 页 · 300 行/页 · content 1.2 MB`。
+    ///
+    /// 耗时不在里拼接：阈值判断统一在 `WorkspaceStatusText.tableDataSummary`
+    /// （`specs/12-feedback.md` §6，只在 > 1 s 时显示）。
     public var statusBarText: String? {
         guard loadState == .loaded || !rows.isEmpty else { return nil }
         var text = pageState.statusText(visibleCount: rows.count)
-        if let milliseconds = lastQueryMilliseconds {
-            text += " · \(milliseconds) ms"
+        if let summary = largeFieldSizeSummary {
+            text += " · \(summary)"
         }
         return text
+    }
+
+    /// 当前页里被延迟加载的大字段实际大小摘要，例如 `content 1.2 MB`。
+    ///
+    /// 每个截断列取本页出现的最大字节数（`specs/03-data-browsing.md` §4）；
+    /// 没有任何截断列时返回 nil，状态栏不追加内容。
+    public var largeFieldSizeSummary: String? {
+        var totals: [String: Int] = [:]
+        for row in rows {
+            for column in visibleColumns {
+                guard let cell = row.cells[column.name],
+                      cell.isTruncated,
+                      let total = cell.totalByteCount else { continue }
+                totals[column.name] = max(totals[column.name] ?? 0, total)
+            }
+        }
+        guard !totals.isEmpty else { return nil }
+        return totals
+            .sorted { $0.key < $1.key }
+            .map { "\($0.key) \(ByteSize.format($0.value))" }
+            .joined(separator: " · ")
     }
 
     public var isDeepOffset: Bool { pageState.isDeepOffset }
@@ -292,6 +338,9 @@ public final class TableDataViewModel {
 
     public var isFilterVisible: Bool { filterDraft.isVisible }
 
+    /// 是否有真正生效的过滤条件（用于区分「空表」与「被过滤掉」，`specs/12-feedback.md` §6）。
+    public var hasActiveFilter: Bool { filter?.isActive == true }
+
     public var cellDisplayContext: CellDisplayContext {
         CellDisplayContext(
             nullText: preferences.nullDisplayText,
@@ -301,32 +350,58 @@ public final class TableDataViewModel {
 
     // MARK: 导出（`specs/08-import-export.md` §1）
 
-    /// 当前过滤条件的中文摘要，供导出面板说明用。
-    public var filterSummary: String? {
-        guard let filter, filter.isActive else { return nil }
-        var parts: [String] = []
-        if filter.isRawMode {
-            parts.append("高级条件")
-        }
-        let conditionCount = filter.activeConditions.count
-        if conditionCount > 0 {
-            parts.append("\(conditionCount) 个条件")
-        }
-        return parts.isEmpty ? "过滤条件" : parts.joined(separator: " · ")
-    }
+    /// 当前过滤条件的**真实文本**（取自 `FilterSQLBuilder` 生成的 `WHERE` 子句），供导出面板说明用。
+    public var filterSummary: String? { filterClause }
 
     /// 「导出…」的数据源：有过滤条件时导出过滤后的全部数据，否则整张表。
     public var exportSource: ExportSource {
         if let clause = filterClause, let summary = filterSummary {
-            return .filteredTable(database: database, table: table, filterClause: clause, filterSummary: summary)
+            return .filteredTable(
+                database: database,
+                table: table,
+                filterClause: clause,
+                filterSummary: summary,
+                rowCountEstimate: rowCountEstimate?.approximate
+            )
         }
         return .table(database: database, table: table)
+    }
+
+    /// 「导出选中行…」的数据源：用选中行的主键定位键拼 `WHERE`。
+    /// 无选中行、选中了未落库的新增行、或表没有主键时返回 nil。
+    public func selectedRowsExportSource(rowIDs: [String]) -> ExportSource? {
+        let selected = gridRows.filter { rowIDs.contains($0.id) }
+        guard !selected.isEmpty else { return nil }
+        let escaper = session.mysql.makeEscaper()
+        let introducer = session.mysql.charsetIntroducer
+        var clauses: [String] = []
+        for row in selected {
+            guard let locator = row.locator, !locator.isEmpty,
+                  let clause = try? PendingChangeSQL.locationClause(
+                      locator,
+                      introducer: introducer,
+                      escaper: escaper
+                  ) else {
+                return nil
+            }
+            clauses.append("(\(clause))")
+        }
+        return .selectedRows(
+            database: database,
+            table: table,
+            whereClause: clauses.joined(separator: " OR "),
+            rowCount: selected.count
+        )
     }
 
     // MARK: 排序
 
     /// 点列头：无 → 升序 → 降序 → 无；`⇧` 点击追加多列排序。
     public func toggleSort(column: String, additive: Bool) {
+        // 有未提交改动时不打断，只在状态栏提示暂存原样保留（`specs/04-data-editing.md` §12、tech-design 09 §3）。
+        if hasPendingChanges {
+            showToast("改变排序会重新加载数据，你的修改会保留在暂存区")
+        }
         if additive {
             var orders = sortOrders
             if let index = orders.firstIndex(where: { $0.column == column }) {
@@ -403,7 +478,8 @@ public final class TableDataViewModel {
             guard let self else { return }
             defer { self.isCountingExact = false }
             do {
-                let result = try await self.session.execute(sql, database: self.database)
+                // 客户端自动查询不写入查询历史（`specs/06-query-editor.md` §5）。
+                let result = try await self.session.execute(sql, database: self.database, recordHistory: false)
                 if Task.isCancelled { return }
                 if let text = result.firstResultSet?.rows.first?.cells.first?.text,
                    let count = Int64(text) {
@@ -697,10 +773,69 @@ public final class TableDataViewModel {
         startQuery()
     }
 
+    // MARK: 外键跳转（`specs/03-data-browsing.md` §10）
+
+    /// 外键 `↗`：在新标签打开被引用的表，并按「引用列 = 本行值」过滤到对应行。
+    ///
+    /// - 被引用表可能跨库，取外键元数据里的库名；
+    /// - 字面量来自**原始值**（`ForeignKeyJumpResolver` 内部走 `SQLValueLiteral`），
+    ///   不使用截断后的展示值；外键列被截断且拿不到完整值时提示并放弃（`07-data-grid.md` §3.1）；
+    /// - 跳转是读操作，只读连接照常可用；
+    /// - 过滤条件以 Raw 模式带入新标签（复用行定位字面量生成，不另造一套拼接）。
+    public func openForeignKey(rowID: String, column: String) async {
+        guard isMetadataLoaded,
+              foreignKeyColumns.contains(column),
+              let foreignKey = foreignKeys.first(where: { $0.columns.contains(column) }),
+              let row = gridRows.first(where: { $0.id == rowID }),
+              row.cells[column] != nil else { return }
+
+        // 截断值不得参与跳转（复合外键要检查全部组件列）：先加载完整值；拿不到就明确提示并禁用。
+        let needsLoad = foreignKey.columns.contains { foreignKeyColumn in
+            row.cells[foreignKeyColumn]?.needsFullValueLoad == true
+        }
+        if needsLoad {
+            await ensureFullValue(rowID: rowID, column: column)
+            guard let updatedRow = gridRows.first(where: { $0.id == rowID }),
+                  foreignKey.columns.allSatisfy({ updatedRow.cells[$0]?.hasCompleteValue == true }) else {
+                showToast("外键列的值已截断且无法加载完整内容，暂不能跳转")
+                return
+            }
+        }
+
+        guard let currentRow = gridRows.first(where: { $0.id == rowID }) else { return }
+        if currentRow.cells[column]?.displayValue.isNull == true {
+            showToast("外键值为 NULL，无法跳转")
+            return
+        }
+
+        let options = queryOptions
+        guard let target = ForeignKeyJumpResolver.target(
+            sourceDatabase: database,
+            clickedColumn: column,
+            columns: columns,
+            values: currentRow.cells.mapValues(\.displayValue),
+            foreignKeys: foreignKeys,
+            escaping: options.escaping,
+            introducer: options.introducer
+        ) else {
+            showToast("无法确定外键引用目标，暂不能跳转")
+            return
+        }
+
+        let filter = FilterState(rawWhere: target.whereClause, isRawMode: true, isVisible: true)
+        session.openTableData(
+            database: target.database,
+            table: target.table,
+            forceNew: true,
+            initialFilter: filter
+        )
+    }
+
     // MARK: 列显隐浮层
 
+    /// `⌥⌘F`：打开 / 关闭列过滤器浮层（与 `⌘F` 行过滤器的 toggle 对称）。
     public func presentColumnFilter() {
-        isColumnFilterPresented = true
+        isColumnFilterPresented.toggle()
         bumpRevision()
     }
 
@@ -844,7 +979,8 @@ public final class TableDataViewModel {
                 locator: locator,
                 options: queryOptions
             )
-            let result = try await session.execute(query.sql, database: database)
+            // 按主键取整行是客户端自动查询，不写入查询历史（`specs/06-query-editor.md` §5）。
+            let result = try await session.execute(query.sql, database: database, recordHistory: false)
             if Task.isCancelled { return }
             guard let resultSet = result.firstResultSet, let firstRow = resultSet.rows.first else {
                 isLoadingFullRow = false
@@ -1087,6 +1223,7 @@ public final class TableDataViewModel {
             isView = metadata.isView
             primaryKeyColumns = metadata.primaryKeyColumns
             foreignKeyColumns = metadata.foreignKeyColumns
+            foreignKeys = metadata.foreignKeys
             createStatement = metadata.createStatement
             isMetadataLoaded = true
             if let layout = session.tableLayout(database: database, table: table) {
@@ -1112,9 +1249,42 @@ public final class TableDataViewModel {
 
     // MARK: 当前页查询
 
+    private func startElapsedTimer() {
+        elapsedTask?.cancel()
+        elapsedMilliseconds = 0
+        let start = clock.now
+        elapsedTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(100))
+                guard let self, !Task.isCancelled else { return }
+                self.elapsedMilliseconds = max(0, Int(self.clock.now.timeIntervalSince(start) * 1000))
+            }
+        }
+    }
+
+    private func stopElapsedTimer() {
+        elapsedTask?.cancel()
+        elapsedTask = nil
+    }
+
     private func performPageQuery() async {
         guard isMetadataLoaded else { return }
         loadState = .loading
+
+        let started = clock.now
+        startElapsedTimer()
+        defer {
+            // 加载结束：停表并把本次耗时同时固化到 `lastQueryMilliseconds`。
+            stopElapsedTimer()
+            let total = max(0, Int(clock.now.timeIntervalSince(started) * 1000))
+            elapsedMilliseconds = total
+            lastQueryMilliseconds = total
+            // 取消（`cancelInFlight` / ⌘. / 状态栏「取消」）时上面几条路径会提前 return，
+            // 不重置就会卡在加载遮罩；这里收口到终止态，保留已取到的旧数据。
+            if loadState == .loading {
+                loadState = rows.isEmpty ? .idle : .loaded
+            }
+        }
 
         let options = queryOptions
         let query = TableQueryBuilder.selectPage(
@@ -1129,11 +1299,10 @@ public final class TableDataViewModel {
             options: options
         )
 
-        let started = clock.now
         do {
-            let result = try await session.execute(query.sql, database: database)
+            // 分页查询是客户端自动查询，不写入查询历史（`specs/06-query-editor.md` §5）。
+            let result = try await session.execute(query.sql, database: database, recordHistory: false)
             if Task.isCancelled { return }
-            lastQueryMilliseconds = max(0, Int(clock.now.timeIntervalSince(started) * 1000))
 
             guard let resultSet = result.firstResultSet else {
                 rows = []
@@ -1259,6 +1428,8 @@ public final class TableDataViewModel {
 
     /// 把过滤器草稿写回 WorkspaceStateStore（偏好关闭时自然被 `saveTableFilter` 忽略）。
     private func persistFilter() {
+        // 外键 `↗` 带入的条件不是用户对该表的记忆，未改动前不写回，避免污染「按表记住的过滤」。
+        if let navigationFilter, navigationFilter == filterDraft { return }
         let hasContent = filterDraft.isActive || filterDraft.isVisible
         session.saveTableFilter(database: database, table: table, filter: hasContent ? filterDraft : nil)
     }

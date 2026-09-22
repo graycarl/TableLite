@@ -72,3 +72,64 @@ public struct SSHAskpassScript: Sendable {
         try? FileManager.default.removeItem(at: directoryURL)
     }
 }
+
+// MARK: - 私钥是否需要口令
+
+/// 判断私钥文件是否为「加密（带口令）」格式。
+///
+/// `specs/10-ssh-tunnel.md` §3.2：私钥有口令时，第一次连接要弹输入框。
+/// 在启动 ssh 前先看一眼文件，可以避免为未加密的私钥多余地弹窗
+/// （密码 / 口令只从用户输入进 Keychain，本类型不碰、缓存、记录任何口令）。
+///
+/// 纯逻辑，可单元测试。读不到文件时按「未加密」处理，交给 ssh 自己报错。
+public enum SSHPrivateKeyInspector {
+
+    /// 读文件后判断。
+    public static func isEncrypted(path: String) -> Bool {
+        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return false }
+        return isEncrypted(pem: text)
+    }
+
+    /// 根据文件内容判断。
+    public static func isEncrypted(pem: String) -> Bool {
+        // 老 PEM（`Proc-Type: 4,ENCRYPTED` + `DEK-Info`）与 PKCS#8 加密块。
+        if pem.contains("BEGIN ENCRYPTED PRIVATE KEY") { return true }
+        if pem.contains("Proc-Type: 4,ENCRYPTED") { return true }
+        if pem.contains("DEK-Info:") { return true }
+
+        // OpenSSH 新格式：解出 ciphername，`none` 表示未加密。
+        guard let body = base64Body(
+            in: pem,
+            begin: "-----BEGIN OPENSSH PRIVATE KEY-----",
+            end: "-----END OPENSSH PRIVATE KEY-----"
+        ),
+              let data = Data(base64Encoded: body),
+              let cipher = openSSHCipherName(in: data) else {
+            return false
+        }
+        return cipher != "none"
+    }
+
+    /// `openssh-key-v1\0` 之后第一个 string 是 ciphername。
+    static func openSSHCipherName(in data: Data) -> String? {
+        let magic = Array("openssh-key-v1\u{0}".utf8)
+        guard data.count >= magic.count + 4 else { return nil }
+        guard Array(data.prefix(magic.count)) == magic else { return nil }
+        let base = data.startIndex + magic.count
+        let length = Int(data[base]) << 24
+            | Int(data[base + 1]) << 16
+            | Int(data[base + 2]) << 8
+            | Int(data[base + 3])
+        guard length >= 0, data.count >= magic.count + 4 + length else { return nil }
+        let start = base + 4
+        return String(decoding: data[start..<(start + length)], as: UTF8.self)
+    }
+
+    private static func base64Body(in pem: String, begin: String, end: String) -> String? {
+        guard let beginRange = pem.range(of: begin),
+              let endRange = pem.range(of: end, range: beginRange.upperBound..<pem.endIndex) else {
+            return nil
+        }
+        return pem[beginRange.upperBound..<endRange.lowerBound].filter { !$0.isWhitespace }
+    }
+}

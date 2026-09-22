@@ -262,6 +262,40 @@ final class TableStructureViewModelTests: XCTestCase {
 
         XCTAssertEqual(model.pages, SchemaStructurePage.allCases)
         XCTAssertEqual(model.definitionPageTitle, "建表语句")
+        XCTAssertTrue(model.isTableStructureTab)
+        XCTAssertFalse(model.isObjectDefinitionTab)
+    }
+
+    /// 视图在对象树里「打开结构」也走 `.tableStructure` 标签；
+    /// 结构还没加载时就要从对象目录里认出视图（`specs/07-schema-view.md` §3）。
+    func testTableStructureTabResolvesViewKindFromObjectCatalog() async throws {
+        let harness = SessionTestSupport.makeHarness()
+        defer { harness.clean() }
+        await harness.mysql.setResponses([
+            ("SHOW DATABASES", .single(columns: ["Database"], rows: [["app_dev"]])),
+            ("@@character_set_server", .single(
+                columns: ["version", "server_charset", "server_collation", "sql_mode", "client_charset", "connection_collation"],
+                rows: [["8.0.36", "utf8mb4", "utf8mb4_0900_ai_ci", "", "utf8mb4", "utf8mb4_general_ci"]]
+            )),
+            ("TABLE_COLLATION", .single(
+                columns: ["TABLE_NAME", "TABLE_TYPE", "ENGINE", "TABLE_ROWS", "TABLE_COMMENT", "TABLE_COLLATION"],
+                rows: [["v_users", "VIEW", nil, nil, nil, nil]]
+            )),
+        ])
+        let session = try await harness.manager.connect(SessionTestSupport.connection(), password: nil)
+
+        let tab = Tab(kind: .tableStructure(database: "app_dev", table: "v_users"))
+        let provider = FakeTableStructureProvider()
+        await provider.setStructure(makeStructure(kind: .view))
+        let model = TableStructureViewModel(session: session, tab: tab, provider: provider)
+
+        XCTAssertTrue(model.isView)
+        XCTAssertTrue(model.isTableStructureTab)
+        XCTAssertEqual(model.pages, [.columns, .definition])
+
+        await model.start()
+        let calls = await provider.loadStructureCalls
+        XCTAssertEqual(calls.first?.kind, .view)
     }
 
     func testViewShowsColumnsAndDefinitionOnly() async throws {

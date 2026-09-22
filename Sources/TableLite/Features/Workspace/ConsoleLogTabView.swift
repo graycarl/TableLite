@@ -46,7 +46,10 @@ struct ConsoleLogTabView: View {
 
             Spacer()
 
-            Text("\(visibleEntries.count) 条")
+            Text(WorkspaceStatusText.consoleLogCountLabel(
+                count: visibleEntries.count,
+                capacity: environment.consoleLog.entries.capacity
+            ))
                 .font(.callout)
                 .foregroundStyle(.secondary)
 

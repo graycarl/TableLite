@@ -80,6 +80,12 @@ struct ConnectionTestView: View {
                     .foregroundStyle(.secondary)
                     .padding(.leading, 24)
             }
+            if step.step == .sshTunnel, step.isSuccess, let port = report?.tunnelLocalPort {
+                Text(WorkspaceStatusText.tunnelDetailLine(host: SSHTunnelEndpoint.localHost, port: port))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 24)
+            }
             if let failure = step.failure {
                 ConnectionFailureBody(failure: failure)
                     .padding(.leading, 24)

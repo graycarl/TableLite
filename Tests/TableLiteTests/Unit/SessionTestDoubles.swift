@@ -34,6 +34,7 @@ actor FakeMySQLSession: MySQLSessionProtocol {
 
     private var connectError: Error?
     private var pingError: Error?
+    private var cancelError: Error?
     private var unresolvedDatabaseValue: String?
     private var stateValue: MySQLSession.State = .disconnected
     private var parameters: MySQLConnectionParameters?
@@ -45,6 +46,7 @@ actor FakeMySQLSession: MySQLSessionProtocol {
 
     func setConnectError(_ error: Error?) { connectError = error }
     func setPingError(_ error: Error?) { pingError = error }
+    func setCancelError(_ error: Error?) { cancelError = error }
     func setUnresolvedDatabase(_ value: String?) { unresolvedDatabaseValue = value }
     func setResponses(_ responses: [(String, MySQLQueryResult)]) { self.responses = responses }
     func setFailures(_ failures: [(String, Error)]) { self.failures = failures }
@@ -117,7 +119,9 @@ actor FakeMySQLSession: MySQLSessionProtocol {
         )
     }
 
-    func cancel() async throws {}
+    func cancel() async throws {
+        if let cancelError { throw cancelError }
+    }
 
     // MARK: 转义（nonisolated）
 
@@ -154,12 +158,23 @@ actor FakeSSHTunnel: SSHTunnelProtocol {
     private var startError: SSHTunnelError?
     private var localPort: UInt16
     private var stateValue: SSHTunnelState = .idle
+    /// 每次由工厂创建时记录的配置（用于断言 secret 已传到隧道层）。
+    private let recordedConfigurations = Mutex<[SSHTunnelConfiguration]>([])
 
     let configuration: SSHTunnelConfiguration
 
     init(configuration: SSHTunnelConfiguration, localPort: UInt16 = 53142) {
         self.configuration = configuration
         self.localPort = localPort
+    }
+
+    /// 工厂调用点同步记录下发到隧道层的配置。`nonisolated` + `Mutex`，不引入 `@unchecked Sendable`。
+    nonisolated func record(_ configuration: SSHTunnelConfiguration) {
+        recordedConfigurations.withLock { $0.append(configuration) }
+    }
+
+    nonisolated var lastConfiguration: SSHTunnelConfiguration? {
+        recordedConfigurations.withLock { $0.last }
     }
 
     func setStartError(_ error: SSHTunnelError?) { startError = error }

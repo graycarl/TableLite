@@ -91,7 +91,7 @@ public actor SessionStateStore {
         let suffix = version.map(String.init) ?? "unknown"
         do {
             let backup = try AtomicFileWriter.backup(layout.sessionFile, suffix: suffix)
-            let notice = "会话恢复文件版本 \(version.map(String.init) ?? "未知") 无法识别，已备份为 \(backup.lastPathComponent)。"
+            let notice = "连接恢复文件版本 \(version.map(String.init) ?? "未知") 无法识别，已备份为 \(backup.lastPathComponent)。"
             StoreLog.warning(notice)
             notices.append(notice)
         } catch {

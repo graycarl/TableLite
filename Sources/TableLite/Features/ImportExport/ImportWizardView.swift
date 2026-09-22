@@ -187,18 +187,23 @@ private struct ImportStepPickerView: View {
 
                 Toggle("首行是表头", isOn: $model.hasHeader)
                     .toggleStyle(.checkbox)
+            }
 
+            HStack(spacing: 24) {
                 Picker("文本编码", selection: $model.encodingOption) {
                     ForEach(CSVInputEncoding.allCases, id: \.self) { encoding in
                         Text(encoding.displayName).tag(encoding)
                     }
                 }
                 .frame(width: 260)
-            }
 
-            Text("换行符　自动检测（兼容 LF / CRLF / CR）")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Picker("换行符", selection: $model.lineEndingOption) {
+                    ForEach(ImportLineEndingOption.allCases, id: \.self) { option in
+                        Text(option.displayName).tag(option)
+                    }
+                }
+                .frame(width: 240)
+            }
 
             Spacer(minLength: 0)
         }
@@ -346,8 +351,14 @@ private struct ImportStepMappingView: View {
             HStack(spacing: 0) {
                 Text("CSV 列").frame(width: 160, alignment: .leading)
                 Text("→").frame(width: 30)
-                Text(showsType ? "推断类型" : "目标列").frame(width: 220, alignment: .leading)
-                Text(showsType ? "推断依据" : "说明").frame(maxWidth: .infinity, alignment: .leading)
+                if showsType {
+                    Text("推断类型").frame(width: 220, alignment: .leading)
+                    Text("推断依据").frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text("目标列").frame(width: 220, alignment: .leading)
+                    Text("类型").frame(width: 150, alignment: .leading)
+                    Text("说明").frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -372,20 +383,30 @@ private struct ImportStepMappingView: View {
                         }
                         .labelsHidden()
                         .frame(width: 210)
+                        Text(mapping.note)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
                         Picker("", selection: $mapping.targetColumn) {
                             Text("（跳过）").tag(String?.none)
                             ForEach(model.targetColumns, id: \.id) { column in
-                                Text(column.name).tag(String?.some(column.name))
+                                Text(ImportMappingDisplay.optionText(for: column))
+                                    .tag(String?.some(column.name))
                             }
                         }
                         .labelsHidden()
                         .frame(width: 210)
+                        Text(ImportMappingDisplay.typeText(for: mapping, targetColumns: model.targetColumns))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .frame(width: 150, alignment: .leading)
+                        Text(ImportMappingDisplay.noteText(for: mapping, targetColumns: model.targetColumns))
+                            .font(.caption)
+                            .foregroundStyle(mapping.isSkipped ? .orange : .secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    Text(showsType ? mapping.note : (mapping.isSkipped ? mapping.note : ImportColumnMapper.note(for: targetColumn(named: mapping.targetColumn))))
-                        .font(.caption)
-                        .foregroundStyle(mapping.isSkipped && !showsType ? .orange : .secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.vertical, 3)
                 Divider()
@@ -420,11 +441,6 @@ private struct ImportStepMappingView: View {
             }
         }
     }
-
-    private func targetColumn(named name: String?) -> ColumnInfo {
-        guard let name else { return ColumnInfo(name: "", fieldType: .varString) }
-        return model.targetColumns.first { $0.name == name } ?? ColumnInfo(name: name, fieldType: .varString)
-    }
 }
 
 // MARK: - 第三步：执行
@@ -436,12 +452,25 @@ private struct ImportStepExecuteView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if model.phase.isRunning {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text("正在导入…")
-                    Spacer()
-                    Text(model.progressText)
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("正在导入…")
+                        Spacer()
+                        Text(model.progressText)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let percent = model.progressPercentText {
+                        // 进度条 + 百分比（`manual/08` 图 8-5）。
+                        HStack(spacing: 8) {
+                            ProgressView(value: model.progressFraction)
+                                .progressViewStyle(.linear)
+                            Text(percent)
+                                .font(.callout)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
 

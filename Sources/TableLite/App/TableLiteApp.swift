@@ -101,8 +101,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.messageText = "有未提交的修改"
         alert.informativeText = "「\(model.tab.title)」有 \(model.pendingCount) 处未提交的修改。"
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "提交并继续")
-        alert.addButton(withTitle: "放弃修改")
+        alert.addButton(withTitle: "提交")
+        alert.addButton(withTitle: "放弃并关闭")
         alert.addButton(withTitle: "取消")
         switch alert.runModal() {
         case .alertFirstButtonReturn: return .submit

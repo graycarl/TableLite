@@ -11,6 +11,7 @@ struct TableDataTabView: View {
     let tab: Tab
 
     @Environment(AppEnvironment.self) private var environment
+    @Environment(ExportRequestCenter.self) private var exportCenter
 
     @State private var viewModel: TableDataViewModel?
     @State private var quickLook: QuickLookPanelController?
@@ -47,9 +48,12 @@ struct TableDataTabView: View {
             FilterBarView(viewModel: viewModel)
 
             ZStack {
-                DataGridView(viewModel: viewModel, preferences: environment.preferences) { content in
-                    presentQuickLook(content)
-                }
+                DataGridView(
+                    viewModel: viewModel,
+                    preferences: environment.preferences,
+                    onQuickLook: { content in presentQuickLook(content) },
+                    onExport: { source in exportCenter.present(source) }
+                )
                 overlay(for: viewModel)
                 if viewModel.isCommitting {
                     committingOverlay(viewModel)
@@ -70,6 +74,19 @@ struct TableDataTabView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // 删除行前展示将执行的 WHERE 条件（`specs/04-data-editing.md` §6）。
+            .confirmationDialog(
+                "删除选中的行",
+                isPresented: deletionBinding(viewModel),
+                titleVisibility: .visible
+            ) {
+                Button("删除", role: .destructive) { viewModel.confirmDeletion() }
+                Button("取消", role: .cancel) { viewModel.cancelDeletion() }
+            } message: {
+                if let pending = viewModel.pendingDeletion {
+                    Text(pending.message)
+                }
+            }
 
             if viewModel.isMetadataLoaded, viewModel.isEditable {
                 InsertRowFooterView(isEmptyTable: viewModel.rows.isEmpty) {
@@ -97,12 +114,17 @@ struct TableDataTabView: View {
         }
         .sheet(isPresented: commitFailureBinding(viewModel)) {
             if let failure = viewModel.commitFailure {
-                CommitFailureSheet(failure: failure) {
-                    viewModel.dismissCommitFailure()
-                    Task { await viewModel.discardChanges() }
-                } onClose: {
-                    viewModel.dismissCommitFailure()
-                }
+                CommitFailureSheet(
+                    failure: failure,
+                    onDiscardAll: {
+                        viewModel.dismissCommitFailure()
+                        Task { await viewModel.discardChanges() }
+                    },
+                    onClose: {
+                        viewModel.dismissCommitFailure()
+                    },
+                    onRetry: retryCommitAction(viewModel)
+                )
             }
         }
         .confirmationDialog(
@@ -157,11 +179,25 @@ struct TableDataTabView: View {
         case .loaded where viewModel.rows.isEmpty && viewModel.insertionRows.isEmpty:
             StatusOverlay {
                 VStack(spacing: 6) {
-                    Image(systemName: "tray")
+                    Image(systemName: viewModel.hasActiveFilter ? "line.3.horizontal.decrease.circle" : "tray")
                         .font(.system(size: 26))
                         .foregroundStyle(.tertiary)
-                    Text("这张表还没有数据")
-                        .foregroundStyle(.secondary)
+                    if viewModel.hasActiveFilter {
+                        // 有生效过滤：区分「被过滤掉」与「空表」（`specs/12-feedback.md` §6）。
+                        Text("没有符合条件的数据")
+                            .foregroundStyle(.secondary)
+                        Text("调整或重置过滤条件后再试")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        Text("这张表里还没有数据")
+                            .foregroundStyle(.secondary)
+                        if viewModel.isEditable {
+                            Text("点「＋ 插入行」或按 ⌘I")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
                 }
             }
         default:
@@ -211,6 +247,25 @@ struct TableDataTabView: View {
             get: { viewModel.isDiscardConfirmationPresented },
             set: { if !$0 { viewModel.cancelDiscardConfirmation() } }
         )
+    }
+
+    private func deletionBinding(_ viewModel: TableDataViewModel) -> Binding<Bool> {
+        Binding(
+            get: { viewModel.pendingDeletion != nil },
+            set: { if !$0 { viewModel.cancelDeletion() } }
+        )
+    }
+
+    /// 提交失败面板的「重试」动作。
+    ///
+    /// 事务已回滚（状态已知）时，暂存改动还在，重试就是重新生成并提交；
+    /// 事务状态未知（超时 / `COMMIT` 失败）时不给重试，避免重复写入。
+    private func retryCommitAction(_ viewModel: TableDataViewModel) -> (() -> Void)? {
+        guard viewModel.commitFailure?.isUnknownTransactionState == false else { return nil }
+        return {
+            viewModel.dismissCommitFailure()
+            viewModel.requestSubmit()
+        }
     }
 
     // MARK: 生命周期

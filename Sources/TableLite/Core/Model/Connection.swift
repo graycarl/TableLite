@@ -109,6 +109,15 @@ public enum SSHAuthMethod: String, Sendable, Codable, CaseIterable, Hashable {
         case .password: return "使用密码"
         }
     }
+
+    /// 连接表单里选项旁的旁注（`manual/01-connections.html` 图 1-3）。
+    public var formNote: String? {
+        switch self {
+        case .sshConfigOrAgent: return "（推荐，平时怎么连就怎么连）"
+        case .privateKey: return nil
+        case .password: return "（密码保存在系统钥匙串里）"
+        }
+    }
 }
 
 /// SSH 隧道配置。**不含密码 / passphrase**：只进 Keychain。

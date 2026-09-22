@@ -4,7 +4,7 @@ SCHEME := TableLite
 BUILD_DIR := $(CURDIR)/.build
 CONFIG ?= Debug
 
-.PHONY: help deps gen build run test smoke dist clean distclean doctor
+.PHONY: help deps gen build run test smoke dist clean distclean doctor db db-reset db-stop db-shell
 
 help: ## 显示可用目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -44,6 +44,18 @@ test: gen ## 跑单元测试
 
 smoke: build ## 访问层端到端冒烟验证（自动起 Docker MySQL）
 	@./scripts/smoke/run.sh
+
+db: ## 起一个常驻的 Docker MySQL 供手工测试（首次自动灌示例数据）
+	@./scripts/dev/db.sh up
+
+db-reset: ## 重灌手工测试库的示例数据（丢弃手工改过的数据）
+	@./scripts/dev/db.sh reset
+
+db-stop: ## 停掉手工测试库并删除数据
+	@./scripts/dev/db.sh down
+
+db-shell: ## 进手工测试库的 mysql 客户端
+	@./scripts/dev/db.sh shell
 
 dist: ## 构建 Release 并打包成可分发的 zip
 	@./scripts/package-dist.sh

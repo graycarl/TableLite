@@ -48,7 +48,7 @@ struct HistoryTabView: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField("搜索 SQL", text: $search)
+            TextField("搜索 SQL 内容…", text: $search)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 240)
 
@@ -170,7 +170,9 @@ struct HistoryTabView: View {
             entries = try await environment.history.recent(
                 connectionID: connectionID,
                 search: trimmed.isEmpty ? nil : trimmed,
-                limit: 500,
+                // 与存储层保留上限一致（`specs/06-query-editor.md` §5：默认保留最近 5000 条）。
+                // 一次取满即可覆盖全部保留记录，保证 5000 条都可显示、可搜索。
+                limit: QueryHistoryStore.defaultRetention,
                 since: timeFilter.since(now: environment.clock.now)
             )
             loadError = nil

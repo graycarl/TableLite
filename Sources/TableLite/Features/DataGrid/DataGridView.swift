@@ -16,9 +16,11 @@ struct DataGridView: NSViewRepresentable {
     let preferences: Preferences
     /// 触发快速查看时把内容交给上层展示（上层负责 `NSPanel`）。
     var onQuickLook: (QuickLookContent) -> Void
+    /// 「导出选中行…」入口（`specs/08-import-export.md` §1）：把导出源上抛给上层。
+    var onExport: ((ExportSource) -> Void)?
 
     func makeCoordinator() -> DataGridCoordinator {
-        DataGridCoordinator(viewModel: viewModel, preferences: preferences, onQuickLook: onQuickLook)
+        DataGridCoordinator(viewModel: viewModel, preferences: preferences, onQuickLook: onQuickLook, onExport: onExport)
     }
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -65,6 +67,7 @@ struct DataGridView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.viewModel = viewModel
         context.coordinator.onQuickLook = onQuickLook
+        context.coordinator.onExport = onExport
         context.coordinator.sync()
     }
 }
@@ -81,6 +84,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     var viewModel: TableDataViewModel
     var preferences: Preferences
     var onQuickLook: (QuickLookContent) -> Void
+    var onExport: ((ExportSource) -> Void)?
     weak var tableView: DataGridTableView?
 
     private var lastDataRevision = -1
@@ -93,10 +97,16 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     private var contextRow: Int = -1
     private var contextColumn: Int = -1
 
-    init(viewModel: TableDataViewModel, preferences: Preferences, onQuickLook: @escaping (QuickLookContent) -> Void) {
+    init(
+        viewModel: TableDataViewModel,
+        preferences: Preferences,
+        onQuickLook: @escaping (QuickLookContent) -> Void,
+        onExport: ((ExportSource) -> Void)? = nil
+    ) {
         self.viewModel = viewModel
         self.preferences = preferences
         self.onQuickLook = onQuickLook
+        self.onExport = onExport
         self.focusedColumnName = viewModel.focusedColumn ?? viewModel.visibleColumns.first?.name
         super.init()
     }
@@ -265,12 +275,15 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
             context: viewModel.cellDisplayContext
         )
         let cell = cellView(tableView, identifier: tableColumn.identifier)
+        // 外键列且本行该列非 NULL 时追加 `↗`（`specs/03-data-browsing.md` §10）。
+        let isForeignKey = viewModel.foreignKeyColumns.contains(column.name) && !cellModel.displayValue.isNull
         cell.configure(
             display: display,
             font: cellFont,
             isSelected: isSelected,
             changeKind: gridRow.changeKind,
-            isEdited: cellModel.isEdited
+            isEdited: cellModel.isEdited,
+            isForeignKey: isForeignKey
         )
         return cell
     }
@@ -429,6 +442,41 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         }
     }
 
+    // MARK: 外键跳转（`specs/03-data-browsing.md` §10）
+
+    /// `↗` 的可点击区宽度（单元格右侧）。
+    static let foreignKeyHitWidth: CGFloat = 22
+
+    /// 点击点是否落在外键行的 `↗` 上。
+    func isForeignKeyArrowHit(row: Int, column: Int, point: NSPoint) -> Bool {
+        guard let tableView,
+              row >= 0, row < viewModel.gridRows.count,
+              column > 0, column < tableView.tableColumns.count else { return false }
+        let name = tableView.tableColumns[column].identifier.rawValue
+        guard viewModel.foreignKeyColumns.contains(name),
+              let cell = viewModel.gridRows[row].cells[name],
+              !cell.displayValue.isNull else { return false }
+        // 布尔列显示为复选框时单元格不画 `↗`，命中区也一并取消，保持视觉与可点区一致。
+        if let columnInfo = viewModel.columns.first(where: { $0.name == name }),
+           columnInfo.isBooleanTinyInt, preferences.tinyintAsCheckbox {
+            return false
+        }
+        let frame = tableView.frameOfCell(atColumn: column, row: row)
+        return point.x >= frame.maxX - Self.foreignKeyHitWidth
+    }
+
+    /// 从网格“行 + 列”发起外键跳转（`↗`）。
+    func openForeignKey(row: Int, column: Int) {
+        guard let tableView,
+              row >= 0, row < viewModel.gridRows.count,
+              column > 0, column < tableView.tableColumns.count else { return }
+        let rowID = viewModel.gridRows[row].id
+        let columnName = tableView.tableColumns[column].identifier.rawValue
+        Task { [weak self] in
+            await self?.viewModel.openForeignKey(rowID: rowID, column: columnName)
+        }
+    }
+
     // MARK: 键盘与复制
 
     func moveFocusColumn(delta: Int) {
@@ -448,6 +496,56 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     func moveFocusToLastColumn() {
         focusedColumnName = viewModel.visibleColumns.last?.name
         pushSelection()
+    }
+
+    /// `⌘↑`：跳到当前页首行（`specs/02-workspace.md` §9）。
+    func moveFocusToFirstRow() {
+        moveFocus(toRowIndex: 0)
+    }
+
+    /// `⌘↓`：跳到当前页末行（`specs/02-workspace.md` §9）。
+    func moveFocusToLastRow() {
+        moveFocus(toRowIndex: viewModel.gridRows.count - 1)
+    }
+
+    private func moveFocus(toRowIndex index: Int) {
+        guard let tableView, !viewModel.gridRows.isEmpty,
+              index >= 0, index < viewModel.gridRows.count else { return }
+        if focusedColumnName == nil {
+            focusedColumnName = viewModel.visibleColumns.first?.name
+        }
+        isApplyingSelection = true
+        tableView.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
+        isApplyingSelection = false
+        tableView.scrollRowToVisible(index)
+        pushSelection()
+    }
+
+    /// `↩`：等价于双击选中单元格（可编辑表跳到字段栏，不可编辑表打开快速查看）。
+    func activateFocusedCell() {
+        guard let tableView,
+              tableView.selectedRow >= 0, tableView.selectedRow < viewModel.gridRows.count,
+              let column = focusedColumnName ?? viewModel.visibleColumns.first?.name else { return }
+        let gridRow = viewModel.gridRows[tableView.selectedRow]
+        if viewModel.isEditingEnabled, gridRow.changeKind != .deletion {
+            viewModel.focusInspector(rowID: gridRow.id, column: column)
+        } else {
+            presentQuickLook(rowID: gridRow.id, column: column)
+        }
+    }
+
+    /// 中键点击单元格：选中并快速查看（`specs/02-workspace.md` §9）。
+    func quickLook(row: Int, column: Int) {
+        guard let tableView, row >= 0, row < viewModel.gridRows.count,
+              column > 0, column < tableView.tableColumns.count else { return }
+        let rowID = viewModel.gridRows[row].id
+        let columnName = tableView.tableColumns[column].identifier.rawValue
+        focusedColumnName = columnName
+        isApplyingSelection = true
+        tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        isApplyingSelection = false
+        pushSelection()
+        presentQuickLook(rowID: rowID, column: columnName)
     }
 
     func copyDefault() {
@@ -577,6 +675,12 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         copyRow.isEnabled = viewModel.isEditingEnabled && canEditContextRow
         menu.addItem(copyRow)
 
+        // `specs/08-import-export.md` §1：右键选中行 →「导出选中行…」。读操作，只读连接也可用。
+        let exportRows = NSMenuItem(title: "导出选中行…", action: #selector(menuExportSelectedRows(_:)), keyEquivalent: "")
+        exportRows.target = self
+        exportRows.isEnabled = canExportSelectedRows
+        menu.addItem(exportRows)
+
         let delete = NSMenuItem(title: "删除行", action: #selector(menuDeleteRow(_:)), keyEquivalent: "")
         delete.target = self
         delete.isEnabled = viewModel.isEditingEnabled && canEditContextRow
@@ -594,6 +698,14 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         guard contextRow >= 0, contextRow < viewModel.gridRows.count else { return false }
         let row = viewModel.gridRows[contextRow]
         return row.changeKind != .deletion && (row.locator != nil || viewModel.isInsertionRow(rowID: row.id))
+    }
+
+    /// 是否有可导出的选中行（需主键定位键）。
+    private var canExportSelectedRows: Bool {
+        let ids = selectedRowIDsForAction(fallbackRow: contextRow)
+        guard !ids.isEmpty else { return false }
+        let rows = viewModel.gridRows.filter { ids.contains($0.id) }
+        return !rows.isEmpty && rows.allSatisfy { !($0.locator?.isEmpty ?? true) }
     }
 
     private var hasContextRowChange: Bool {
@@ -638,6 +750,12 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
 
     @objc private func menuDeleteRow(_ sender: NSMenuItem) {
         viewModel.deleteRows(rowIDs: selectedRowIDsForAction(fallbackRow: contextRow))
+    }
+
+    @objc private func menuExportSelectedRows(_ sender: NSMenuItem) {
+        let ids = selectedRowIDsForAction(fallbackRow: contextRow)
+        guard let source = viewModel.selectedRowsExportSource(rowIDs: ids) else { return }
+        onExport?(source)
     }
 
     @objc private func menuUndoRow(_ sender: NSMenuItem) {
@@ -728,6 +846,11 @@ final class DataGridTableView: NSTableView {
             gridCoordinator?.quickLookFocusedCell()
             return
         }
+        // ↩ / 小键盘 Enter：打开右侧字段栏并聚焦对应字段（等价于双击，`specs/02-workspace.md` §9）。
+        if flags.isEmpty, event.keyCode == 36 || event.keyCode == 76 {
+            gridCoordinator?.activateFocusedCell()
+            return
+        }
         switch event.keyCode {
         case 123: // ←
             if flags.contains(.command) {
@@ -743,10 +866,45 @@ final class DataGridTableView: NSTableView {
                 gridCoordinator?.moveFocusColumn(delta: 1)
             }
             return
+        case 125: // ↓
+            if flags.contains(.command) {
+                gridCoordinator?.moveFocusToLastRow()
+                return
+            }
+        case 126: // ↑
+            if flags.contains(.command) {
+                gridCoordinator?.moveFocusToFirstRow()
+                return
+            }
         default:
             break
         }
         super.keyDown(with: event)
+    }
+
+    /// 中键点击 = 快速查看（`specs/02-workspace.md` §9）。
+    override func otherMouseDown(with event: NSEvent) {
+        if event.buttonNumber == 2 {
+            let point = convert(event.locationInWindow, from: nil)
+            let row = self.row(at: point)
+            let column = self.column(at: point)
+            gridCoordinator?.quickLook(row: row, column: column)
+            return
+        }
+        super.otherMouseDown(with: event)
+    }
+
+    /// 左键点击：落在外键 `↗` 上时跳转，否则走表格默认的选中逻辑。
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let row = self.row(at: point)
+        let column = self.column(at: point)
+        if let coordinator = gridCoordinator,
+           coordinator.isForeignKeyArrowHit(row: row, column: column, point: point) {
+            coordinator.openForeignKey(row: row, column: column)
+            return
+        }
+        super.mouseDown(with: event)
     }
 
     @objc func copy(_ sender: Any?) {
@@ -800,6 +958,11 @@ final class GridCellView: NSTableCellView {
 
     private let valueLabel = NSTextField(labelWithString: "")
     private let checkboxButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    /// 已修改单元格左上角的小三角（`docs/tech-designs/07-data-grid.md` §4）。
+    private let editMarker = NSImageView()
+    /// 外键列尾部固定的 `↗`（`specs/03-data-browsing.md` §10）。
+    private let foreignKeyArrow = NSTextField(labelWithString: "↗")
+    private var foreignKeyWidthConstraint: NSLayoutConstraint!
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -821,10 +984,24 @@ final class GridCellView: NSTableCellView {
         valueLabel.drawsBackground = false
         valueLabel.maximumNumberOfLines = 1
         addSubview(valueLabel)
+
+        foreignKeyArrow.translatesAutoresizingMaskIntoConstraints = false
+        foreignKeyArrow.textColor = .controlAccentColor
+        foreignKeyArrow.isEditable = false
+        foreignKeyArrow.isSelectable = false
+        foreignKeyArrow.isBordered = false
+        foreignKeyArrow.drawsBackground = false
+        foreignKeyArrow.isHidden = true
+        addSubview(foreignKeyArrow)
+        foreignKeyWidthConstraint = foreignKeyArrow.widthAnchor.constraint(equalToConstant: 0)
         NSLayoutConstraint.activate([
             valueLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 5),
-            valueLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -5),
+            // 值末尾让位给尾部的 `↗`；箭头隐藏时其宽度为 0，值自然占满。
+            valueLabel.trailingAnchor.constraint(equalTo: foreignKeyArrow.leadingAnchor, constant: -3),
             valueLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            foreignKeyArrow.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            foreignKeyArrow.centerYAnchor.constraint(equalTo: centerYAnchor),
+            foreignKeyWidthConstraint,
         ])
 
         checkboxButton.translatesAutoresizingMaskIntoConstraints = false
@@ -838,6 +1015,20 @@ final class GridCellView: NSTableCellView {
             checkboxButton.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
         checkboxButton.isHidden = true
+
+        editMarker.image = NSImage(
+            systemSymbolName: "arrowtriangle.up.left.fill",
+            accessibilityDescription: "已修改"
+        )
+        editMarker.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 7, weight: .semibold)
+        editMarker.contentTintColor = .systemOrange
+        editMarker.translatesAutoresizingMaskIntoConstraints = false
+        editMarker.isHidden = true
+        addSubview(editMarker)
+        NSLayoutConstraint.activate([
+            editMarker.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 1),
+            editMarker.topAnchor.constraint(equalTo: topAnchor, constant: 1),
+        ])
     }
 
     func configure(
@@ -845,7 +1036,8 @@ final class GridCellView: NSTableCellView {
         font: NSFont,
         isSelected: Bool,
         changeKind: GridRowChangeKind? = nil,
-        isEdited: Bool = false
+        isEdited: Bool = false,
+        isForeignKey: Bool = false
     ) {
         toolTip = display.tooltip
         applyEditingBackground(changeKind: changeKind, isEdited: isEdited)
@@ -853,6 +1045,7 @@ final class GridCellView: NSTableCellView {
         if let state = display.checkbox {
             valueLabel.isHidden = true
             checkboxButton.isHidden = false
+            setForeignKeyArrow(false, font: font)
             switch state {
             case .off: checkboxButton.state = .off
             case .on: checkboxButton.state = .on
@@ -864,6 +1057,9 @@ final class GridCellView: NSTableCellView {
         checkboxButton.isHidden = true
         valueLabel.isHidden = false
         valueLabel.alignment = alignment(for: display.alignment)
+
+        // 外键列在本行非 NULL 时追加 `↗`；固定在最右侧，与 `isForeignKeyArrowHit` 的命中区对齐。
+        setForeignKeyArrow(isForeignKey && !display.isNull, font: font)
 
         // 已删除的行整行加删除线并变淡（`specs/03-data-browsing.md` §4）。
         if changeKind == .deletion {
@@ -885,9 +1081,23 @@ final class GridCellView: NSTableCellView {
         _ = isSelected
     }
 
-    /// 已修改单元格橙色底（`specs/04-data-editing.md` §3）。
+    /// 显示 / 隐藏尾部的 `↗`；隐藏时宽度归 0，不占值文本的空间。
+    private func setForeignKeyArrow(_ visible: Bool, font: NSFont) {
+        foreignKeyArrow.isHidden = !visible
+        foreignKeyWidthConstraint.constant = visible ? 13 : 0
+        foreignKeyArrow.font = font
+    }
+
+    /// 当前渲染的文本（不含尾部的 `↗`）；供单测断言。
+    var renderedText: String { valueLabel.attributedStringValue.string }
+
+    /// 外键 `↗` 是否可见；供单测断言。
+    var isForeignKeyIndicatorVisible: Bool { !foreignKeyArrow.isHidden }
+
+    /// 已修改单元格橙色底 + 左上角小三角（`specs/04-data-editing.md` §3、`07-data-grid.md` §4）。
     private func applyEditingBackground(changeKind: GridRowChangeKind?, isEdited: Bool) {
         wantsLayer = true
+        let isModified = changeKind == .update && isEdited
         switch changeKind {
         case .insertion:
             layer?.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.10).cgColor
@@ -898,6 +1108,7 @@ final class GridCellView: NSTableCellView {
         default:
             layer?.backgroundColor = NSColor.clear.cgColor
         }
+        editMarker.isHidden = !isModified
     }
 
     private func alignment(for alignment: CellAlignment) -> NSTextAlignment {
