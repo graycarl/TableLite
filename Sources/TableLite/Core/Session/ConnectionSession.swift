@@ -605,6 +605,18 @@ public final class ConnectionSession: Identifiable {
         services.workspace.setLayout(layout, connectionID: id, database: database, table: table)
     }
 
+    /// 读取「连接 + 库 + 表」记住的过滤条件（`09-filtering.md` §1.6）。
+    public func tableFilter(database: String, table: String) -> FilterState? {
+        guard services.preferences.rememberFilters else { return nil }
+        return services.workspace.filter(connectionID: id, database: database, table: table)
+    }
+
+    /// 保存过滤条件；偏好关闭时忽略。
+    public func saveTableFilter(database: String, table: String, filter: FilterState?) {
+        guard services.preferences.rememberFilters else { return }
+        services.workspace.setFilter(filter, connectionID: id, database: database, table: table)
+    }
+
     public var activeTab: Tab? {
         guard let activeTabID else { return tabs.first }
         return tabs.first { $0.id == activeTabID }

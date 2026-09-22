@@ -54,6 +54,20 @@ struct TableDataTabView: View {
                 if viewModel.isCommitting {
                     committingOverlay(viewModel)
                 }
+                if viewModel.isColumnFilterPresented {
+                    Color.black.opacity(0.12)
+                        .ignoresSafeArea()
+                        .onTapGesture { viewModel.dismissColumnFilter() }
+                    ColumnFilterPanel(
+                        columns: viewModel.columns,
+                        hidden: viewModel.hiddenColumns,
+                        onApply: { hidden in
+                            viewModel.applyColumnVisibility(hidden: hidden)
+                            viewModel.dismissColumnFilter()
+                        },
+                        onCancel: { viewModel.dismissColumnFilter() }
+                    )
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 

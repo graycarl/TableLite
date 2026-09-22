@@ -230,7 +230,22 @@ struct WorkspaceView: View {
     }
 
     private var workspaceActions: WorkspaceActions {
-        WorkspaceActions(
+        let tableModel = activeTableViewModel
+        let findAction: @MainActor () -> Void = {
+            // 表数据标签前台时 `⌘F` 开关行过滤器；否则聚焦对象树搜索框
+            // （`specs/02-workspace.md` §7、§9）。
+            if let tableModel {
+                tableModel.toggleFilterVisible()
+            } else {
+                showSidebar = true
+                searchFocusRequest += 1
+            }
+        }
+        let findColumnsAction: (@MainActor () -> Void)? = {
+            guard let tableModel else { return nil }
+            return { tableModel.presentColumnFilter() }
+        }()
+        return WorkspaceActions(
             newQuery: newQuery,
             closeTab: closeActiveTab,
             importCSV: { },
@@ -260,12 +275,9 @@ struct WorkspaceView: View {
             selectTab: { selectTab($0) },
             inspectorVisible: environment.preferences.showInspector,
             isReadOnly: session.isReadOnly,
-            pendingChangeCount: activeTableViewModel?.pendingCount ?? 0,
-            find: {
-                showSidebar = true
-                searchFocusRequest += 1
-            },
-            findColumns: nil
+            pendingChangeCount: tableModel?.pendingCount ?? 0,
+            find: findAction,
+            findColumns: findColumnsAction
         )
     }
 }

@@ -14,10 +14,12 @@ struct TableLiteApp: App {
 
     init() {
         SmokeRunner.runIfRequested()
-        // 隐藏的编辑链路端到端模式（`--edit-smoke`）：不碰真实数据目录，也不在 init 里阻塞等待。
-        let isEditSmoke = EditSmokeRunner.isRequested
-        _environment = State(initialValue: isEditSmoke ? AppEnvironment.makeFallback() : AppEnvironment.makeLiveOrFallback())
+        // 隐藏的编辑 / 过滤链路端到端模式（`--edit-smoke` / `--filter-smoke`）：
+        // 不碰真实数据目录，也不在 init 里阻塞等待。
+        let isHeadlessSmoke = EditSmokeRunner.isRequested || FilterSmokeRunner.isRequested
+        _environment = State(initialValue: isHeadlessSmoke ? AppEnvironment.makeFallback() : AppEnvironment.makeLiveOrFallback())
         EditSmokeRunner.scheduleIfRequested()
+        FilterSmokeRunner.scheduleIfRequested()
     }
 
     var body: some Scene {

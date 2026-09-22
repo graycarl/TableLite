@@ -80,7 +80,8 @@ final class DataGridBridgeTests: XCTestCase {
 
     func testColumnMenuReflectsVisibility() async throws {
         let (coordinator, _) = try await makeCoordinator()
-        let menu = coordinator.makeColumnMenu()
+        // 行号列（index 0）不提供筛选项。
+        let menu = coordinator.makeColumnMenu(columnIndex: 0)
         // 第一项是标题，其后每列一项。
         XCTAssertEqual(menu.items.count, 3)
         XCTAssertEqual(menu.items[1].state, .on)

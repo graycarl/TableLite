@@ -72,7 +72,20 @@ public final class TableDataViewModel {
     public private(set) var pageSize: Int
     public private(set) var sortOrders: [SortOrder]
     public private(set) var hiddenColumns: Set<String>
+    /// 实际生效（查询用）的过滤状态。
     public private(set) var filter: FilterState?
+    /// 过滤器面板编辑中的草稿；点「应用」才复制到 `filter`。
+    public internal(set) var filterDraft = FilterState()
+    /// 应用失败的错误文案（列不存在 / IN 列表为空 / Raw 含分号）。
+    public private(set) var filterError: String?
+    /// 出错条件的高亮集合（在面板里标黄）。
+    public private(set) var filterErrorConditionIDs: Set<UUID> = []
+    /// 列显隐浮层是否打开。
+    public private(set) var isColumnFilterPresented = false
+    /// 请求面板聚焦的计数器（⌘F / 快捷筛选后由视图响应）。
+    public internal(set) var filterFocusToken = 0
+    /// 需要聚焦的条件 id；nil 表示聚焦快速过滤框。
+    public internal(set) var filterFocusConditionID: UUID?
     public private(set) var columnWidths: [String: Double]
 
     // MARK: 选择
@@ -127,6 +140,9 @@ public final class TableDataViewModel {
     @ObservationIgnored private var activeTask: Task<Void, Never>?
     @ObservationIgnored private var fullLoadTask: Task<Void, Never>?
     @ObservationIgnored private var persistTask: Task<Void, Never>?
+    @ObservationIgnored private var quickFilterTask: Task<Void, Never>?
+    /// 快速过滤防抖时长；单测可置零。
+    internal static var quickFilterDebounceDelay: Duration = .milliseconds(250)
 
     // MARK: 初始化
 
@@ -153,7 +169,9 @@ public final class TableDataViewModel {
         self.pageIndex = tab.page.pageIndex
         self.sortOrders = tab.sort
         self.hiddenColumns = Set(tab.hiddenColumns)
-        self.filter = tab.filter
+        let rememberedFilter = session.tableFilter(database: self.database, table: self.table) ?? tab.filter
+        self.filter = rememberedFilter
+        self.filterDraft = rememberedFilter ?? FilterState()
         self.columnWidths = session.tableLayout(database: self.database, table: self.table)?.columnWidths ?? [:]
     }
 
@@ -193,11 +211,14 @@ public final class TableDataViewModel {
         fullLoadTask = nil
         persistTask?.cancel()
         persistTask = nil
+        quickFilterTask?.cancel()
+        quickFilterTask = nil
         Task { await session.cancelCurrentQuery() }
     }
 
     /// 等待当前挂起的加载（单测用）。
     public func waitForPendingWork() async {
+        await quickFilterTask?.value
         await activeTask?.value
         await fullLoadTask?.value
     }
@@ -275,7 +296,7 @@ public final class TableDataViewModel {
         primaryKeyColumns.isEmpty ? "该表没有主键，分页顺序不保证，且不可编辑" : nil
     }
 
-    public var isFilterVisible: Bool { filter?.isVisible ?? false }
+    public var isFilterVisible: Bool { filterDraft.isVisible }
 
     public var cellDisplayContext: CellDisplayContext {
         CellDisplayContext(
@@ -379,22 +400,349 @@ public final class TableDataViewModel {
         }
     }
 
-    // MARK: 过滤（T10 接入口）
+    // MARK: 过滤（T10）
 
+    /// 列名 → 列元数据。用于值控件类型与字面量生成。
+    public func columnInfo(named name: String) -> ColumnInfo? {
+        columns.first { $0.name == name }
+    }
+
+    /// 程序直接设置并应用过滤状态（T8 保留的接入口）。
     public func setFilter(_ state: FilterState?) {
-        filter = state
-        tab.filter = state
+        let newState = state ?? FilterState()
+        filterDraft = newState
+        filter = (newState.isActive || newState.isVisible) ? newState : nil
+        filterError = nil
+        filterErrorConditionIDs = []
         pageIndex = 0
+        persistFilter()
         syncTab()
         bumpRevision()
         startQuery()
     }
 
+    /// 打开 / 关闭过滤横条（`⌘F`）；打开时聚焦快速过滤框。
+    public func toggleFilterVisible() {
+        if filterDraft.isVisible {
+            setFilterVisible(false)
+        } else {
+            setFilterVisible(true)
+            requestFilterFocus()
+        }
+    }
+
     public func setFilterVisible(_ visible: Bool) {
-        var state = filter ?? FilterState()
-        state.isVisible = visible
-        filter = state
-        tab.filter = state
+        filterDraft.isVisible = visible
+        filter?.isVisible = visible
+        if visible, filter == nil {
+            filter = filterDraft
+        }
+        persistFilter()
+        syncTab()
+        bumpRevision()
+    }
+
+    /// 请求视图把焦点放到快速过滤框（`conditionID == nil`）或某条条件的值输入。
+    public func requestFilterFocus(conditionID: UUID? = nil) {
+        filterFocusConditionID = conditionID
+        filterFocusToken &+= 1
+    }
+
+    // MARK: 行过滤器的应用与重置
+
+    /// 点「应用」：校验 → 复制草稿到生效状态 → 回第 1 页重查。
+    public func applyFilter() {
+        let options = queryOptions
+        let result: FilterBuildResult
+        do {
+            result = try FilterSQLBuilder.whereClause(
+                for: filterDraft,
+                columns: columns,
+                escaping: options.escaping,
+                introducer: options.introducer
+            )
+        } catch {
+            presentFilterError(error)
+            return
+        }
+        filterError = nil
+        filterErrorConditionIDs = []
+        if !result.skippedConditionIDs.isEmpty {
+            showToast("已跳过 \(result.skippedConditionIDs.count) 条未填完整的条件")
+        }
+        if hasPendingChanges {
+            showToast("切换过滤条件会重新加载数据，你的修改会保留在暂存区")
+        }
+        filter = filterDraft
+        filterDraft.isVisible = true
+        filter?.isVisible = true
+        pageIndex = 0
+        persistFilter()
+        syncTab()
+        bumpRevision()
+        startQuery()
+    }
+
+    /// 点「重置」：清空全部条件（含快速过滤）并重新加载。
+    public func resetFilter() {
+        filterDraft.reset()
+        filterDraft.isVisible = true
+        filterError = nil
+        filterErrorConditionIDs = []
+        filter = filterDraft
+        pageIndex = 0
+        persistFilter()
+        syncTab()
+        bumpRevision()
+        startQuery()
+    }
+
+    private func presentFilterError(_ error: Error) {
+        guard let buildError = error as? FilterBuildError else {
+            filterError = Self.errorText(error)
+            filterErrorConditionIDs = []
+            bumpRevision()
+            return
+        }
+        filterError = buildError.message
+        if case .unknownColumns(_, let ids) = buildError {
+            filterErrorConditionIDs = Set(ids)
+        } else {
+            filterErrorConditionIDs = []
+        }
+        bumpRevision()
+    }
+
+    public func clearFilterError() {
+        guard filterError != nil || !filterErrorConditionIDs.isEmpty else { return }
+        filterError = nil
+        filterErrorConditionIDs = []
+        bumpRevision()
+    }
+
+    // MARK: 条件行编辑
+
+    @discardableResult
+    public func addFilterCondition(
+        column: String? = nil,
+        op: FilterOperator = .equal,
+        value: String = ""
+    ) -> UUID {
+        let name = column ?? columns.first?.name ?? ""
+        var condition = FilterCondition(column: name, op: op, value: value)
+        applyColumnInfo(to: &condition)
+        filterDraft.isRawMode = false
+        filterDraft.conditions.append(condition)
+        filterDraft.isVisible = true
+        clearFilterError()
+        persistFilter()
+        syncTab()
+        bumpRevision()
+        return condition.id
+    }
+
+    public func removeFilterCondition(id: UUID) {
+        filterDraft.conditions.removeAll { $0.id == id }
+        filterErrorConditionIDs.remove(id)
+        clearFilterError()
+        persistFilter()
+        syncTab()
+        bumpRevision()
+    }
+
+    public func setFilterConditionEnabled(id: UUID, enabled: Bool) {
+        updateCondition(id) { $0.isEnabled = enabled }
+    }
+
+    public func setFilterConditionColumn(id: UUID, column: String) {
+        updateCondition(id) { condition in
+            condition.column = column
+            self.applyColumnInfo(to: &condition)
+        }
+    }
+
+    public func setFilterConditionOperator(id: UUID, op: FilterOperator) {
+        updateCondition(id) { $0.op = op }
+    }
+
+    public func setFilterConditionValue(id: UUID, value: String) {
+        updateCondition(id) { $0.value = value }
+    }
+
+    public func setFilterConditionSecondValue(id: UUID, value: String) {
+        updateCondition(id) { $0.secondValue = value }
+    }
+
+    public func setFilterCombination(_ combination: FilterCombination) {
+        filterDraft.combination = combination
+        clearFilterError()
+        persistFilter()
+        syncTab()
+        bumpRevision()
+    }
+
+    /// 条件是否标记为「出错」（列不存在等）。
+    public func isFilterConditionErrored(_ id: UUID) -> Bool {
+        filterErrorConditionIDs.contains(id)
+    }
+
+    private func updateCondition(_ id: UUID, _ body: (inout FilterCondition) -> Void) {
+        guard let index = filterDraft.conditions.firstIndex(where: { $0.id == id }) else { return }
+        var condition = filterDraft.conditions[index]
+        body(&condition)
+        filterDraft.conditions[index] = condition
+        filterErrorConditionIDs.remove(id)
+        if filterError != nil { filterError = nil }
+        persistFilter()
+        syncTab()
+        bumpRevision()
+    }
+
+    private func applyColumnInfo(to condition: inout FilterCondition) {
+        guard let column = columns.first(where: { $0.name == condition.column }) else {
+            condition.fieldType = nil
+            condition.isBinary = false
+            return
+        }
+        condition.fieldType = column.fieldType
+        condition.isBinary = column.isBinary
+    }
+
+    // MARK: Raw SQL 模式
+
+    public func switchFilterToRawMode() {
+        filterDraft.switchToRawMode()
+        filterDraft.isVisible = true
+        clearFilterError()
+        persistFilter()
+        syncTab()
+        bumpRevision()
+        requestFilterFocus()
+        showToast("高级条件不会被校验，请自行确认语法正确")
+    }
+
+    public func switchFilterToConditionsMode() {
+        filterDraft.switchToConditionsMode()
+        clearFilterError()
+        persistFilter()
+        syncTab()
+        bumpRevision()
+    }
+
+    public func setRawWhere(_ text: String) {
+        filterDraft.rawWhere = text
+        clearFilterError()
+        persistFilter()
+        syncTab()
+        bumpRevision()
+    }
+
+    // MARK: 跨列快速过滤
+
+    /// 输入即触发（防抖）；文本为空时等价于清除。
+    public func setQuickFilter(_ text: String) {
+        filterDraft.quickFilter = text
+        persistFilter()
+        syncTab()
+        bumpRevision()
+        quickFilterTask?.cancel()
+        let delay = Self.quickFilterDebounceDelay
+        quickFilterTask = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            self?.applyQuickFilter()
+        }
+    }
+
+    /// 立即应用快速过滤（防抖到期 / 单测）。
+    public func applyQuickFilter() {
+        var applied = filter ?? filterDraft
+        applied.quickFilter = filterDraft.quickFilter
+        applied.isVisible = true
+        filter = applied
+        filterDraft.isVisible = true
+        pageIndex = 0
+        persistFilter()
+        syncTab()
+        bumpRevision()
+        startQuery()
+    }
+
+    /// 清空快速过滤并重新加载。
+    public func clearQuickFilter() {
+        quickFilterTask?.cancel()
+        quickFilterTask = nil
+        guard !filterDraft.quickFilter.isEmpty else { return }
+        filterDraft.quickFilter = ""
+        filter?.quickFilter = ""
+        pageIndex = 0
+        persistFilter()
+        syncTab()
+        bumpRevision()
+        startQuery()
+    }
+
+    // MARK: 快速筛选入口（右键 / 列头）
+
+    public func applyQuickFilter(_ action: FilterState.QuickFilterAction) {
+        switch action {
+        case .byColumn(let column):
+            filterDraft.isVisible = true
+            let id = addFilterCondition(column: column, op: .equal, value: "")
+            requestFilterFocus(conditionID: id)
+        case .byValue(let column, let value):
+            appendQuickCondition(column: column, op: .equal, value: value)
+        case .excludeValue(let column, let value):
+            appendQuickCondition(column: column, op: .notEqual, value: value)
+        }
+    }
+
+    /// 右键单元格「按此值筛选 / 排除此值」：`NULL` 转成 `IS NULL` / `IS NOT NULL`。
+    public func filterByCellValue(rowID: String, column: String, exclude: Bool) {
+        guard let row = gridRows.first(where: { $0.id == rowID }),
+              let value = row.cells[column]?.displayValue else { return }
+        switch value {
+        case .null:
+            appendQuickCondition(column: column, op: exclude ? .isNotNull : .isNull, value: "")
+        default:
+            appendQuickCondition(column: column, op: exclude ? .notEqual : .equal, value: value.textValue ?? "")
+        }
+    }
+
+    private func appendQuickCondition(column: String, op: FilterOperator, value: String) {
+        filterDraft.switchToConditionsMode()
+        var condition = FilterCondition(column: column, op: op, value: value)
+        applyColumnInfo(to: &condition)
+        filterDraft.conditions.append(condition)
+        filterDraft.isVisible = true
+        filterError = nil
+        filterErrorConditionIDs = []
+        filter = filterDraft
+        pageIndex = 0
+        persistFilter()
+        syncTab()
+        bumpRevision()
+        startQuery()
+    }
+
+    // MARK: 列显隐浮层
+
+    public func presentColumnFilter() {
+        isColumnFilterPresented = true
+        bumpRevision()
+    }
+
+    public func dismissColumnFilter() {
+        isColumnFilterPresented = false
+        bumpRevision()
+    }
+
+    /// 应用列显隐（至少保留一列可见）。
+    public func applyColumnVisibility(hidden: Set<String>) {
+        guard hidden.count < columns.count else { return }
+        hiddenColumns = hidden
+        syncTab()
+        persistLayout()
         bumpRevision()
     }
 
@@ -733,12 +1081,20 @@ public final class TableDataViewModel {
 
     private var filterClause: String? {
         guard let filter, filter.isActive else { return nil }
-        return try? FilterSQLBuilder.whereClause(
+        let options = queryOptions
+        let conditions = try? FilterSQLBuilder.whereClause(
             for: filter,
             columns: columns,
-            escaping: queryOptions.escaping,
-            introducer: queryOptions.introducer
+            escaping: options.escaping,
+            introducer: options.introducer
         ).clause
+        let quick = FilterSQLBuilder.quickFilterClause(
+            filter.quickFilter,
+            columns: visibleColumns,
+            escaping: options.escaping,
+            introducer: options.introducer
+        )
+        return FilterSQLBuilder.combine(conditions, quick)
     }
 
     private func exactCountSQL() -> String {
@@ -931,9 +1287,15 @@ public final class TableDataViewModel {
         page.rowCount = rowCountEstimate
         tab.page = page
         tab.sort = sortOrders
-        tab.filter = filter
+        tab.filter = filterDraft
         tab.hiddenColumns = columns.map(\.name).filter { hiddenColumns.contains($0) }
         tab.focusedColumn = focusedColumn
+    }
+
+    /// 把过滤器草稿写回 WorkspaceStateStore（偏好关闭时自然被 `saveTableFilter` 忽略）。
+    private func persistFilter() {
+        let hasContent = filterDraft.isActive || filterDraft.isVisible
+        session.saveTableFilter(database: database, table: table, filter: hasContent ? filterDraft : nil)
     }
 
     private func schedulePersistLayout() {

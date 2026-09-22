@@ -100,6 +100,24 @@ if [[ $status -eq 0 ]]; then
       printf "\n${RED}编辑冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
     fi
   fi
+  # -------------------------------------------------------------- 过滤链路
+  if [[ "${SMOKE_FILTER:-1}" == "1" ]]; then
+    printf "\n${DIM}过滤链路端到端（--filter-smoke）：行过滤器 / 快速过滤 / Raw / 列显隐 …${RESET}\n"
+    set +e
+    MYSQL_HOST="$MYSQL_HOST" \
+    MYSQL_PORT="$MYSQL_PORT" \
+    MYSQL_USER="$MYSQL_USER" \
+    MYSQL_PASSWORD="$MYSQL_PASSWORD" \
+    MYSQL_DATABASE="${MYSQL_DATABASE:-tablelite_smoke}" \
+      "$BINARY" --filter-smoke
+    status=$?
+    set -e
+    if [[ $status -eq 0 ]]; then
+      printf "\n${GREEN}过滤冒烟验证通过。${RESET}\n"
+    else
+      printf "\n${RED}过滤冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
+    fi
+  fi
 else
   printf "\n${RED}冒烟验证失败（退出码 %d）。${RESET}\n" "$status"
 fi

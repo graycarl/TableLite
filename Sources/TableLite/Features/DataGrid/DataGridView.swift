@@ -495,8 +495,20 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         viewModel.toggleSort(column: name, additive: additive)
     }
 
-    func makeColumnMenu() -> NSMenu {
+    func makeColumnMenu(columnIndex: Int) -> NSMenu {
         let menu = NSMenu()
+        if let tableView, columnIndex > 0, columnIndex < tableView.tableColumns.count {
+            let name = tableView.tableColumns[columnIndex].identifier.rawValue
+            let filterItem = NSMenuItem(
+                title: "按此列筛选",
+                action: #selector(menuFilterByColumn(_:)),
+                keyEquivalent: ""
+            )
+            filterItem.target = self
+            filterItem.representedObject = name
+            menu.addItem(filterItem)
+            menu.addItem(.separator())
+        }
         let title = NSMenuItem(title: "显示 / 隐藏列", action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
@@ -508,6 +520,11 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
             menu.addItem(item)
         }
         return menu
+    }
+
+    @objc private func menuFilterByColumn(_ sender: NSMenuItem) {
+        guard let name = sender.representedObject as? String else { return }
+        viewModel.applyQuickFilter(.byColumn(column: name))
     }
 
     @objc private func toggleColumnVisibility(_ sender: NSMenuItem) {
@@ -539,11 +556,13 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         menu.addItem(.separator())
 
         // T10：「按此值筛选 / 排除此值」。
-        let filter = NSMenuItem(title: "按此值筛选", action: nil, keyEquivalent: "")
-        filter.isEnabled = false
+        let filter = NSMenuItem(title: "按此值筛选", action: #selector(menuFilterByValue(_:)), keyEquivalent: "")
+        filter.target = self
+        filter.isEnabled = canFilterContextCell
         menu.addItem(filter)
-        let exclude = NSMenuItem(title: "排除此值", action: nil, keyEquivalent: "")
-        exclude.isEnabled = false
+        let exclude = NSMenuItem(title: "排除此值", action: #selector(menuExcludeValue(_:)), keyEquivalent: "")
+        exclude.target = self
+        exclude.isEnabled = canFilterContextCell
         menu.addItem(exclude)
         menu.addItem(.separator())
 
@@ -580,6 +599,36 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     private var hasContextRowChange: Bool {
         guard contextRow >= 0, contextRow < viewModel.gridRows.count else { return false }
         return viewModel.rowChangeKind(rowID: viewModel.gridRows[contextRow].id) != nil
+    }
+
+    /// 上下文单元格是否可以拿来做值筛选。
+    private var canFilterContextCell: Bool {
+        guard let tableView, contextRow >= 0, contextRow < viewModel.gridRows.count,
+              contextColumn > 0, contextColumn < tableView.tableColumns.count else { return false }
+        return true
+    }
+
+    @objc private func menuFilterByValue(_ sender: NSMenuItem) {
+        filterContextCell(exclude: false)
+    }
+
+    @objc private func menuExcludeValue(_ sender: NSMenuItem) {
+        filterContextCell(exclude: true)
+    }
+
+    private func filterContextCell(exclude: Bool) {
+        guard let tableView, contextRow >= 0, contextRow < viewModel.gridRows.count,
+              contextColumn > 0, contextColumn < tableView.tableColumns.count else { return }
+        viewModel.filterByCellValue(
+            rowID: viewModel.gridRows[contextRow].id,
+            column: tableView.tableColumns[contextColumn].identifier.rawValue,
+            exclude: exclude
+        )
+    }
+
+    /// 过滤面板打开时 `⌘I` 归面板（`specs/02-workspace.md` §9）。
+    func addFilterCondition() {
+        viewModel.addFilterCondition()
     }
 
     @objc private func menuCopyRow(_ sender: NSMenuItem) {
@@ -657,7 +706,11 @@ final class DataGridTableView: NSTableView {
         if flags == .command, let characters = event.charactersIgnoringModifiers {
             switch characters.lowercased() {
             case "i":
-                gridCoordinator?.insertRow()
+                if gridCoordinator?.viewModel.isFilterVisible == true {
+                    gridCoordinator?.addFilterCondition()
+                } else {
+                    gridCoordinator?.insertRow()
+                }
                 return
             case "d":
                 gridCoordinator?.copySelectedRows()
@@ -722,7 +775,9 @@ final class GridHeaderView: NSTableHeaderView {
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
-        coordinator?.makeColumnMenu()
+        let point = convert(event.locationInWindow, from: nil)
+        let index = column(at: point)
+        return coordinator?.makeColumnMenu(columnIndex: index)
     }
 
     private func isOnDivider(_ point: NSPoint) -> Bool {
