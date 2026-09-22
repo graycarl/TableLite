@@ -105,3 +105,10 @@ xcodebuild -runFirstLaunch
 - [ ] `otool -L` 检查通过，App 启动时不缺动态库。**注意 Xcode 27 的 Debug 构建会把实际代码放进 `TableLite.debug.dylib`，主二进制只是个壳 —— 要检查的是 `TableLite.app/Contents/MacOS/TableLite.debug.dylib`；Release 构建才直接看主二进制**
 - [ ] 冒烟脚本的 7 项验证全部通过（见 `03-mysql-layer.md` §8）
 - [ ] 退出 App 后没有残留的 ssh 进程
+
+## 7. App 图标（决策记录）
+
+- **脚本生成，不引入外部素材**：`scripts/make-appicon.swift` 用 CoreGraphics 画图，一次产出 `AppIcon.appiconset` 的全部尺寸与 `Contents.json`。改图标＝改脚本再跑一次，仓库里没有设计源文件（与 §1 的「零第三方依赖」一致）。
+- **构图**：靛蓝渐变圆角方块 + 白色数据表面板（浅灰网格、单元格里的数据条），其中一整行用薄荷色高亮 —— 直接对上产品主场景「可编辑的数据网格」。
+- **尺寸对齐苹果图标网格**：1024 画布里形状 816×816、阴影 offset −4 / blur 18，不透明包围盒落在上 88 / 左右 80 / 下 72，与系统自带图标一致。**不要**画满 1024 的方块 —— 那在 Dock 里比邻居大一圈。
+- **小尺寸不单独出美术稿**：16 / 32 / 64 px 由同一套绘制参数按尺寸切换（减少行列、加粗网格线、去掉数据条），只保证轮廓与高亮行可辨（S37）。

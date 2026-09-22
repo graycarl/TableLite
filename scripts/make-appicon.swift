@@ -6,101 +6,196 @@
 // 产物：Sources/TableLite/Resources/Assets.xcassets/AppIcon.appiconset/ 下
 //       1024 主图 + macOS 需要的全部 1x / 2x 尺寸，以及 Contents.json。
 //
-// 图标主题：圆角矩形底 + 蓝紫渐变，中间是一张白底的「表」（表头条 + 2 列 3 行网格）。
+// 设计（关键决策见 docs/tech-designs/12-build-and-deps.md §4「App 图标」）：
+//   · 圆角方块，靛蓝渐变底，左上角一点高光；
+//   · 中间一块白色「数据表」面板：浅灰网格 + 各单元格里的数据条；
+//   · 其中一整行用薄荷色高亮 —— 一眼看出「这是一个可以选中 / 编辑的数据网格」。
+//   小尺寸不做等比缩小，而是减少行列、加粗网格线，保证 16 / 32 px 下仍然清楚。
+//
+// 尺寸对齐苹果 macOS 图标网格：1024 画布内形状 816×816，
+// 加阴影后的不透明包围盒 ≈ 864（inset 上 88 / 左右 80 / 下 72），与系统自带图标一致。
 
 import AppKit
 import CoreGraphics
 import Foundation
 
+// MARK: - 设计常量
+
+/// 圆角方块在 1024 画布里的内缩量（816×816）。
+private let shapeInset: CGFloat = 104
+/// 面板相对方块的内缩量。
+private let panelInset: CGFloat = 142
+/// 面板圆角。
+private let panelRadius: CGFloat = 86
+
+private func rgb(_ value: UInt32, _ alpha: CGFloat = 1) -> NSColor {
+    NSColor(srgbRed: CGFloat((value >> 16) & 0xFF) / 255,
+            green: CGFloat((value >> 8) & 0xFF) / 255,
+            blue: CGFloat(value & 0xFF) / 255,
+            alpha: alpha)
+}
+
+private let gradientTop = rgb(0x5C7BFF)
+private let gradientBottom = rgb(0x1C28C4)
+private let highlightColor = rgb(0x36E2C0)   // 高亮行
+private let gridColor = rgb(0xD5DCEB)        // 网格线与数据条
+private let shadowColor = rgb(0x0A1024, 0.30)
+
 // MARK: - 矢量绘制
 
+/// 苹果风格 squircle（超椭圆 n = 5 的近似，n = 2 是椭圆，越大越方）。
+private func squircle(_ rect: CGRect) -> CGPath {
+    let path = CGMutablePath()
+    let a = rect.width / 2, b = rect.height / 2
+    let exponent: CGFloat = 2 / 5
+    let steps = 900
+    for index in 0...steps {
+        let t = CGFloat(index) / CGFloat(steps) * 2 * .pi
+        let ct = cos(t), st = sin(t)
+        let x = rect.midX + a * pow(abs(ct), exponent) * (ct < 0 ? -1 : 1)
+        let y = rect.midY + b * pow(abs(st), exponent) * (st < 0 ? -1 : 1)
+        index == 0 ? path.move(to: CGPoint(x: x, y: y)) : path.addLine(to: CGPoint(x: x, y: y))
+    }
+    path.closeSubpath()
+    return path
+}
+
+private func roundedRect(_ rect: CGRect, _ radius: CGFloat) -> CGPath {
+    CGPath(roundedRect: rect, cornerWidth: radius, cornerHeight: radius, transform: nil)
+}
+
+private extension CGContext {
+    /// 用竖直渐变填充路径。
+    func fillGradient(_ path: CGPath, _ colors: [NSColor], from start: CGPoint, to end: CGPoint) {
+        saveGState()
+        addPath(path)
+        clip()
+        let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                                  colors: colors.map(\.cgColor) as CFArray,
+                                  locations: nil)!
+        drawLinearGradient(gradient, start: start, end: end,
+                           options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+        restoreGState()
+    }
+
+    func fill(_ path: CGPath, _ color: NSColor) {
+        saveGState()
+        addPath(path)
+        setFillColor(color.cgColor)
+        fillPath()
+        restoreGState()
+    }
+
+    func strokeLines(_ color: NSColor, width: CGFloat, _ build: () -> Void) {
+        saveGState()
+        setStrokeColor(color.cgColor)
+        setLineWidth(width)
+        setLineCap(.round)
+        beginPath()
+        build()
+        strokePath()
+        restoreGState()
+    }
+}
+
+/// 小尺寸下的简化策略：行列更少、线更粗，信息量下降但轮廓不变。
+private struct GridLayout {
+    let columns: Int
+    let rows: Int
+    let lineWidth: CGFloat
+    let showsBars: Bool
+
+    static func forSize(_ size: CGFloat) -> GridLayout {
+        switch size {
+        case ..<48: GridLayout(columns: 2, rows: 3, lineWidth: 34, showsBars: false)
+        case ..<96: GridLayout(columns: 3, rows: 3, lineWidth: 24, showsBars: false)
+        default: GridLayout(columns: 3, rows: 4, lineWidth: 13, showsBars: true)
+        }
+    }
+}
+
 /// 在一个边长为 `size` 的上下文中画图标。所有坐标按 `size / 1024` 缩放。
-func drawIcon(in context: CGContext, size: CGFloat) {
-    let scale = size / 1024
-    let canvas = CGRect(x: 0, y: 0, width: size, height: size)
+private func drawIcon(in context: CGContext, size: CGFloat) {
+    context.scaleBy(x: size / 1024, y: size / 1024)
 
-    // 圆角矩形底（macOS Big Sur 的 squircle 近似半径）。
-    let cornerRadius = 1024 * 0.2237 * scale
-    let background = CGPath(
-        roundedRect: canvas,
-        cornerWidth: cornerRadius,
-        cornerHeight: cornerRadius,
-        transform: nil
-    )
+    let layout = GridLayout.forSize(size)
+    let shape = CGRect(x: shapeInset, y: shapeInset,
+                       width: 1024 - shapeInset * 2, height: 1024 - shapeInset * 2)
+    let shapePath = squircle(shape)
+
+    // 投影：小尺寸下省掉，避免 16px 糊成一团。
+    if size >= 32 {
+        context.saveGState()
+        context.setShadow(offset: CGSize(width: 0, height: -4), blur: 18, color: shadowColor.cgColor)
+        context.fill(shapePath, .black)
+        context.restoreGState()
+    }
+
+    // 底色
+    context.fillGradient(shapePath, [gradientTop, gradientBottom],
+                         from: CGPoint(x: 104, y: 920), to: CGPoint(x: 104, y: 104))
+    // 左上角高光
     context.saveGState()
-    context.addPath(background)
+    context.addPath(shapePath)
     context.clip()
-
-    let colorSpace = CGColorSpaceCreateDeviceRGB()
-    let topColor = NSColor(calibratedRed: 0.29, green: 0.53, blue: 0.98, alpha: 1).cgColor
-    let bottomColor = NSColor(calibratedRed: 0.15, green: 0.28, blue: 0.82, alpha: 1).cgColor
-    let gradient = CGGradient(
-        colorsSpace: colorSpace,
-        colors: [topColor, bottomColor] as CFArray,
-        locations: [0, 1]
-    )!
-    context.drawLinearGradient(
-        gradient,
-        start: CGPoint(x: 0, y: size),
-        end: CGPoint(x: 0, y: 0),
-        options: []
-    )
-
-    // 白底卡片。
-    let margin = 190 * scale
-    let card = CGRect(x: margin, y: margin, width: size - margin * 2, height: size - margin * 2)
-    let cardRadius = 110 * scale
-    let cardPath = CGPath(
-        roundedRect: card,
-        cornerWidth: cardRadius,
-        cornerHeight: cardRadius,
-        transform: nil
-    )
-    context.addPath(cardPath)
-    context.setFillColor(NSColor.white.withAlphaComponent(0.96).cgColor)
-    context.fillPath()
-
-    // 表头条（更深的蓝）。
-    context.saveGState()
-    context.addPath(cardPath)
-    context.clip()
-    let headerHeight = card.height * 0.24
-    let header = CGRect(x: card.minX, y: card.maxY - headerHeight, width: card.width, height: headerHeight)
-    context.setFillColor(NSColor(calibratedRed: 0.20, green: 0.38, blue: 0.88, alpha: 1).cgColor)
-    context.fill(header)
+    let sheen = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                           colors: [NSColor.white.withAlphaComponent(0.20).cgColor,
+                                    NSColor.white.withAlphaComponent(0).cgColor] as CFArray,
+                           locations: [0, 1])!
+    context.drawRadialGradient(sheen, startCenter: CGPoint(x: 360, y: 820), startRadius: 0,
+                               endCenter: CGPoint(x: 360, y: 820), endRadius: 780, options: [])
     context.restoreGState()
 
-    // 网格线：2 列 × 3 行，用浅蓝灰。
-    let lineColor = NSColor(calibratedRed: 0.62, green: 0.70, blue: 0.86, alpha: 1).cgColor
-    let lineWidth = 12 * scale
-    let bodyTop = card.maxY - headerHeight
-    let columnDividerX = card.midX
+    // 白色数据表面板
+    let panel = shape.insetBy(dx: panelInset, dy: panelInset)
+    let panelPath = roundedRect(panel, panelRadius)
+    context.saveGState()
+    context.setShadow(offset: CGSize(width: 0, height: -6), blur: 18, color: shadowColor.cgColor)
+    context.fill(panelPath, .white)
+    context.restoreGState()
 
-    context.setStrokeColor(lineColor)
-    context.setLineWidth(lineWidth)
-    // 竖线
-    context.move(to: CGPoint(x: columnDividerX, y: card.minY + 6 * scale))
-    context.addLine(to: CGPoint(x: columnDividerX, y: bodyTop - 6 * scale))
-    context.strokePath()
-    // 横线（把表体分成 3 行）
-    for index in 1..<3 {
-        let y = card.minY + card.height * CGFloat(index) / 3
-        context.move(to: CGPoint(x: card.minX + 6 * scale, y: y))
-        context.addLine(to: CGPoint(x: card.maxX - 6 * scale, y: y))
+    // 面板内容：网格 + 数据条 + 一整行高亮
+    context.saveGState()
+    context.addPath(panelPath)
+    context.clip()
+
+    let columns = layout.columns, rows = layout.rows
+    let cellWidth = panel.width / CGFloat(columns), rowHeight = panel.height / CGFloat(rows)
+    let highlightedRow = rows / 2
+
+    func rowRect(_ row: Int) -> CGRect {
+        CGRect(x: panel.minX, y: panel.maxY - rowHeight * CGFloat(row + 1),
+               width: panel.width, height: rowHeight)
     }
-    context.strokePath()
 
-    // 表头里两处「列名」色块，弱化。
-    let chipColor = NSColor.white.withAlphaComponent(0.75).cgColor
-    context.setFillColor(chipColor)
-    let chipHeight = headerHeight * 0.30
-    let chipY = header.midY - chipHeight / 2
-    let chipWidths: [CGFloat] = [0.24, 0.30]
-    var chipX = card.minX + card.width * 0.10
-    for widthRatio in chipWidths {
-        let width = card.width * widthRatio
-        context.fill(CGRect(x: chipX, y: chipY, width: width, height: chipHeight))
-        chipX += width + card.width * 0.10
+    context.setFillColor(highlightColor.cgColor)
+    context.fill(rowRect(highlightedRow))
+    context.strokeLines(gridColor, width: layout.lineWidth) {
+        for column in 1..<columns {
+            let x = panel.minX + cellWidth * CGFloat(column)
+            context.move(to: CGPoint(x: x, y: panel.minY))
+            context.addLine(to: CGPoint(x: x, y: panel.maxY))
+        }
+        for row in 1..<rows {
+            let y = panel.minY + rowHeight * CGFloat(row)
+            context.move(to: CGPoint(x: panel.minX, y: y))
+            context.addLine(to: CGPoint(x: panel.maxX, y: y))
+        }
+    }
+
+    if layout.showsBars {
+        let barHeight = rowHeight * 0.20
+        for row in 0..<rows where row != highlightedRow {
+            for column in 0..<columns {
+                let cell = CGRect(x: panel.minX + cellWidth * CGFloat(column),
+                                  y: panel.maxY - rowHeight * CGFloat(row + 1),
+                                  width: cellWidth, height: rowHeight)
+                let width = cell.width * (column == columns - 1 ? 0.42 : 0.62)
+                let bar = CGRect(x: cell.minX + cell.width * 0.22, y: cell.midY - barHeight / 2,
+                                 width: width, height: barHeight)
+                context.fill(roundedRect(bar, barHeight / 2), gridColor)
+            }
+        }
     }
 
     context.restoreGState()
@@ -108,7 +203,7 @@ func drawIcon(in context: CGContext, size: CGFloat) {
 
 // MARK: - 输出
 
-func pngData(pixelSize: Int) -> Data {
+private func pngData(pixelSize: Int) -> Data {
     let colorSpace = CGColorSpaceCreateDeviceRGB()
     guard let context = CGContext(
         data: nil,

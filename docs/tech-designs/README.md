@@ -72,6 +72,7 @@
 | 界面语言 | 文案硬编码中文，不引入本地化资源 | [06](06-ui-layer.md) §8 |
 | 可测试性 | 手写协议 + `AppEnvironment` 注入（`Clock` / `CredentialStore` / `FileSystemLocator`），不引入 DI 框架 | [15](15-testing.md) §3 |
 | 分发 | `make run` 日常验证、`make dist` 出 Release zip；产物依赖目标机 Homebrew | [12](12-build-and-deps.md) §4.1 |
+| App 图标 | 脚本矢量生成、不引入外部素材；尺寸对齐苹果图标网格；小尺寸参数化简化 | [12](12-build-and-deps.md) §7 |
 
 「无主键表置为只读」这类**用户可感知的行为**由 `specs/` 定义（见 [`../../specs/04-data-editing.md`](../../specs/04-data-editing.md) §2），
 实现侧的判定规则与文案见 [08-pending-changes.md](08-pending-changes.md) §7，不在这里重复。

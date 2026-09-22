@@ -48,6 +48,7 @@
 | S34 | CSV 导入空字段默认视为 `NULL` | 与导出默认「空串表示 NULL」形成往返；改默认只动 `ImportOptions.emptyFieldIsNull` 一处 |
 | S35 | 导入「事务模式」与「遇错继续」互斥 | 勾事务即全部成功或全部回滚，忽略 continueOnError；`TRUNCATE` 是 DDL 隐式提交，在事务外先执行 |
 | S36 | 启动不恢复会话 | 每次启动都进连接列表，不自动连接、不自动进工作区；`session.json` 降级为「按连接记住标签现场」，用户连上该连接时才还原。删除偏好「恢复上次打开的标签」（`session.json` 里残留的旧字段 / 旧偏好键忽略即可）。见 `specs/01-connections.md` §1/§7、`specs/11-preferences.md` §1、`05-session-management.md` §8 |
+| S37 | App 图标不为小尺寸单独出美术稿 | 16 / 32 / 64 px 由同一套绘制参数按尺寸切换：减少行列、加粗网格线、去掉数据条。只保证轮廓与高亮行可辨，不做像素级手工调整。见 `12-build-and-deps.md` §7 |
 
 ## 2. 已知限制
 
