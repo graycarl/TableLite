@@ -8,10 +8,10 @@ import Foundation
 public enum ExportSource: Sendable, Equatable {
     /// 对象树右键表 →「导出…」：整张表，不受过滤条件影响。
     case table(database: String, table: String)
-    /// 数据视图状态栏「导出…」：当前过滤条件下的全部数据（不是当前页）。
+    /// 数据视图状态栏「导出…」：当前过滤条件下的全部数据（不是只加载的前 N 行）。
     ///
     /// `filterSummary` 是**真实**的过滤条件文本（取自 `FilterSQLBuilder` 生成的 `WHERE` 子句），
-    /// `rowCountEstimate` 是当前过滤条件下界面已知的行数估算（来自分页栏的同一份估算）。
+    /// `rowCountEstimate` 是当前过滤条件下界面已知的行数估算（来自显示条数栏的同一份估算）。
     case filteredTable(
         database: String,
         table: String,

@@ -76,9 +76,9 @@ public enum GridRowChangeKind: Sendable, Equatable {
 
 /// 网格里的一行。
 public struct GridRow: Identifiable, Sendable, Equatable {
-    /// Diffable / 选中恢复用的行身份。有主键时是定位键字符串，否则是页内合成 id。
+    /// Diffable / 选中恢复用的行身份。有主键时是定位键字符串，否则是本次加载内合成 id。
     public let id: String
-    /// 页内下标（0-based，不含用于探测下一页的那一行）。
+    /// 本次加载内下标（0-based）。
     public let rowIndexInPage: Int
     /// 行定位键；无主键的表为 nil。
     public let locator: RowLocator?

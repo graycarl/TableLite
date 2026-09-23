@@ -452,7 +452,7 @@
   <!-- 操作说明 -->
   <line class="ln" x1="20" y1="388" x2="980" y2="388"/>
   <text class="s" x="20" y="410">单击 → 在下方预览完整 SQL　·　双击 → 插入到当前查询标签　·　右键 → 复制 / 在新标签打开 / 删除该条</text>
-  <text class="fnt s" x="20" y="430">只记录从 SQL 编辑器执行过的语句。分页、元数据读取这些客户端自动发的查询不会进来（它们在 Console Log 里）。</text>
+  <text class="fnt s" x="20" y="430">只记录从 SQL 编辑器执行过的语句。表数据加载、元数据读取这些客户端自动发的查询不会进来（它们在 Console Log 里）。</text>
 </svg>
 <figcaption><b>图 6-5</b>　查询历史。默认保留最近 5000 条。</figcaption>
 </figure>
@@ -460,7 +460,7 @@
 <table>
 <thead><tr><th>项</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td>记录范围</td><td><b>只记录从 SQL 编辑器执行的语句。</b>表分页、元数据读取这类客户端自动发出的查询不记录</td></tr>
+<tr><td>记录范围</td><td><b>只记录从 SQL 编辑器执行的语句。</b>表数据加载、元数据读取这类客户端自动发出的查询不记录</td></tr>
 <tr><td>搜索</td><td>按 SQL 内容搜索；按连接过滤；按时间范围过滤</td></tr>
 <tr><td>每条包含</td><td>时间、成功 / 失败、耗时、返回行数或影响行数、完整 SQL</td></tr>
 <tr><td>保留条数</td><td>默认最近 5000 条</td></tr>
@@ -550,7 +550,7 @@
 <table>
 <thead><tr><th>项</th><th>说明</th></tr></thead>
 <tbody>
-<tr><td>记录范围</td><td><b>所有</b>发给数据库的语句：元数据查询、分页查询、事务控制语句、取消查询的操作，全都在</td></tr>
+<tr><td>记录范围</td><td><b>所有</b>发给数据库的语句：元数据查询、表数据查询、事务控制语句、取消查询的操作，全都在</td></tr>
 <tr><td>两类标签</td><td><code>[data]</code> 用户发起的；<code>[meta]</code> 客户端自动发的</td></tr>
 <tr><td>过滤</td><td><code>全部</code> / <code>仅数据语句</code> / <code>仅元数据</code></td></tr>
 <tr><td>展开</td><td>每条可以展开看完整 SQL 与执行结果概要；失败的标红</td></tr>

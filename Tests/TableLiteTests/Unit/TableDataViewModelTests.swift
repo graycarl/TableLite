@@ -66,55 +66,43 @@ final class TableDataViewModelTests: XCTestCase {
         )
     }
 
-    // MARK: 分页
+    // MARK: 显示条数
 
-    func testLoadsOnlyCurrentPageAndDetectsNext() async throws {
+    func testLoadsOnlyRowLimit() async throws {
         harness.preferences.lazyLargeColumns = false
         let session = try await makeSession()
         let (viewModel, _) = makeViewModel(session: session)
-        await harness.mysql.setResponses([pageResponse(rowCount: 301)])
+        await harness.mysql.setResponses([pageResponse(rowCount: 300)])
 
         await viewModel.start()
 
         XCTAssertEqual(viewModel.loadState, .loaded)
         XCTAssertEqual(viewModel.rows.count, 300)
-        XCTAssertTrue(viewModel.hasNextPage)
-        XCTAssertEqual(viewModel.pageState.offset, 0)
-        // 只取 pageSize + 1 行，绝不整表拉取。
+        // 只取前 N 行，不分页、不带 OFFSET。
         let executed = await harness.mysql.executedSQL
-        XCTAssertTrue(executed.contains { $0.contains("LIMIT 301") })
-
-        // 翻到下一页会带 OFFSET。
-        await harness.mysql.setResponses([pageResponse(rowCount: 300, startIndex: 301)])
-        viewModel.goToNextPage()
-        await viewModel.waitForPendingWork()
-        XCTAssertEqual(viewModel.pageIndex, 1)
-        let second = await harness.mysql.executedSQL.last ?? ""
-        XCTAssertTrue(second.contains("LIMIT 301 OFFSET 300"))
-        XCTAssertEqual(viewModel.rows.first?.cells["id"]?.value, .text("301"))
+        XCTAssertTrue(executed.contains { $0.contains("LIMIT 300") })
+        XCTAssertFalse(executed.contains { $0.contains("OFFSET") })
     }
 
-    func testSetPageSizeResetsToFirstPageAndPersistsPreference() async throws {
+    func testSetRowLimitReloadsAndPersistsPreference() async throws {
         harness.preferences.lazyLargeColumns = false
         let session = try await makeSession()
         let (viewModel, _) = makeViewModel(session: session)
-        await harness.mysql.setResponses([pageResponse(rowCount: 301)])
+        await harness.mysql.setResponses([pageResponse(rowCount: 300)])
         await viewModel.start()
 
-        viewModel.goToNextPage()
-        await viewModel.waitForPendingWork()
-        XCTAssertEqual(viewModel.pageIndex, 1)
-
-        await harness.mysql.setResponses([pageResponse(rowCount: 100)])
-        viewModel.setPageSize(1000)
+        await harness.mysql.setResponses([pageResponse(rowCount: 1000)])
+        viewModel.setRowLimit(1000)
         await viewModel.waitForPendingWork()
 
-        XCTAssertEqual(viewModel.pageSize, 1000)
-        XCTAssertEqual(viewModel.pageIndex, 0)
-        XCTAssertEqual(harness.preferences.pageSize, 1000)
+        XCTAssertEqual(viewModel.rowLimit, 1000)
+        XCTAssertEqual(harness.preferences.rowLimit, 1000)
+        XCTAssertEqual(viewModel.rows.count, 1000)
+        let last = await harness.mysql.executedSQL.last ?? ""
+        XCTAssertTrue(last.contains("LIMIT 1000"))
     }
 
-    func testPageStatusTextMarksEstimate() async throws {
+    func testStatusTextMarksEstimate() async throws {
         harness.preferences.lazyLargeColumns = false
         let session = try await makeSession()
         let (viewModel, _) = makeViewModel(session: session)
@@ -122,21 +110,7 @@ final class TableDataViewModelTests: XCTestCase {
         await viewModel.start()
 
         let text = viewModel.statusBarText ?? ""
-        XCTAssertTrue(text.hasPrefix("行 1–300 / 约 12,480 行"))
-        XCTAssertTrue(text.contains("第 1 页"))
-    }
-
-    func testDeepOffsetHint() async throws {
-        harness.preferences.lazyLargeColumns = false
-        let session = try await makeSession()
-        let (viewModel, _) = makeViewModel(session: session)
-        await harness.mysql.setResponses([pageResponse(rowCount: 100)])
-        await viewModel.start()
-
-        XCTAssertNil(viewModel.deepOffsetHint)
-        viewModel.goToPage(400) // offset = 400 * 300 = 120000 > 100000
-        await viewModel.waitForPendingWork()
-        XCTAssertNotNil(viewModel.deepOffsetHint)
+        XCTAssertTrue(text.hasPrefix("显示 300 行 / 约 12,480 行"))
     }
 
     // MARK: 排序

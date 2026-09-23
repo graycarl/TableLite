@@ -104,7 +104,7 @@ public final class SessionManager {
             throw error
         }
         if tagSnapshot != nil {
-            // 还原出来的表数据标签需要重新加载当前页。
+            // 还原出来的表数据标签需要重新加载。
             await session.reloadTabsAfterReconnect()
         }
         await persistSessionState()

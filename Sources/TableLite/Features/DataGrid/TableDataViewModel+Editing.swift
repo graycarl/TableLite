@@ -336,7 +336,7 @@ extension TableDataViewModel {
         isDiscardConfirmationPresented = false
     }
 
-    /// 清空暂存并重新加载当前页（`specs/04-data-editing.md` §11）。
+    /// 清空暂存并重新加载数据（`specs/04-data-editing.md` §11）。
     public func discardChanges() async {
         isDiscardConfirmationPresented = false
         guard !pendingStore.isEmpty else { return }

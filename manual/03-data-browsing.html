@@ -37,7 +37,7 @@
 <h1><span class="chapter">第 03 章</span>浏览表数据</h1>
 <p class="lede">
   从对象树点一张表，就打开了它的数据视图。这一章讲表格长什么样、
-  右边那条「字段栏」怎么用、怎么翻页、怎么排序，各种奇怪的内容
+  右边那条「字段栏」怎么用、怎么限制显示条数、怎么排序，各种奇怪的内容
   （NULL、BLOB、超长文本、图片）分别怎么显示。
 </p>
 
@@ -187,7 +187,7 @@
 <tr data-hot="8"><td class="num">8</td><td class="wide">排序箭头</td>
   <td>点列头排序：第一次 ▲ 升序，第二次 ▼ 降序，第三次取消。</td></tr>
 <tr data-hot="9"><td class="num">9</td><td class="wide">滚动条</td>
-  <td>按偏好可以自动隐藏。滚到表格底部就是当前页的最后一行，不是整张表的最后一行。</td></tr>
+  <td>按偏好可以自动隐藏。滚到表格底部就是本次加载的最后一行，不是整张表的最后一行。</td></tr>
 <tr data-hot="10"><td class="num">10</td><td class="wide">插入行</td>
   <td>数据行下方常驻这一行，点一下就等于按 <kbd>⌘I</kbd> 新增一行。表或连接不可编辑时，这一行<b>整行隐藏</b>；表里没有数据时，这一行的文案是「插入第一行」。</td></tr>
 </tbody>
@@ -211,7 +211,7 @@
 <tr><td>数字</td><td>右对齐</td><td>方便比大小</td></tr>
 <tr><td>布尔（<code>tinyint(1)</code>）</td><td><code>0</code> / <code>1</code></td><td>偏好了可改成复选框</td></tr>
 <tr><td>日期时间</td><td>原样显示服务器返回的文本</td><td>不做时区转换，避免看错</td></tr>
-<tr><td>超长文本</td><td>截断 + <code>…</code></td><td>一页几十个 1 MB 的格子会卡死</td></tr>
+<tr><td>超长文本</td><td>截断 + <code>…</code></td><td>一次加载几十个 1 MB 的格子会卡死</td></tr>
 <tr><td>BLOB / 二进制</td><td><code>«BLOB 12.3 KB»</code> / <code>0xDEADBEEF</code></td><td>二进制没法当文本看</td></tr>
 <tr><td>图片二进制</td><td><code>«图片 PNG 45.2 KB»</code></td><td>能识别出来的话直接说明是图片</td></tr>
 <tr><td>几何类型</td><td><code>«GEOMETRY 25 B»</code></td><td>同样不解析</td></tr>
@@ -487,81 +487,63 @@
   <li>字段栏只在表数据标签里出现；查询结果、表结构、对象定义标签没有它。</li>
 </ul>
 
-<h2>分页</h2>
+<h2>显示条数</h2>
 
 <p>
-  表数据是<b>分页</b>加载的，默认每页 300 行。打开一张百万行的表不会把一百万行都拉下来。
+  表数据每次只加载<b>前若干行</b>，默认 300 行，不做分页。打开一张百万行的表不会把一百万行都拉下来；
+  想看更靠后的数据，用排序或过滤器，或者把显示条数调大。
 </p>
 
 <figure>
-<svg viewBox="0 0 1000 240" role="img" aria-label="分页状态栏的各个部分">
-  <title>分页控件</title>
+<svg viewBox="0 0 1000 220" role="img" aria-label="显示条数状态栏的各个部分">
+  <title>显示条数控件</title>
 
   <!-- 状态栏主体 -->
   <rect class="s-chrome ln" x="20" y="30" width="960" height="46" rx="8"/>
 
-  <text class="s" x="44" y="53">行 1–300 / 约 12,480 行</text>
-  <text class="fnt s" x="240" y="53">↑ 估算值，前面标「约」</text>
+  <text class="s" x="44" y="53">显示 300 行 / 约 12,480 行</text>
+  <text class="fnt s" x="280" y="53">↑ 估算值，前面标「约」</text>
 
-  <text class="s" x="480" y="53">第 1 页</text>
+  <rect class="s-field ln2" x="600" y="40" width="140" height="26" rx="6"/>
+  <text class="s" x="614" y="53">最多 300 行</text>
+  <text class="mut s" x="712" y="53">▾</text>
 
-  <rect class="s-field ln2" x="560" y="40" width="110" height="26" rx="6"/>
-  <text class="s" x="574" y="53">300 行/页</text>
-  <text class="mut s" x="652" y="53">▾</text>
+  <rect class="s-field ln2" x="760" y="40" width="90" height="26" rx="6"/>
+  <text class="c s" x="805" y="53">精确统计</text>
 
-  <rect class="s-field ln2" x="700" y="40" width="34" height="26" rx="6"/>
-  <text class="c mut s" x="717" y="53">‹</text>
-  <rect class="s-field ln2" x="742" y="40" width="34" height="26" rx="6"/>
-  <text class="c s" x="759" y="53">›</text>
+  <!-- 显示条数下拉 -->
+  <rect class="s-window ln2" x="600" y="80" width="160" height="130" rx="8"/>
+  <text class="acc" x="616" y="100">100 行</text>
+  <rect class="s-soft" x="606" y="110" width="148" height="26" rx="6"/>
+  <text class="acc" x="616" y="123">300 行</text>
+  <text x="616" y="150">1000 行</text>
+  <text x="616" y="176">5000 行</text>
+  <text class="fnt s" x="616" y="200">自定义…（上限 10000）</text>
 
-  <text class="s" x="792" y="53">跳到</text>
-  <rect class="s-field ln2" x="826" y="40" width="50" height="26" rx="6"/>
-  <text class="s" x="840" y="53">1</text>
-
-  <rect class="s-field ln2" x="890" y="40" width="78" height="26" rx="6"/>
-  <text class="c s" x="929" y="53">精确统计</text>
-
-  <!-- 每页行数下拉 -->
-  <rect class="s-window ln2" x="560" y="80" width="140" height="130" rx="8"/>
-  <text class="acc" x="576" y="100">100 行/页</text>
-  <rect class="s-soft" x="566" y="110" width="128" height="26" rx="6"/>
-  <text class="acc" x="576" y="123">300 行/页</text>
-  <text x="576" y="150">1000 行/页</text>
-  <text x="576" y="176">5000 行/页</text>
-  <text class="fnt s" x="576" y="200">也可以手填，上限 10000</text>
-
-  <!-- 第 3 点 -->
   <g class="hot" data-hot="1"><circle cx="36" cy="30" r="11"/><text x="36" y="30">1</text></g>
-  <g class="hot" data-hot="2"><circle cx="490" cy="24" r="11"/><text x="490" y="24">2</text></g>
-  <g class="hot" data-hot="3"><circle cx="726" cy="24" r="11"/><text x="726" y="24">3</text></g>
-  <g class="hot" data-hot="4"><circle cx="980" cy="53" r="11"/><text x="980" y="53">4</text></g>
-  <g class="hot" data-hot="5"><circle cx="960" cy="150" r="11"/><text x="960" y="150">5</text></g>
+  <g class="hot" data-hot="2"><circle cx="670" cy="24" r="11"/><text x="670" y="24">2</text></g>
+  <g class="hot" data-hot="3"><circle cx="805" cy="24" r="11"/><text x="805" y="24">3</text></g>
 </svg>
-<figcaption><b>图 3-3</b>　分页控件。行数是估算的，所以前面写「约」。</figcaption>
+<figcaption><b>图 3-3</b>　显示条数控件。行数是估算的，所以前面写「约」。</figcaption>
 </figure>
 
 <table class="controls">
 <thead><tr><th>#</th><th>控件</th><th>作用</th></tr></thead>
 <tbody>
-<tr data-hot="1"><td class="num">1</td><td class="wide">行数范围</td>
-  <td>显示当前页是哪几行，以及总行数的<b>估算值</b>。估算靠读取表的统计信息，很快但可能不准，所以标了「约」。估不出来时显示 <code>约 0 行（估算不可靠）</code>。</td></tr>
-<tr data-hot="2"><td class="num">2</td><td class="wide">页码</td>
-  <td>当前是第几页。换排序、换过滤条件、换每页行数都会回到第 1 页。</td></tr>
-<tr data-hot="3"><td class="num">3</td><td class="wide">翻页按钮</td>
-  <td><b>‹</b> 上一页，<b>›</b> 下一页。在第一页或最后一页时对应按钮变灰。后面还有个「跳到第 __ 页」的输入框。</td></tr>
-<tr data-hot="4"><td class="num">4</td><td class="wide">精确统计</td>
-  <td>点它才真正执行一次 <code>COUNT(*)</code>。大表可能很慢，期间可以取消。<b>打开表时绝不会自动做精确计数</b>。</td></tr>
-<tr data-hot="5"><td class="num">5</td><td class="wide">每页行数</td>
-  <td>可选 <code>100 / 300 / 1000 / 5000</code>，也可以手动填，上限 10000。</td></tr>
+<tr data-hot="1"><td class="num">1</td><td class="wide">行数</td>
+  <td>本次实际加载的行数，以及总行数的<b>估算值</b>。估算靠读取表的统计信息，很快但可能不准，所以标了「约」。估不出来时显示 <code>约 0 行（估算不可靠）</code>。</td></tr>
+<tr data-hot="2"><td class="num">2</td><td class="wide">显示条数</td>
+  <td>一个下拉按钮，标签上就是当前上限（如「最多 300 行」）。下拉里可选 <code>100 / 300 / 1000 / 5000</code> 档位，或选「自定义…」手动填一个数，上限 10000。改完立即从头重新加载。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">精确统计</td>
+  <td>点它才真正执行一次 <code>COUNT(*)</code>，把「约 N 行」换成精确的总行数。大表可能很慢，期间可以取消。<b>打开表时绝不会自动做精确计数</b>。</td></tr>
 </tbody>
 </table>
 
-<div class="callout warn">
-  <span class="tag">翻到很深的页会越来越慢</span>
+<div class="callout">
+  <span class="tag">想看后面的数据怎么办</span>
   <p>
-    偏移量超过 10 万行时，会提示：<code>偏移量很大，翻页会越来越慢；建议用过滤器缩小范围后再翻页</code>。
-    这不是本工具的问题：翻得越深，要跳过的行就越多，这是分页本身的代价。
-    想看后面的数据，用过滤器或者排序更实际。
+   没有分页，所以没有「下一页」。想看更靠后的行，用<b>排序</b>把目标行排到前面，或用<b>过滤器</b>缩小范围，
+   也可以把显示条数调到更大。数据量很大时，用过滤器比单纯调大条数更实际。
   </p>
 </div>
 
@@ -594,7 +576,7 @@
   <text class="fnt s c" x="860" y="80">按住 ⇧ 点列头，追加多列排序</text>
 
   <text class="fnt s" x="30" y="126">取消全部排序后，回到默认顺序——按主键排。没有主键的表按什么顺序不保证。</text>
-  <text class="fnt s" x="30" y="150">换一种排序方式会回到第 1 页并重新加载数据。</text>
+  <text class="fnt s" x="30" y="150">换一种排序方式会重新加载数据。</text>
 </svg>
 <figcaption><b>图 3-4</b>　排序的三种状态，以及按住 <kbd>⇧</kbd> 追加多列排序。</figcaption>
 </figure>
@@ -605,7 +587,7 @@
 <tr><td>点列头</td><td>升序 ▲ → 降序 ▼ → 取消排序，循环</td></tr>
 <tr><td><kbd>⇧</kbd> + 点列头</td><td>追加进排序列表，表头上显示序号</td></tr>
 <tr><td>取消排序</td><td>回到默认顺序（按主键）</td></tr>
-<tr><td>改变排序</td><td>回到第 1 页并重新从服务器加载</td></tr>
+<tr><td>改变排序</td><td>重新从服务器加载</td></tr>
 </tbody>
 </table>
 
@@ -800,7 +782,7 @@
 <tr><td><kbd>⌘</kbd> + 点行号</td><td>多选不连续的行；此时字段栏不显示字段列表，提示 <code>请只选一行</code></td></tr>
 <tr><td><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></td><td>移动选中的单元格</td></tr>
 <tr><td><kbd>⌘←</kbd> / <kbd>⌘→</kbd></td><td>跳到首列 / 末列</td></tr>
-<tr><td><kbd>⌘↑</kbd> / <kbd>⌘↓</kbd></td><td>跳到当前页的首行 / 末行</td></tr>
+<tr><td><kbd>⌘↑</kbd> / <kbd>⌘↓</kbd></td><td>跳到已加载数据的首行 / 末行</td></tr>
 <tr><td><kbd>⌘C</kbd></td><td>按上一节的格式复制</td></tr>
 <tr><td><kbd>Space</kbd></td><td>快速查看当前单元格</td></tr>
 </tbody>
@@ -828,14 +810,14 @@
     <li>右侧字段栏也变成只读——只能看，不能改</li>
     <li>双击单元格改为打开快速查看，而不是跳到右侧字段栏去编辑</li>
     <li>超长内容一直保持截断（因为无法定位行去取完整值）</li>
-    <li>状态栏写明原因：<code>该表没有主键，分页顺序不保证，且不可编辑</code></li>
+    <li>状态栏写明原因：<code>该表没有主键，行顺序不保证，且不可编辑</code></li>
   </ul>
 </div>
 
 <h2>刷新</h2>
 
 <ul>
-  <li><kbd>⌘R</kbd> 重新加载当前页。</li>
+  <li><kbd>⌘R</kbd> 重新加载当前数据。</li>
   <li>刷新<b>不会</b>丢弃未提交的改动，也不会打断你：暂存原样保留，只在状态栏提示一句。</li>
   <li>唯一会没的是大字段的临时缓存——之前点开看过的完整内容会重新变回截断状态。</li>
 </ul>
@@ -845,9 +827,9 @@
 <table>
 <thead><tr><th>场景</th><th>目标</th></tr></thead>
 <tbody>
-<tr><td>打开一张 100 万行的表（默认分页）</td><td>500 毫秒内显示首屏</td></tr>
+<tr><td>打开一张 100 万行的表（默认显示前 300 行）</td><td>500 毫秒内显示首屏</td></tr>
 <tr><td>滚动</td><td>稳定流畅</td></tr>
-<tr><td>切换分页</td><td>1 秒内（受服务器与网络影响）</td></tr>
+<tr><td>切换显示条数</td><td>1 秒内（受服务器与网络影响）</td></tr>
 <tr><td>字段栏里编辑到界面反馈</td><td>立刻，无等待</td></tr>
 </tbody>
 </table>

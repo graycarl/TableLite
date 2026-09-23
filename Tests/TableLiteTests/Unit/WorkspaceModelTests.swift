@@ -202,7 +202,7 @@ final class WorkspaceModelTests: XCTestCase {
 
     func testTabSummaryForConsoleLogUsesCount() {
         XCTAssertEqual(
-            WorkspaceStatusText.tabSummary(for: .consoleLog, page: nil, consoleLogCount: 7),
+            WorkspaceStatusText.tabSummary(for: .consoleLog, rowLimit: nil, consoleLogCount: 7),
             "已记录 7 条语句"
         )
     }
@@ -210,7 +210,7 @@ final class WorkspaceModelTests: XCTestCase {
     // MARK: - 加载耗时与查询摘要（`specs/12-feedback.md` §6）
 
     func testTableDataSummaryHidesFastQueryDuration() {
-        let base = "行 1–300 / 约 12,480 行 · 第 1 页 · 300 行/页"
+        let base = "显示 300 行 / 约 12,480 行"
         XCTAssertEqual(
             WorkspaceStatusText.tableDataSummary(base: base, elapsedMilliseconds: nil),
             base
@@ -223,7 +223,7 @@ final class WorkspaceModelTests: XCTestCase {
     }
 
     func testTableDataSummaryShowsSlowQueryDuration() {
-        let base = "行 1–300 / 约 12,480 行 · 第 1 页 · 300 行/页"
+        let base = "显示 300 行 / 约 12,480 行"
         XCTAssertEqual(
             WorkspaceStatusText.tableDataSummary(base: base, elapsedMilliseconds: 1_001),
             "\(base) · 1001 ms"

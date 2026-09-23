@@ -82,7 +82,7 @@ public enum PreferenceKey: String, CaseIterable, Sendable {
     case maxSessions = "connection.maxSessions"
 
     // 表数据（specs/11 §3）
-    case gridPageSize = "grid.pageSize"
+    case gridRowLimit = "grid.pageSize"
     case gridFontSize = "grid.fontSize"
     case gridAlternateRowColors = "grid.alternateRowColors"
     case gridAutoHideScrollers = "grid.autoHideScrollers"
@@ -135,7 +135,7 @@ public enum PreferenceKey: String, CaseIterable, Sendable {
         case .keepAliveInterval: return 30
         case .maxSessions: return 8
 
-        case .gridPageSize: return 300
+        case .gridRowLimit: return 300
         case .gridFontSize: return 13
         case .gridAlternateRowColors: return true
         case .gridAutoHideScrollers: return true

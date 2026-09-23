@@ -12,7 +12,7 @@
 | [04-ssh-tunnel.md](04-ssh-tunnel.md) | 基于系统 `ssh` 子进程的本地端口转发：方案取舍、命令拼装、认证、生命周期 |
 | [05-session-management.md](05-session-management.md) | 连接会话与多连接管理：作用域、连接流程、空闲回收、重连、标签现场还原 |
 | [06-ui-layer.md](06-ui-layer.md) | SwiftUI 与 AppKit 的边界、状态归属、标签模型、桥接与刷新约定 |
-| [07-data-grid.md](07-data-grid.md) | 网格实现决策：为何用 AppKit、大字段两阶段加载、分页稳定性、行数估算、性能预算 |
+| [07-data-grid.md](07-data-grid.md) | 网格实现决策：为何用 AppKit、大字段两阶段加载、顺序稳定性、显示条数限制、行数估算、性能预算 |
 | [08-pending-changes.md](08-pending-changes.md) | 暂存的作用域、合并规则、SQL 生成、提交与回滚、可编辑性判定 |
 | [09-filtering.md](09-filtering.md) | 过滤器到 SQL 的映射决策与交互约束 |
 | [10-query-editor.md](10-query-editor.md) | 编辑器文本视图、语法高亮、语句拆分、执行、只读拦截 |
@@ -59,6 +59,7 @@
 | 行定位与可编辑性 | 用修改前冻结的旧值定位；没有主键的表整表只读（唯一索引不算数） | [08](08-pending-changes.md) §2.1、§7 |
 | 大数据列 | 默认只取前 4 KB，点开时再取完整值；截断值绝不写回 | [07](07-data-grid.md) §3.1、[08](08-pending-changes.md) §9 |
 | 元数据来源 | `information_schema` + TTL 缓存；行数用估算，不自动 `COUNT(*)` | [11](11-schema-and-import-export.md) §1、[07](07-data-grid.md) §3.4 |
+| 表数据加载 | 不分页：固定 `LIMIT N` 从头取前 N 行，条数可切换；精确计数只在用户点「精确统计」时执行 | [07](07-data-grid.md) §7 |
 | 导出方式 | 只支持 CSV；流式写出、临时文件原子替换 | [11](11-schema-and-import-export.md) §3、[13](13-open-questions.md) S9 |
 | 口令存储 | 密码 / Passphrase 只进 Keychain，禁止写进 JSON / UserDefaults | [02](02-persistence.md) §2、§3 |
 | 连接失效处理 | 不自动重连，保留未提交改动，由用户点「重新连接」 | [05](05-session-management.md) §6、[13](13-open-questions.md) L7 |

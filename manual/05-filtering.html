@@ -156,7 +156,7 @@
 <tr data-hot="7"><td class="num">7</td><td class="wide">高级 / 直接写条件</td>
   <td>切换到直接手写过滤条件的模式，例如 <code>id IN (1, 2, 3) AND status &lt;&gt; 'deleted'</code>。切过去会提示「高级条件不会被校验，请自行确认语法正确」。</td></tr>
 <tr data-hot="8"><td class="num">8</td><td class="wide">重置 / 应用</td>
-  <td><b>重置</b>清空所有条件并重新加载。<b>应用</b>按当前条件从第 1 页重新加载。</td></tr>
+  <td><b>重置</b>清空所有条件并重新加载。<b>应用</b>按当前条件重新加载。</td></tr>
 <tr data-hot="9"><td class="num">9</td><td class="wide">错误提示条</td>
   <td>应用失败时（比如引用了不存在的列）在面板顶部指出是哪一条错了。面板保持打开，方便直接改。</td></tr>
 </tbody>
@@ -392,7 +392,7 @@
 <table>
 <thead><tr><th>操作</th><th>行为</th></tr></thead>
 <tbody>
-<tr><td>应用 / 重置过滤器</td><td>回到第 1 页重新加载</td></tr>
+<tr><td>应用 / 重置过滤器</td><td>重新加载</td></tr>
 <tr><td>有未提交改动时改过滤器</td><td>允许，但先提示「切换过滤条件会重新加载数据，你的修改会保留在暂存区」</td></tr>
 <tr><td>有未提交改动时改排序</td><td>同上</td></tr>
 <tr><td>过滤器生效时提交</td><td>提交成功后按当前过滤条件重新加载。被过滤掉的改动行虽然提交成功了，但不会出现在结果里</td></tr>

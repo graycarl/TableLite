@@ -164,7 +164,7 @@ struct StatusBarView: View {
             let base = viewModel.statusBarText
                 ?? WorkspaceStatusText.tabSummary(
                     for: tab.kind,
-                    page: tab.page,
+                    rowLimit: tab.rowLimit,
                     consoleLogCount: environment.consoleLog.entries.count
                 )
             return WorkspaceStatusText.tableDataSummary(
@@ -190,7 +190,7 @@ struct StatusBarView: View {
         }
         return WorkspaceStatusText.tabSummary(
             for: tab.kind,
-            page: tab.page,
+            rowLimit: tab.rowLimit,
             consoleLogCount: environment.consoleLog.entries.count
         )
     }

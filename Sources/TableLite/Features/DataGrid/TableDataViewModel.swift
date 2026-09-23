@@ -20,10 +20,10 @@ public struct CopyResult: Sendable, Equatable {
 /// 关键设计：
 /// - 列清单来自 `TableDataMetadataProviding`（生产实现走 `MetaRepository` 的
 ///   `information_schema.COLUMNS`，见 `07-data-grid.md` §3.2）；
-/// - 首屏只取当前页（`LIMIT pageSize + 1`），行数用估算，**绝不自动 `COUNT(*)`**（§3.4）；
+/// - 只取前 N 行（`LIMIT rowLimit`，不分页），行数用估算，**绝不自动 `COUNT(*)`**（§3.4、§7）；
 /// - 大字段两阶段加载：首屏 `LEFT(col, N)` + 长度列，按需 `selectRowByKey` 取完整值；
 ///   截断值绝不会写回数据库（`08-pending-changes.md` §9），T8 只读但模型已区分；
-/// - 排序 / 分页 / 过滤 / 隐藏列状态写回 `Tab`，随 `session.json` 往返。
+/// - 显示条数 / 排序 / 过滤 / 隐藏列状态写回 `Tab`，随 `session.json` 往返。
 @MainActor
 @Observable
 public final class TableDataViewModel {
@@ -63,9 +63,8 @@ public final class TableDataViewModel {
 
     public internal(set) var rows: [GridRow] = []
     public private(set) var loadState: TableDataLoadState = .idle
-    public private(set) var hasNextPage = false
     public private(set) var lastQueryMilliseconds: Int?
-    /// 当前页加载已用时（毫秒）。加载中每 100 ms 自增，加载结束后停在本次耗时上；
+    /// 当前加载已用时（毫秒）。加载中每 100 ms 自增，加载结束后停在本次耗时上；
     /// 状态栏据此在 > 1 s 时显示耗时、> 10 s 时附「取消」（`specs/12-feedback.md` §6）。
     public private(set) var elapsedMilliseconds = 0
     public private(set) var rowCountEstimate: RowCountEstimate?
@@ -73,8 +72,7 @@ public final class TableDataViewModel {
 
     // MARK: 查询状态（与 Tab 同步）
 
-    public private(set) var pageIndex: Int
-    public private(set) var pageSize: Int
+    public private(set) var rowLimit: Int
     public private(set) var sortOrders: [SortOrder]
     public private(set) var hiddenColumns: Set<String>
     /// 实际生效（查询用）的过滤状态。
@@ -167,13 +165,12 @@ public final class TableDataViewModel {
         self.metadataProvider = metadataProvider ?? LiveTableDataMetadataProvider(repository: session.meta)
         self.preferences = preferences
         self.clock = clock
-        // 新标签的 PageState 是默认值；此时用偏好里的「每页行数」。
-        if tab.page.pageSize == PageSize.default {
-            self.pageSize = preferences.pageSize
+        // 新标签的 RowLimitState 是默认值；此时用偏好里的「默认显示行数」。
+        if tab.rowLimit.limit == RowLimit.default {
+            self.rowLimit = preferences.rowLimit
         } else {
-            self.pageSize = tab.page.pageSize
+            self.rowLimit = tab.rowLimit.limit
         }
-        self.pageIndex = tab.page.pageIndex
         self.sortOrders = tab.sort
         self.hiddenColumns = Set(tab.hiddenColumns)
         if let initialFilter = tab.initialFilter {
@@ -191,16 +188,16 @@ public final class TableDataViewModel {
 
     // MARK: 生命周期
 
-    /// 首次进入标签时加载：元数据 → 当前页。
+    /// 首次进入标签时加载：元数据 → 数据。
     public func start() async {
         guard !didStart else { return }
         didStart = true
         await loadMetadata(force: false)
         guard isMetadataLoaded else { return }
-        await performPageQuery()
+        await performDataQuery()
     }
 
-    /// 重新加载当前页（`⌘R` / 刷新）；清空大字段缓存（`specs/03-data-browsing.md` §12）。
+    /// 重新加载数据（`⌘R` / 刷新）；清空大字段缓存（`specs/03-data-browsing.md` §12）。
     public func refresh() async {
         // 有未提交改动时刷新不打断，只在状态栏提示暂存原样保留（`specs/04-data-editing.md` §12）。
         if hasPendingChanges {
@@ -209,16 +206,16 @@ public final class TableDataViewModel {
         fullRowCache.removeAll()
         await loadMetadata(force: true)
         guard isMetadataLoaded else { return }
-        await performPageQuery()
+        await performDataQuery()
     }
 
-    /// 重新查询当前页，不清元数据缓存。
+    /// 重新查询数据，不清元数据缓存。
     public func reloadCurrentPage() async {
         guard isMetadataLoaded else {
             await start()
             return
         }
-        await performPageQuery()
+        await performDataQuery()
     }
 
     /// 供视图 `onDisappear` 调用的取消入口：标签关闭时中断在途查询。
@@ -245,8 +242,8 @@ public final class TableDataViewModel {
         columns.filter { !hiddenColumns.contains($0.name) }
     }
 
-    public var pageState: PageState {
-        PageState(pageIndex: pageIndex, pageSize: pageSize, rowCount: rowCountEstimate)
+    public var rowLimitState: RowLimitState {
+        RowLimitState(limit: rowLimit, rowCount: rowCountEstimate)
     }
 
     public var focusedRow: GridRow? {
@@ -270,7 +267,7 @@ public final class TableDataViewModel {
     public var uneditableStatusText: String? {
         guard isMetadataLoaded, let reason = editability.reason else { return nil }
         switch reason {
-        case .noPrimaryKey: return "该表没有主键，分页顺序不保证，且不可编辑"
+        case .noPrimaryKey: return "该表没有主键，行顺序不保证，且不可编辑"
         case .view, .readOnlyConnection: return reason.message
         }
     }
@@ -280,22 +277,22 @@ public final class TableDataViewModel {
         return columns.first { $0.name == focusedColumn }
     }
 
-    /// 状态栏文案：`行 1–300 / 约 12,480 行 · 第 1 页 · 300 行/页 · content 1.2 MB`。
+    /// 状态栏文案：`显示 300 行 / 约 12,480 行 · content 1.2 MB`。
     ///
     /// 耗时不在里拼接：阈值判断统一在 `WorkspaceStatusText.tableDataSummary`
     /// （`specs/12-feedback.md` §6，只在 > 1 s 时显示）。
     public var statusBarText: String? {
         guard loadState == .loaded || !rows.isEmpty else { return nil }
-        var text = pageState.statusText(visibleCount: rows.count)
+        var text = rowLimitState.statusText(visibleCount: rows.count)
         if let summary = largeFieldSizeSummary {
             text += " · \(summary)"
         }
         return text
     }
 
-    /// 当前页里被延迟加载的大字段实际大小摘要，例如 `content 1.2 MB`。
+    /// 当前加载里被延迟加载的大字段实际大小摘要，例如 `content 1.2 MB`。
     ///
-    /// 每个截断列取本页出现的最大字节数（`specs/03-data-browsing.md` §4）；
+    /// 每个截断列取本次加载出现的最大字节数（`specs/03-data-browsing.md` §4）；
     /// 没有任何截断列时返回 nil，状态栏不追加内容。
     public var largeFieldSizeSummary: String? {
         var totals: [String: Int] = [:]
@@ -314,13 +311,6 @@ public final class TableDataViewModel {
             .joined(separator: " · ")
     }
 
-    public var isDeepOffset: Bool { pageState.isDeepOffset }
-
-    public var deepOffsetHint: String? {
-        guard isDeepOffset else { return nil }
-        return "偏移量很大，翻页会越来越慢；建议用过滤器缩小范围后再翻页"
-    }
-
     public var editability: Editability {
         EditabilityEvaluator.evaluate(
             isView: isView,
@@ -333,7 +323,7 @@ public final class TableDataViewModel {
 
     /// 无主键表的状态栏提示（`specs/03-data-browsing.md` §11）。
     public var noPrimaryKeyHint: String? {
-        primaryKeyColumns.isEmpty ? "该表没有主键，分页顺序不保证，且不可编辑" : nil
+        primaryKeyColumns.isEmpty ? "该表没有主键，行顺序不保证，且不可编辑" : nil
     }
 
     public var isFilterVisible: Bool { filterDraft.isVisible }
@@ -424,44 +414,18 @@ public final class TableDataViewModel {
                 sortOrders = [SortOrder(column: column, direction: .ascending)]
             }
         }
-        pageIndex = 0
         syncTab()
         bumpRevision()
         startQuery()
     }
 
-    // MARK: 分页
+    // MARK: 显示条数
 
-    public func goToNextPage() {
-        guard hasNextPage else { return }
-        pageIndex += 1
-        syncTab()
-        bumpRevision()
-        startQuery()
-    }
-
-    public func goToPreviousPage() {
-        guard pageIndex > 0 else { return }
-        pageIndex -= 1
-        syncTab()
-        bumpRevision()
-        startQuery()
-    }
-
-    public func goToPage(_ index: Int) {
-        let target = max(0, index)
-        guard target != pageIndex else { return }
-        pageIndex = target
-        syncTab()
-        bumpRevision()
-        startQuery()
-    }
-
-    public func setPageSize(_ size: Int) {
-        guard PageSize.isValid(size), size != pageSize else { return }
-        pageSize = size
-        pageIndex = 0
-        preferences.pageSize = size
+    /// 切换最多显示多少行；从头重新加载并记住到偏好。
+    public func setRowLimit(_ size: Int) {
+        guard RowLimit.isValid(size), size != rowLimit else { return }
+        rowLimit = size
+        preferences.rowLimit = size
         syncTab()
         bumpRevision()
         startQuery()
@@ -508,7 +472,6 @@ public final class TableDataViewModel {
         filter = (newState.isActive || newState.isVisible) ? newState : nil
         filterError = nil
         filterErrorConditionIDs = []
-        pageIndex = 0
         persistFilter()
         syncTab()
         bumpRevision()
@@ -543,7 +506,7 @@ public final class TableDataViewModel {
 
     // MARK: 行过滤器的应用与重置
 
-    /// 点「应用」：校验 → 复制草稿到生效状态 → 回第 1 页重查。
+    /// 点「应用」：校验 → 复制草稿到生效状态 → 重新加载。
     public func applyFilter() {
         let options = queryOptions
         let result: FilterBuildResult
@@ -569,7 +532,6 @@ public final class TableDataViewModel {
         filter = filterDraft
         filterDraft.isVisible = true
         filter?.isVisible = true
-        pageIndex = 0
         persistFilter()
         syncTab()
         bumpRevision()
@@ -583,7 +545,6 @@ public final class TableDataViewModel {
         filterError = nil
         filterErrorConditionIDs = []
         filter = filterDraft
-        pageIndex = 0
         persistFilter()
         syncTab()
         bumpRevision()
@@ -766,7 +727,6 @@ public final class TableDataViewModel {
         filterError = nil
         filterErrorConditionIDs = []
         filter = filterDraft
-        pageIndex = 0
         persistFilter()
         syncTab()
         bumpRevision()
@@ -1209,7 +1169,7 @@ public final class TableDataViewModel {
     private func startQuery() {
         activeTask?.cancel()
         activeTask = Task { [weak self] in
-            await self?.performPageQuery()
+            await self?.performDataQuery()
         }
     }
 
@@ -1247,7 +1207,7 @@ public final class TableDataViewModel {
         }
     }
 
-    // MARK: 当前页查询
+    // MARK: 数据查询
 
     private func startElapsedTimer() {
         elapsedTask?.cancel()
@@ -1267,7 +1227,7 @@ public final class TableDataViewModel {
         elapsedTask = nil
     }
 
-    private func performPageQuery() async {
+    private func performDataQuery() async {
         guard isMetadataLoaded else { return }
         loadState = .loading
 
@@ -1287,26 +1247,24 @@ public final class TableDataViewModel {
         }
 
         let options = queryOptions
-        let query = TableQueryBuilder.selectPage(
+        let query = TableQueryBuilder.selectRows(
             database: database,
             table: table,
             columns: columns,
             primaryKeyColumns: primaryKeyColumns,
             sort: sortOrders,
             filterClause: filterClause,
-            pageIndex: pageIndex,
-            pageSize: pageSize,
+            rowLimit: rowLimit,
             options: options
         )
 
         do {
-            // 分页查询是客户端自动查询，不写入查询历史（`specs/06-query-editor.md` §5）。
+            // 表数据查询是客户端自动查询，不写入查询历史（`specs/06-query-editor.md` §5）。
             let result = try await session.execute(query.sql, database: database, recordHistory: false)
             if Task.isCancelled { return }
 
             guard let resultSet = result.firstResultSet else {
                 rows = []
-                hasNextPage = false
                 rebuildPendingPresentation()
                 syncPendingFlag()
                 loadState = .loaded
@@ -1315,23 +1273,9 @@ public final class TableDataViewModel {
                 return
             }
 
-            let parsed = makeRows(from: resultSet, query: query, options: options)
-            hasNextPage = parsed.count > pageSize
-            let visible = Array(parsed.prefix(pageSize))
-
-            // 页码越界（删除 / 过滤后）：回到第一页。
-            if visible.isEmpty, pageIndex > 0, parsed.isEmpty {
-                pageIndex = 0
-                loadState = .loaded
-                syncTab()
-                bumpRevision()
-                await performPageQuery()
-                return
-            }
-
-            rows = visible
+            rows = makeRows(from: resultSet, query: query, options: options)
             if let focused = focusedRowID, !gridRows.contains(where: { $0.id == focused }) {
-                // 刷新后焦点行不在本页：保留本页仍存在的选中项，清掉焦点行。
+                // 刷新后焦点行已不在本次加载里：保留仍存在的选中项，清掉焦点行。
                 focusedRowID = nil
             }
             if !selectedRowIDs.isEmpty {
@@ -1350,7 +1294,6 @@ public final class TableDataViewModel {
         } catch {
             if Task.isCancelled { return }
             rows = []
-            hasNextPage = false
             loadState = .failed(Self.errorText(error))
             bumpRevision()
         }
@@ -1392,7 +1335,7 @@ public final class TableDataViewModel {
                 cells[column.name] = cell
             }
             let locator = makeLocator(cells: cells, columnByName: columnByName)
-            let identity = locator?.identityString ?? "row:\(pageIndex * pageSize + rowOffset)"
+            let identity = locator?.identityString ?? "row:\(rowOffset)"
             return GridRow(id: identity, rowIndexInPage: rowOffset, locator: locator, cells: cells)
         }
     }
@@ -1415,11 +1358,7 @@ public final class TableDataViewModel {
     // MARK: Tab 同步与持久化
 
     private func syncTab() {
-        var page = tab.page
-        page.pageIndex = pageIndex
-        page.pageSize = pageSize
-        page.rowCount = rowCountEstimate
-        tab.page = page
+        tab.rowLimit = RowLimitState(limit: rowLimit, rowCount: rowCountEstimate)
         tab.sort = sortOrders
         tab.filter = filterDraft
         tab.hiddenColumns = columns.map(\.name).filter { hiddenColumns.contains($0) }

@@ -483,7 +483,7 @@ final class TableDataEditingTests: XCTestCase {
         XCTAssertFalse(viewModel.isEditable)
         XCTAssertFalse(viewModel.isEditingEnabled)
         XCTAssertEqual(viewModel.editability.reason, .noPrimaryKey)
-        XCTAssertEqual(viewModel.uneditableStatusText, "该表没有主键，分页顺序不保证，且不可编辑")
+        XCTAssertEqual(viewModel.uneditableStatusText, "该表没有主键，行顺序不保证，且不可编辑")
     }
 
     func testReadOnlyConnectionIsReadOnly() async throws {

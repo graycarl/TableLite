@@ -3,7 +3,7 @@ import Foundation
 /// `session.json` 的内容。
 ///
 /// 决策见 `05-session-management.md` §8：**启动不恢复会话**，文件只记「按连接的标签现场」
-/// （每个连接的库 / 活动标签，以及每个标签的分页、排序、过滤、隐藏列等），
+/// （每个连接的库 / 活动标签，以及每个标签的显示条数、排序、过滤、隐藏列等），
 /// 用户连上该连接时才套用（S36）。
 ///
 /// 版本与向前兼容规则见 `02-persistence.md` §9：未知字段忽略、缺失字段取默认值。
@@ -104,8 +104,8 @@ public struct SessionTabState: Sendable, Codable, Equatable, Identifiable {
     public var queryDraftID: UUID?
     /// 查询标签关联的磁盘文件（从文件打开或另存为过）。
     public var filePath: String?
-    /// 表数据标签的分页。
-    public var page: PageState?
+    /// 表数据标签的显示条数状态（`session.json` 字段名沿用旧的 `page`）。
+    public var rowLimit: RowLimitState?
     /// 排序。
     public var sort: [SortOrder]
     /// 隐藏列。
@@ -125,7 +125,7 @@ public struct SessionTabState: Sendable, Codable, Equatable, Identifiable {
         objectName: String? = nil,
         queryDraftID: UUID? = nil,
         filePath: String? = nil,
-        page: PageState? = nil,
+        rowLimit: RowLimitState? = nil,
         sort: [SortOrder] = [],
         hiddenColumns: [String] = [],
         filter: FilterState? = nil,
@@ -139,7 +139,7 @@ public struct SessionTabState: Sendable, Codable, Equatable, Identifiable {
         self.objectName = objectName
         self.queryDraftID = queryDraftID
         self.filePath = filePath
-        self.page = page
+        self.rowLimit = rowLimit
         self.sort = sort
         self.hiddenColumns = hiddenColumns
         self.filter = filter
@@ -155,7 +155,7 @@ public struct SessionTabState: Sendable, Codable, Equatable, Identifiable {
         case objectName
         case queryDraftID
         case filePath
-        case page
+        case rowLimit = "page"
         case sort
         case hiddenColumns
         case filter
@@ -172,7 +172,7 @@ public struct SessionTabState: Sendable, Codable, Equatable, Identifiable {
         objectName = try container.decodeIfPresent(String.self, forKey: .objectName)
         queryDraftID = try container.decodeIfPresent(UUID.self, forKey: .queryDraftID)
         filePath = try container.decodeIfPresent(String.self, forKey: .filePath)
-        page = try container.decodeIfPresent(PageState.self, forKey: .page)
+        rowLimit = try container.decodeIfPresent(RowLimitState.self, forKey: .rowLimit)
         sort = try container.decodeIfPresent([SortOrder].self, forKey: .sort) ?? []
         hiddenColumns = try container.decodeIfPresent([String].self, forKey: .hiddenColumns) ?? []
         filter = try container.decodeIfPresent(FilterState.self, forKey: .filter)

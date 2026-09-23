@@ -16,7 +16,7 @@ public final class Preferences {
 
     public static let inspectorWidthRange: ClosedRange<Double> = 260...560
     public static let sidebarWidthRange: ClosedRange<Double> = 180...480
-    public static let pageSizeRange: ClosedRange<Int> = 1...PageSize.maximum
+    public static let rowLimitRange: ClosedRange<Int> = 1...RowLimit.maximum
     public static let fontSizeRange: ClosedRange<Int> = 8...72
     public static let indentWidthRange: ClosedRange<Int> = 1...16
     public static let consoleLogCapacityRange: ClosedRange<Int> = 100...100_000
@@ -60,12 +60,12 @@ public final class Preferences {
 
     // MARK: 表数据（specs/11 §3）
 
-    /// 每页行数。
-    public var pageSize: Int {
+    /// 表数据默认显示行数（`specs/11-preferences.md` §3）。
+    public var rowLimit: Int {
         didSet {
-            let clamped = Self.clamp(pageSize, to: Self.pageSizeRange)
-            if clamped != pageSize { pageSize = clamped; return }
-            persist(pageSize, .gridPageSize)
+            let clamped = Self.clamp(rowLimit, to: Self.rowLimitRange)
+            if clamped != rowLimit { rowLimit = clamped; return }
+            persist(rowLimit, .gridRowLimit)
         }
     }
     /// 网格正文字号。
@@ -252,7 +252,7 @@ public final class Preferences {
         keepAliveInterval = preferencesStore.integer(.keepAliveInterval)
         maxSessions = preferencesStore.integer(.maxSessions)
 
-        pageSize = Self.clamp(preferencesStore.integer(.gridPageSize), to: Self.pageSizeRange)
+        rowLimit = Self.clamp(preferencesStore.integer(.gridRowLimit), to: Self.rowLimitRange)
         gridFontSize = Self.clamp(preferencesStore.integer(.gridFontSize), to: Self.fontSizeRange)
         alternateRowColors = preferencesStore.bool(.gridAlternateRowColors)
         autoHideScrollers = preferencesStore.bool(.gridAutoHideScrollers)
@@ -311,7 +311,7 @@ public final class Preferences {
         defaultKeepAlive = fresh.defaultKeepAlive
         keepAliveInterval = fresh.keepAliveInterval
         maxSessions = fresh.maxSessions
-        pageSize = fresh.pageSize
+        rowLimit = fresh.rowLimit
         gridFontSize = fresh.gridFontSize
         alternateRowColors = fresh.alternateRowColors
         autoHideScrollers = fresh.autoHideScrollers

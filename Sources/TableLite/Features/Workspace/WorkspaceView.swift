@@ -154,7 +154,7 @@ struct WorkspaceView: View {
         }
         .sheet(item: $importRequest) { request in
             ImportWizardView(session: session, defaultDatabase: request.database, defaultTable: request.table) { summary in
-                // 导入完成后刷新对象树与当前页（DDL/数据变化已由 session.execute 触发缓存失效），
+                // 导入完成后刷新对象树与当前数据（DDL/数据变化已由 session.execute 触发缓存失效），
                 // 并按 `specs/12-feedback.md` §3 走轻提示。
                 Task { await session.refreshObjects() }
                 showToast(summary.message)

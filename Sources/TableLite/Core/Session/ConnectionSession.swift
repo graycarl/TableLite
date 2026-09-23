@@ -252,7 +252,7 @@ public final class ConnectionSession: Identifiable {
 
     /// 连接成功后重载还原出来的标签内容（`05-session-management.md` §8）。
     ///
-    /// 先 `restore(from:)` 装回现场、再 `open()`，然后调本方法把表数据标签的当前页拉回来。
+    /// 先 `restore(from:)` 装回现场、再 `open()`，然后调本方法把表数据标签重新拉回来。
     public func reloadTabsAfterReconnect() async {
         for tab in tabs {
             if let reload = tab.reloadAfterReconnect {

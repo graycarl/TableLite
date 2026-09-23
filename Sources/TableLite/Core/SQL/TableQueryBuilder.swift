@@ -85,22 +85,20 @@ public enum TableQueryBuilder {
     /// 长度列别名前缀；网格据此识别长度列。
     public static let lengthAliasPrefix = "__mtl_len_"
 
-    /// 分页查询：列清单 + 稳定排序 + `LIMIT pageSize + 1 OFFSET offset`。
+    /// 表数据查询：列清单 + 稳定排序 + `LIMIT rowLimit`。
     ///
-    /// 查询 `pageSize + 1` 行用于判断是否有下一页，多出的一行不显示。
-    public static func selectPage(
+    /// 取消分页后不再做 `LIMIT N + 1` 探测，也不带 `OFFSET`。
+    public static func selectRows(
         database: String,
         table: String,
         columns: [ColumnInfo],
         primaryKeyColumns: [String],
         sort: [SortOrder] = [],
         filterClause: String? = nil,
-        pageIndex: Int,
-        pageSize: Int,
+        rowLimit: Int,
         options: TableQueryOptions = .default
     ) -> TableQuery {
-        let effectivePageSize = PageSize.isValid(pageSize) ? pageSize : PageSize.default
-        let offset = max(0, pageIndex) * effectivePageSize
+        let effectiveRowLimit = RowLimit.isValid(rowLimit) ? rowLimit : RowLimit.default
         let projections = buildProjections(columns: columns, options: options)
         let orderBy = resolveOrderBy(
             sort: sort,
@@ -113,10 +111,10 @@ public enum TableQueryBuilder {
             projections: projections,
             filterClause: filterClause,
             orderBy: orderBy,
-            limit: effectivePageSize + 1,
-            offset: offset
+            limit: effectiveRowLimit,
+            offset: 0
         )
-        return TableQuery(sql: sql, projections: projections, limit: effectivePageSize + 1, offset: offset, orderByColumns: orderBy.map(\.column))
+        return TableQuery(sql: sql, projections: projections, limit: effectiveRowLimit, offset: 0, orderByColumns: orderBy.map(\.column))
     }
 
     /// 二次加载 / 定位单行：取完整列值，按行定位键过滤。

@@ -55,7 +55,7 @@ final class TabModelTests: XCTestCase {
 
     func testSnapshotRoundTripPreservesTableDataState() throws {
         let tab = Tab(kind: .tableData(database: "db", table: "users"))
-        tab.page = PageState(pageIndex: 2, pageSize: 300)
+        tab.rowLimit = RowLimitState(limit: 1000)
         tab.sort = [SortOrder(column: "id", direction: .descending)]
         tab.hiddenColumns = ["payload"]
         tab.filter = FilterState(rawWhere: "id > 1", isRawMode: true, isVisible: true)
@@ -67,7 +67,7 @@ final class TabModelTests: XCTestCase {
 
         XCTAssertEqual(restored.id, tab.id)
         XCTAssertEqual(restored.kind, tab.kind)
-        XCTAssertEqual(restored.page, tab.page)
+        XCTAssertEqual(restored.rowLimit, tab.rowLimit)
         XCTAssertEqual(restored.sort, tab.sort)
         XCTAssertEqual(restored.hiddenColumns, tab.hiddenColumns)
         XCTAssertEqual(restored.filter, tab.filter)

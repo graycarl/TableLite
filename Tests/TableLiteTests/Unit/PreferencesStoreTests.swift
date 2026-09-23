@@ -8,7 +8,7 @@ final class PreferencesStoreTests: XCTestCase {
     func testReadsDefaultsWhenEmpty() {
         let store = PreferencesStore(store: InMemoryKeyValueStore())
         XCTAssertTrue(store.bool(.restoreLastScript))
-        XCTAssertEqual(store.integer(.gridPageSize), 300)
+        XCTAssertEqual(store.integer(.gridRowLimit), 300)
         XCTAssertEqual(store.double(.gridInspectorWidth), 320)
         XCTAssertEqual(store.string(.gridNullDisplayText), "NULL")
         XCTAssertEqual(store.choice(.csvDelimiter, CSVExportDelimiter.self, fallback: .comma), .comma)
@@ -17,12 +17,12 @@ final class PreferencesStoreTests: XCTestCase {
     func testRoundTrip() {
         let backing = InMemoryKeyValueStore()
         let store = PreferencesStore(store: backing)
-        store.set(1000, for: .gridPageSize)
+        store.set(1000, for: .gridRowLimit)
         store.set(false, for: .restoreLastScript)
         store.setChoice(CSVExportDelimiter.semicolon, for: .csvDelimiter)
 
         let reloaded = PreferencesStore(store: backing)
-        XCTAssertEqual(reloaded.integer(.gridPageSize), 1000)
+        XCTAssertEqual(reloaded.integer(.gridRowLimit), 1000)
         XCTAssertFalse(reloaded.bool(.restoreLastScript))
         XCTAssertEqual(reloaded.choice(.csvDelimiter, CSVExportDelimiter.self, fallback: .comma), .semicolon)
     }
@@ -37,17 +37,17 @@ final class PreferencesStoreTests: XCTestCase {
 
     func testWrongTypeFallsBackToDefault() {
         let backing = InMemoryKeyValueStore(storage: [
-            PreferenceKey.gridPageSize.rawValue: "不是数字",
+            PreferenceKey.gridRowLimit.rawValue: "不是数字",
         ])
         let store = PreferencesStore(store: backing)
-        XCTAssertEqual(store.integer(.gridPageSize), 300)
+        XCTAssertEqual(store.integer(.gridRowLimit), 300)
     }
 
     func testResetAll() {
         let backing = InMemoryKeyValueStore()
         let store = PreferencesStore(store: backing)
-        store.set(1000, for: .gridPageSize)
+        store.set(1000, for: .gridRowLimit)
         store.resetAll()
-        XCTAssertEqual(store.integer(.gridPageSize), 300)
+        XCTAssertEqual(store.integer(.gridRowLimit), 300)
     }
 }
