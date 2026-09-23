@@ -9,7 +9,6 @@ import AppKit
 /// `newConnection` 为 nil 时菜单项禁用：没有会话时连接列表自己处理 `⌘N`。
 struct AppActions {
     var newConnection: (@MainActor () -> Void)?
-    var openPreferences: @MainActor () -> Void
     var showHelp: @MainActor () -> Void
     var openDataDirectory: @MainActor () -> Void
 }
@@ -105,6 +104,7 @@ struct TableLiteCommands: Commands {
 
     @FocusedValue(\.appActions) private var app
     @FocusedValue(\.workspaceActions) private var workspace
+    @Environment(\.openSettings) private var openSettings
 
     var body: some Commands {
         appMenu
@@ -126,9 +126,8 @@ struct TableLiteCommands: Commands {
             }
         }
         CommandGroup(replacing: .appSettings) {
-            Button("偏好设置…") { app?.openPreferences() }
+            Button("偏好设置…") { openSettings() }
                 .keyboardShortcut(",", modifiers: .command)
-                .disabled(app == nil)
         }
     }
 

@@ -14,7 +14,6 @@ struct RootView: View {
     @Environment(AppEnvironment.self) private var environment
 
     @State private var showConnectionList = false
-    @State private var showPreferences = false
 
     var body: some View {
         Group {
@@ -38,9 +37,6 @@ struct RootView: View {
         .onChange(of: environment.sessionManager.activeSessionID) { _, newValue in
             if newValue != nil { showConnectionList = false }
         }
-        .sheet(isPresented: $showPreferences) {
-            PreferencesView()
-        }
         // Console Log 的容量 / 落盘偏好改了立刻生效（`specs/11-preferences.md` §7）。
         .onChange(of: environment.preferences.consoleLogCapacity) { _, _ in
             environment.syncConsoleLogSettings()
@@ -58,7 +54,6 @@ struct RootView: View {
         }
         return AppActions(
             newConnection: newConnection,
-            openPreferences: { showPreferences = true },
             showHelp: { openManual() },
             openDataDirectory: {
                 NSWorkspace.shared.open(environment.layout.rootDirectory)
