@@ -277,12 +277,12 @@ public final class TableDataViewModel {
         return columns.first { $0.name == focusedColumn }
     }
 
-    /// 状态栏文案：`显示 300 行 / 约 12,480 行 · content 1.2 MB`。
+    /// 网格底部条的行数文案：`300 / 约 12,480 行 · content 1.2 MB`。
     ///
+    /// 不管加载状态如何都给出一个可读的行数（首屏加载时显示 `0 / 约 12,480 行`）。
     /// 耗时不在里拼接：阈值判断统一在 `WorkspaceStatusText.tableDataSummary`
     /// （`specs/12-feedback.md` §6，只在 > 1 s 时显示）。
-    public var statusBarText: String? {
-        guard loadState == .loaded || !rows.isEmpty else { return nil }
+    public var rowCountBarText: String {
         var text = rowLimitState.statusText(visibleCount: rows.count)
         if let summary = largeFieldSizeSummary {
             text += " · \(summary)"

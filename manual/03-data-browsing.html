@@ -226,7 +226,7 @@
 <div class="callout warn">
   <span class="tag">超长内容的延迟加载</span>
   <p>
-    超过 <b>4 KB</b> 的文本和二进制列，打开表时只取前 4 KB。状态栏会告诉你实际有多大
+    超过 <b>4 KB</b> 的文本和二进制列，打开表时只取前 4 KB。网格下方条会告诉你实际有多大
     （比如 <code>内容 1.2 MB</code>）。<b>选中该行</b>（字段栏要展示完整值）、点「快速查看」或开始编辑某个字段时，
     才会去服务器取这一行的完整值，中间会有一小段 loading。
   </p>
@@ -487,55 +487,63 @@
   <li>字段栏只在表数据标签里出现；查询结果、表结构、对象定义标签没有它。</li>
 </ul>
 
-<h2>显示条数</h2>
+<h2>显示条数与操作条</h2>
 
 <p>
   表数据每次只加载<b>前若干行</b>，默认 300 行，不做分页。打开一张百万行的表不会把一百万行都拉下来；
-  想看更靠后的数据，用排序或过滤器，或者把显示条数调大。
+  想看更靠后的数据，用排序或过滤器，或者把显示条数调大。网格下方常驻一条窄条：
+  左边是行数和显示条数，右边是 <b>筛选</b> / <b>列</b> / <b>导出</b> 三个入口。
 </p>
 
 <figure>
-<svg viewBox="0 0 1000 220" role="img" aria-label="显示条数状态栏的各个部分">
-  <title>显示条数控件</title>
+<svg viewBox="0 0 1000 220" role="img" aria-label="网格下方条的各个部分">
+  <title>网格下方条</title>
 
-  <!-- 状态栏主体 -->
+  <!-- 底部条主体 -->
   <rect class="s-chrome ln" x="20" y="30" width="960" height="46" rx="8"/>
 
-  <text class="s" x="44" y="53">显示 300 行 / 约 12,480 行</text>
-  <text class="fnt s" x="280" y="53">↑ 估算值，前面标「约」</text>
+  <text class="s" x="44" y="53">300 / 约 12,480 行</text>
+  <text class="fnt s" x="212" y="53">↑ 已加载 / 总行数（估算）</text>
 
-  <rect class="s-field ln2" x="600" y="40" width="140" height="26" rx="6"/>
-  <text class="s" x="614" y="53">最多 300 行</text>
-  <text class="mut s" x="712" y="53">▾</text>
+  <rect class="s-field ln2" x="430" y="40" width="90" height="26" rx="6"/>
+  <text class="s" x="444" y="53">300</text>
+  <text class="mut s" x="496" y="53">▾</text>
 
-  <rect class="s-field ln2" x="760" y="40" width="90" height="26" rx="6"/>
-  <text class="c s" x="805" y="53">精确统计</text>
+  <rect class="s-field ln2" x="540" y="40" width="70" height="26" rx="6"/>
+  <text class="c s" x="575" y="53">统计</text>
+
+  <text class="acc s" x="800" y="53">筛选</text>
+  <text class="acc s" x="856" y="53">列</text>
+  <text class="acc s" x="888" y="53">导出</text>
 
   <!-- 显示条数下拉 -->
-  <rect class="s-window ln2" x="600" y="80" width="160" height="130" rx="8"/>
-  <text class="acc" x="616" y="100">100 行</text>
-  <rect class="s-soft" x="606" y="110" width="148" height="26" rx="6"/>
-  <text class="acc" x="616" y="123">300 行</text>
-  <text x="616" y="150">1000 行</text>
-  <text x="616" y="176">5000 行</text>
-  <text class="fnt s" x="616" y="200">自定义…（上限 10000）</text>
+  <rect class="s-window ln2" x="430" y="80" width="160" height="130" rx="8"/>
+  <text class="acc" x="446" y="100">100 行</text>
+  <rect class="s-soft" x="436" y="110" width="148" height="26" rx="6"/>
+  <text class="acc" x="446" y="123">300 行</text>
+  <text x="446" y="150">1000 行</text>
+  <text x="446" y="176">5000 行</text>
+  <text class="fnt s" x="446" y="200">自定义…（上限 10000）</text>
 
   <g class="hot" data-hot="1"><circle cx="36" cy="30" r="11"/><text x="36" y="30">1</text></g>
-  <g class="hot" data-hot="2"><circle cx="670" cy="24" r="11"/><text x="670" y="24">2</text></g>
-  <g class="hot" data-hot="3"><circle cx="805" cy="24" r="11"/><text x="805" y="24">3</text></g>
+  <g class="hot" data-hot="2"><circle cx="475" cy="24" r="11"/><text x="475" y="24">2</text></g>
+  <g class="hot" data-hot="3"><circle cx="575" cy="24" r="11"/><text x="575" y="24">3</text></g>
+  <g class="hot" data-hot="4"><circle cx="860" cy="24" r="11"/><text x="860" y="24">4</text></g>
 </svg>
-<figcaption><b>图 3-3</b>　显示条数控件。行数是估算的，所以前面写「约」。</figcaption>
+<figcaption><b>图 3-3</b>　网格下方条。左边是行数与显示条数，右边是筛选 / 列 / 导出。行数是估算的，所以前面写「约」。</figcaption>
 </figure>
 
 <table class="controls">
 <thead><tr><th>#</th><th>控件</th><th>作用</th></tr></thead>
 <tbody>
 <tr data-hot="1"><td class="num">1</td><td class="wide">行数</td>
-  <td>本次实际加载的行数，以及总行数的<b>估算值</b>。估算靠读取表的统计信息，很快但可能不准，所以标了「约」。估不出来时显示 <code>约 0 行（估算不可靠）</code>。</td></tr>
+  <td>写成 <code>已加载 / 总数</code>。总数是<b>估算值</b>，靠读取表的统计信息，很快但可能不准，所以前面标了「约」。估不出来时显示 <code>300 / 约 0 行（估算不可靠）</code>。加载超过 1 秒时后面会追加耗时（如 <code>· 4800 ms</code>），超过 10 秒再附带一个「取消」按钮。</td></tr>
 <tr data-hot="2"><td class="num">2</td><td class="wide">显示条数</td>
-  <td>一个下拉按钮，标签上就是当前上限（如「最多 300 行」）。下拉里可选 <code>100 / 300 / 1000 / 5000</code> 档位，或选「自定义…」手动填一个数，上限 10000。改完立即从头重新加载。</td></tr>
-<tr data-hot="3"><td class="num">3</td><td class="wide">精确统计</td>
+  <td>一个下拉按钮，标签上就是当前上限（如 <code>300 ▾</code>）。下拉里可选 <code>100 / 300 / 1000 / 5000</code> 档位，或选「自定义…」手动填一个数，上限 10000。改完立即从头重新加载。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">统计</td>
   <td>点它才真正执行一次 <code>COUNT(*)</code>，把「约 N 行」换成精确的总行数。大表可能很慢，期间可以取消。<b>打开表时绝不会自动做精确计数</b>。</td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">筛选 / 列 / 导出</td>
+  <td>分别打开行过滤器（<kbd>⌘F</kbd>）、列过滤器（<kbd>⌥⌘F</kbd>）和导出面板（<kbd>⇧⌘E</kbd>）。导出的永远是<b>当前过滤条件下</b>的全部数据。</td></tr>
 </tbody>
 </table>
 
@@ -810,7 +818,7 @@
     <li>右侧字段栏也变成只读——只能看，不能改</li>
     <li>双击单元格改为打开快速查看，而不是跳到右侧字段栏去编辑</li>
     <li>超长内容一直保持截断（因为无法定位行去取完整值）</li>
-    <li>状态栏写明原因：<code>该表没有主键，行顺序不保证，且不可编辑</code></li>
+    <li>网格下方条上方显示橙色横幅，状态栏也写明原因：<code>该表没有主键，行顺序不保证，且不可编辑</code></li>
   </ul>
 </div>
 

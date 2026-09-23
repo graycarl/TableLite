@@ -89,10 +89,6 @@ struct WorkspaceView: View {
                 session: session,
                 onEditConnection: { showConnectionList = true },
                 onSwitchDatabase: { showDatabasePicker = true },
-                onExportTable: {
-                    guard let model = activeTableViewModel else { return }
-                    exportCenter.present(model.exportSource)
-                },
                 transientMessage: transientStatusMessage,
                 exportProgress: exportCenter.progressText
             )

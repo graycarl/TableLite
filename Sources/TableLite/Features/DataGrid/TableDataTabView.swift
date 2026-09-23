@@ -94,7 +94,9 @@ struct TableDataTabView: View {
                 }
             }
 
-            RowLimitBarView(viewModel: viewModel)
+            GridStatusBarView(viewModel: viewModel) {
+                exportCenter.present(viewModel.exportSource)
+            }
         }
         .overlay(alignment: .top) {
             if let notice = viewModel.copyNotice {

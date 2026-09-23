@@ -104,10 +104,10 @@ public struct RowLimitState: Sendable, Codable, Equatable, Hashable {
         self.rowCount = rowCount
     }
 
-    /// 状态栏文案：`显示 300 行 / 约 12,480 行`。
+    /// 网格底部条文案：`300 / 约 12,480 行`（左侧为本次已加载行数，右侧为总数估算/精确值）。
     public func statusText(visibleCount: Int) -> String {
         let total = rowCount?.displayText ?? "行数未知"
-        return "显示 \(visibleCount) 行 / \(total)"
+        return "\(visibleCount) / \(total)"
     }
 
     private enum CodingKeys: String, CodingKey {

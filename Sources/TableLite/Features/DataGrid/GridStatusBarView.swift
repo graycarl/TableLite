@@ -1,12 +1,17 @@
 import SwiftUI
 
-/// 显示条数栏（`specs/03-data-browsing.md` §2）。在网格之下、窗口状态栏之上。
+/// 网格底部条（`specs/03-data-browsing.md` §2、`specs/02-workspace.md` §7）。在网格之下、窗口状态栏之上。
 ///
-/// 只有一件事：切换「最多显示多少行」，外加一个「精确统计」把行数估算换成精确总行数。
+/// 表数据标签里网格下方唯一的「概况 + 操作」条：
+/// - 左侧：行数（`300 / 约 12,480 行`）、显示条数下拉、`统计`；慢加载时行数后跟耗时与「取消」；
+/// - 右侧：`筛选` / `列` / `导出` 三个操作入口（原先在窗口状态栏，现已并进来）。
+///
 /// 没有页码 / 翻页 / 跳页（取消分页，见 `docs/tech-designs/07-data-grid.md` §7）。
-struct RowLimitBarView: View {
+struct GridStatusBarView: View {
 
     let viewModel: TableDataViewModel
+    /// 导出当前过滤条件下的全部数据（`specs/08-import-export.md`）。
+    var onExport: () -> Void
 
     @State private var isCustomLimitPresented = false
     @State private var customLimitText = ""
@@ -23,15 +28,25 @@ struct RowLimitBarView: View {
 
     private var controls: some View {
         HStack(spacing: 10) {
-            Text("显示 \(viewModel.rows.count) 行 / \(viewModel.rowCountEstimate?.displayText ?? "行数未知")")
-                .font(.callout)
-                .monospacedDigit()
+            // 行数 + 慢加载耗时；阈值判断统一在 `WorkspaceStatusText.tableDataSummary`。
+            Text(WorkspaceStatusText.tableDataSummary(
+                base: viewModel.rowCountBarText,
+                elapsedMilliseconds: viewModel.elapsedMilliseconds
+            ))
+            .font(.callout)
+            .monospacedDigit()
+
+            // 超过 10 秒的加载附「取消」（`specs/12-feedback.md` §6）。
+            if viewModel.loadState.isLoading,
+               WorkspaceStatusText.showsCancelButton(elapsedMilliseconds: viewModel.elapsedMilliseconds) {
+                Button("取消") { viewModel.cancelInFlight() }
+                    .controlSize(.small)
+                    .help("取消正在进行的查询（⌘.）")
+            }
 
             limitControl
 
-            Spacer(minLength: 12)
-
-            Button("精确统计") {
+            Button("统计") {
                 viewModel.runExactCount()
             }
             .disabled(viewModel.isCountingExact || !viewModel.isMetadataLoaded)
@@ -41,6 +56,18 @@ struct RowLimitBarView: View {
                 ProgressView()
                     .controlSize(.small)
             }
+
+            Spacer(minLength: 12)
+
+            Button("筛选") { viewModel.toggleFilterVisible() }
+                .controlSize(.small)
+                .help("打开或关闭行过滤器（⌘F）")
+            Button("列") { viewModel.presentColumnFilter() }
+                .controlSize(.small)
+                .help("选择要显示的列（⌥⌘F）")
+            Button("导出", action: onExport)
+                .controlSize(.small)
+                .help("导出当前过滤条件下的全部数据（⇧⌘E）")
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
@@ -60,7 +87,7 @@ struct RowLimitBarView: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Text("最多 \(viewModel.rowLimit) 行")
+                Text("\(viewModel.rowLimit)")
                     .monospacedDigit()
                 Image(systemName: "chevron.down")
                     .font(.caption)
