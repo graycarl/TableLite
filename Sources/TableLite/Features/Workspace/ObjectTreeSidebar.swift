@@ -182,10 +182,7 @@ struct ObjectTreeSidebar: View {
         .padding(.trailing, 10)
         .padding(.vertical, 3)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) {
-            open(object, forceNew: true)
-        }
-        .onTapGesture(count: 1) {
+        .onTapGesture {
             open(object, forceNew: false)
         }
         .contextMenu {
@@ -217,6 +214,7 @@ struct ObjectTreeSidebar: View {
             Button("复制名字") { copyName(object.name) }
         } else {
             Button("打开数据") { open(object, forceNew: false) }
+            Button("在新标签打开") { open(object, forceNew: true) }
             Button("打开结构") {
                 session.openTableStructure(database: object.database, table: object.name)
             }

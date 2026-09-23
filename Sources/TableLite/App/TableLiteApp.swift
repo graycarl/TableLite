@@ -38,6 +38,12 @@ struct TableLiteApp: App {
             // 单窗口应用：不要「新建窗口」；其余菜单见 `TableLiteCommands`。
             TableLiteCommands()
         }
+
+        // 偏好设置独立窗口（manual/11-preferences.html），由菜单「偏好设置… ⌘,」打开。
+        Settings {
+            PreferencesView()
+                .environment(environment)
+        }
     }
 }
 
