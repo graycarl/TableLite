@@ -72,4 +72,18 @@ final class SQLStatementClassifierTests: XCTestCase {
         XCTAssertEqual(SQLStatementClassifier.classify("VALUES (1)"), .query)
         XCTAssertFalse(SQLStatementClassifier.isReadOnlyAllowed("VALUES (1)"))
     }
+
+    func testUseStatementDetection() {
+        XCTAssertTrue(SQLStatementClassifier.isUseStatement("USE app_dev"))
+        XCTAssertTrue(SQLStatementClassifier.isUseStatement("USE `app_dev`;"))
+        XCTAssertTrue(SQLStatementClassifier.isUseStatement("use app_dev;"))
+        XCTAssertTrue(SQLStatementClassifier.isUseStatement("-- 切库\nUSE app_dev"))
+        XCTAssertTrue(SQLStatementClassifier.isUseStatement("/* c */ USE app_dev"))
+        XCTAssertFalse(SQLStatementClassifier.isUseStatement(""))
+        XCTAssertFalse(SQLStatementClassifier.isUseStatement("SELECT 1"))
+        // `USE INDEX` 不是起始关键字，不能误判。
+        XCTAssertFalse(SQLStatementClassifier.isUseStatement("SELECT * FROM t USE INDEX (i)"))
+        XCTAssertFalse(SQLStatementClassifier.isUseStatement("USER()"))
+        XCTAssertFalse(SQLStatementClassifier.isUseStatement("UPDATE t SET `use` = 1"))
+    }
 }

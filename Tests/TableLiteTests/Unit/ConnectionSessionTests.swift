@@ -178,6 +178,43 @@ final class ConnectionSessionTests: XCTestCase {
         XCTAssertTrue(session.warning?.contains("missing_db") ?? false)
     }
 
+    // MARK: 切库同步服务器默认库
+
+    func testSelectDatabaseIssuesUseOnServer() async throws {
+        await harness.mysql.setResponses(
+            [("SHOW DATABASES", .single(columns: ["Database"], rows: [["app_dev"], ["app_test"], ["mysql"]]))]
+                + SessionTestSupport.successfulResponses()
+        )
+        let connection = SessionTestSupport.connection()
+        let session = try await harness.manager.connect(connection, password: nil)
+        XCTAssertEqual(session.selectedDatabase, "app_dev")
+
+        await session.selectDatabase("app_test")
+
+        XCTAssertEqual(session.selectedDatabase, "app_test")
+        XCTAssertNil(session.databaseSwitchNotice)
+        let executed = await harness.mysql.executedSQL
+        XCTAssertTrue(executed.contains { $0 == "USE `app_test`" })
+    }
+
+    func testSelectDatabaseRollsBackWhenUseFails() async throws {
+        await harness.mysql.setResponses(
+            [("SHOW DATABASES", .single(columns: ["Database"], rows: [["app_dev"], ["app_test"], ["mysql"]]))]
+                + SessionTestSupport.successfulResponses()
+        )
+        await harness.mysql.setFailures([
+            ("USE ", MySQLError.server(code: 1044, sqlState: "42000", message: "Access denied for user to database")),
+        ])
+        let connection = SessionTestSupport.connection()
+        let session = try await harness.manager.connect(connection, password: nil)
+
+        await session.selectDatabase("app_test")
+
+        // 失败则回滚选择并提示，避免界面显示已切换、实际还查旧库。
+        XCTAssertEqual(session.selectedDatabase, "app_dev")
+        XCTAssertEqual(session.databaseSwitchNotice, "无法切换到数据库 app_test")
+    }
+
     // MARK: 查询记录
 
     func testExecuteRecordsHistoryAndConsoleLog() async throws {

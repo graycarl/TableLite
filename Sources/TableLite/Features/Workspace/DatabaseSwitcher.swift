@@ -43,6 +43,13 @@ struct DatabaseSwitcher: View {
                     .foregroundStyle(.orange)
                     .lineLimit(2)
             }
+
+            if let notice = session.databaseSwitchNotice {
+                Label(notice, systemImage: "exclamationmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .lineLimit(2)
+            }
         }
         .padding(.horizontal, 10)
         .padding(.top, 8)

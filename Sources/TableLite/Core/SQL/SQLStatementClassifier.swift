@@ -71,6 +71,12 @@ public enum SQLStatementClassifier {
         return readOnlyLeading.contains(leading)
     }
 
+    /// 是否是 `USE` 语句。编辑器据此拦截手写切库，统一引导用户走侧栏库切换器
+    /// （`docs/tech-designs/10-query-editor.md` §5.5）。
+    public static func isUseStatement(_ sql: String) -> Bool {
+        resolveLeadingKeyword(significantTokens(sql)) == "USE"
+    }
+
     /// 找出首个真正的起始关键字：
     /// - 跳过注释；
     /// - 只在最外层括号深度上找；

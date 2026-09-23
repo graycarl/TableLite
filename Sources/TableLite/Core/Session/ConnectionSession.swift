@@ -43,6 +43,8 @@ public final class ConnectionSession: Identifiable {
     public private(set) var warning: String?
     /// 配置里的库名（`1049`）不存在时记录；连接本身成功。
     public private(set) var unresolvedDatabase: String?
+    /// 切库时服务器拒绝 `USE`（库被删 / 无权限）的轻提示，约 4 秒后自动消失。
+    public private(set) var databaseSwitchNotice: String?
     /// 最近一次活动时间（空闲回收用）。
     public private(set) var lastActivity: Date
 
@@ -68,6 +70,13 @@ public final class ConnectionSession: Identifiable {
     @ObservationIgnored private var sshPassphrase: String?
     /// 测试连接等场景下不写查询历史 / Console Log。
     @ObservationIgnored private let recordsQueries: Bool
+    /// 服务器端实际的默认库（最佳估计）：连接建立时取自连接配置，之后随切库更新。
+    ///
+    /// 用来判断是否需要发 `USE`，以及切库失败时回滚选择。
+    /// 见 `docs/tech-designs/05-session-management.md` §11。
+    @ObservationIgnored private var syncedDatabase: String?
+    /// `databaseSwitchNotice` 的自动清除任务。
+    @ObservationIgnored private var databaseNoticeTask: Task<Void, Never>?
 
     // MARK: 初始化
 
@@ -206,9 +215,15 @@ public final class ConnectionSession: Identifiable {
         }
 
         await loadDatabasesAndSelect()
-        await refreshObjects()
+        // 服务器已用连接配置里的库打开（`1049` 时会退化为不选库），先据此登记。
+        let configured = connection.mysql.database
+        syncedDatabase = (configured.isEmpty || unresolvedDatabase != nil) ? nil : configured
 
         state = .connected
+        // 让服务器默认库跟随当前选中库：编辑器里不带库名的 SQL 才能落在当前库上。
+        await syncSelectedDatabaseOnServer(rollbackOnFailure: false)
+        await refreshObjects()
+
         noteActivity()
         StoreLog.info("已连接 \(connection.name)")
     }
@@ -325,9 +340,12 @@ public final class ConnectionSession: Identifiable {
         noteActivity()
     }
 
-    /// 切换当前库并刷新对象树。
+    /// 切换当前库：先在服务器上同步（`USE`），失败则回滚选择并提示；成功再刷新对象树。
+    ///
+    /// 服务器默认库在切库时就同步，编辑器里不带库名的 SQL 才会落到当前库上。
     public func selectDatabase(_ database: String?) async {
         selectedDatabase = database
+        await syncSelectedDatabaseOnServer(rollbackOnFailure: true)
         await refreshObjects()
     }
 
@@ -335,7 +353,75 @@ public final class ConnectionSession: Identifiable {
     public func reloadDatabases() async {
         await meta.invalidateDatabases()
         await loadDatabasesAndSelect()
+        await syncSelectedDatabaseOnServer(rollbackOnFailure: false)
         await refreshObjects()
+    }
+
+    /// 把当前 `selectedDatabase` 同步为服务器的连接默认库（`USE`）。
+    ///
+    /// 与 `syncedDatabase` 相同就跳过，避免每次切回来都多一次往返。
+    /// 失败时（`rollbackOnFailure`）把选择回滚到服务器实际还在的库，并提示，
+    /// 以免界面显示已切换、实际还查旧库。
+    private func syncSelectedDatabaseOnServer(rollbackOnFailure: Bool) async {
+        guard state.isConnected, let database = selectedDatabase, !database.isEmpty else { return }
+        guard database != syncedDatabase else { return }
+        do {
+            try await applyServerDatabase(database)
+            syncedDatabase = database
+            clearDatabaseSwitchNotice()
+        } catch {
+            StoreLog.error("切换数据库失败（\(database)）：\(error)")
+            guard rollbackOnFailure else { return }
+            selectedDatabase = syncedDatabase
+            showDatabaseSwitchNotice("无法切换到数据库 \(database)")
+        }
+    }
+
+    /// 在连接上执行 `USE`。记 Console Log（`[meta]`，客户端自动发出），**不记查询历史**。
+    private func applyServerDatabase(_ database: String) async throws {
+        let sql = "USE \(SQLIdentifier.quote(database))"
+        guard recordsQueries else {
+            _ = try await mysql.execute(sql, unbuffered: false)
+            return
+        }
+        let started = services.clock.now
+        do {
+            _ = try await mysql.execute(sql, unbuffered: false)
+            await services.consoleLog.record(
+                tag: .meta,
+                database: database,
+                sql: sql,
+                durationMilliseconds: Self.milliseconds(from: started, to: services.clock.now)
+            )
+        } catch {
+            let mysqlError = error as? MySQLError
+            await services.consoleLog.record(
+                tag: .meta,
+                database: database,
+                sql: sql,
+                durationMilliseconds: Self.milliseconds(from: started, to: services.clock.now),
+                errorCode: mysqlError?.code,
+                errorMessage: mysqlError?.message ?? String(describing: error),
+                isCancelled: mysqlError?.isCancellation ?? false
+            )
+            throw error
+        }
+    }
+
+    private func showDatabaseSwitchNotice(_ message: String) {
+        databaseSwitchNotice = message
+        databaseNoticeTask?.cancel()
+        databaseNoticeTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
+            self?.databaseSwitchNotice = nil
+        }
+    }
+
+    private func clearDatabaseSwitchNotice() {
+        databaseNoticeTask?.cancel()
+        databaseNoticeTask = nil
+        databaseSwitchNotice = nil
     }
 
     // MARK: 查询入口（统一记录历史与 Console Log）
