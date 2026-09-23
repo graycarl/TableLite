@@ -9,8 +9,6 @@ struct StatusBarView: View {
     let session: ConnectionSession
     var onEditConnection: () -> Void
     var onSwitchDatabase: () -> Void
-    /// 表数据标签的「导出…」入口（`specs/02-workspace.md` §7）。
-    var onExportTable: (() -> Void)?
     /// 短暂状态栏提示（如进入只读连接，`specs/09-readonly-mode.md` §5）。非空时整条状态栏只显示它。
     var transientMessage: String?
     /// 正在进行的导出进度（`specs/12-feedback.md` §2）：`正在导出… 已写入 N 行（X MB）`。
@@ -44,30 +42,11 @@ struct StatusBarView: View {
                     Divider().frame(height: 12)
                 }
                 Spacer(minLength: 12)
-                Text(summary)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                if let viewModel = activeTableViewModel {
-                    // 表数据标签右侧的操作入口（`specs/02-workspace.md` §7）。
-                    Button("筛选") { viewModel.toggleFilterVisible() }
-                        .controlSize(.small)
-                        .help("打开或关闭行过滤器（⌘F）")
-                    Button("列") { viewModel.presentColumnFilter() }
-                        .controlSize(.small)
-                        .help("选择要显示的列（⌥⌘F）")
-                    if let onExportTable {
-                        Button("导出…", action: onExportTable)
-                            .controlSize(.small)
-                            .help("导出当前过滤条件下的全部数据（⇧⌘E）")
-                    }
-                    // 超过 10 秒的加载在状态栏附「取消」（`specs/12-feedback.md` §6）。
-                    if viewModel.loadState.isLoading,
-                       WorkspaceStatusText.showsCancelButton(elapsedMilliseconds: viewModel.elapsedMilliseconds) {
-                        Button("取消") { viewModel.cancelInFlight() }
-                            .controlSize(.small)
-                            .help("取消正在进行的查询（⌘.）")
-                    }
+                if !summary.isEmpty {
+                    Text(summary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
             }
         }
@@ -161,16 +140,8 @@ struct StatusBarView: View {
             if let reason = viewModel.uneditableStatusText {
                 return reason
             }
-            let base = viewModel.statusBarText
-                ?? WorkspaceStatusText.tabSummary(
-                    for: tab.kind,
-                    rowLimit: tab.rowLimit,
-                    consoleLogCount: environment.consoleLog.entries.count
-                )
-            return WorkspaceStatusText.tableDataSummary(
-                base: base,
-                elapsedMilliseconds: viewModel.elapsedMilliseconds
-            )
+            // 行数摘要与筛选 / 列 / 导出入口已移到网格底部条（`specs/03-data-browsing.md` §2）。
+            return ""
         }
         if let editor = tab.content as? QueryEditorViewModel {
             if editor.isRunning {
@@ -188,6 +159,8 @@ struct StatusBarView: View {
            let statusSummary = structure.statusSummary {
             return statusSummary
         }
+        // 表数据标签未装配 ViewModel 时不再回退显示「最多 N 行」，底部条负责行数。
+        if case .tableData = tab.kind { return "" }
         return WorkspaceStatusText.tabSummary(
             for: tab.kind,
             rowLimit: tab.rowLimit,

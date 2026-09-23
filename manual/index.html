@@ -222,8 +222,18 @@
     <text class="acc s" x="286" y="238">插入行</text>
     <text class="mut" x="352" y="238">新增一行，等于 ⌘I</text>
 
-    <text class="b s mut" x="250" y="268">数据网格（只读）</text>
-    <text class="fnt s" x="250" y="286">单元格不能编辑：双击只会跳到右侧字段栏对应的字段</text>
+    <!-- 网格底部条：行数 + 显示条数 + 统计 + 筛选/列/导出 -->
+    <rect class="s-chrome" x="250" y="250" width="538" height="26"/>
+    <line class="ln" x1="250" y1="250" x2="788" y2="250"/>
+    <text class="s" x="262" y="267">300 / 约 12,480 行</text>
+    <text class="fnt s" x="400" y="267">300 ▾</text>
+    <text class="fnt s" x="452" y="267">统计</text>
+    <text class="acc s" x="690" y="267">筛选</text>
+    <text class="acc s" x="724" y="267">列</text>
+    <text class="acc s" x="754" y="267">导出</text>
+
+    <text class="b s mut" x="250" y="302">数据网格（只读）</text>
+    <text class="fnt s" x="250" y="320">单元格不能编辑：双击只会跳到右侧字段栏对应的字段</text>
 
     <!-- 右侧字段栏 -->
     <rect class="s-sunken" x="788" y="115" width="204" height="463"/>
@@ -291,10 +301,6 @@
     <rect class="s-chrome" x="250" y="578" width="742" height="34"/>
     <line class="ln" x1="250" y1="578" x2="992" y2="578"/>
     <text class="s" x="264" y="596">● 本地开发 · app_dev · MySQL 8.0.36 · utf8mb4</text>
-    <text class="mut s" x="530" y="596">显示 300 行 / 约 12,480 行</text>
-    <text class="acc s" x="790" y="596">筛选</text>
-    <text class="acc s" x="830" y="596">列</text>
-    <text class="acc s" x="866" y="596">导出…</text>
 
     <!-- 编号热点 -->
     <g class="hot" data-hot="1"><circle cx="22" cy="45" r="11"/><text x="22" y="45">1</text></g>
@@ -337,7 +343,7 @@
 <tr data-hot="9"><td class="num">9</td><td class="wide">标签内容区（数据网格）</td>
   <td>占窗口最大的部分。表数据标签里是<b>只读</b>的数据网格：能选、能排序、能复制，但不能在格子里改值。查询标签里是编辑器加只读结果区，结构标签里是只读的列表。</td><td>—</td></tr>
 <tr data-hot="10"><td class="num">10</td><td class="wide">状态栏</td>
-  <td>左半是连接状态和当前标签的关键信息（行数、页数、耗时）；右半是随标签变化的操作按钮，比如 <b>筛选</b>、<b>列</b>、<b>导出…</b>。</td><td>—</td></tr>
+  <td>连接状态、进度与全局提示。表数据的行数与 <b>筛选</b> / <b>列</b> / <b>导出</b> 在网格下方那条窄条上（图中已画出），不在这里。</td><td>—</td></tr>
 <tr data-hot="11"><td class="num">11</td><td class="wide">右侧字段栏</td>
   <td>表数据标签专有：选中一行后，这里列出它的<b>全部字段</b>（列名、类型、值），也是<b>唯一</b>能改数据的地方。顶部有「搜索字段」框。默认显示，用工具栏最右的 <b>▤</b> 或「视图 → 显示/隐藏右侧字段栏」开关，没有快捷键。</td><td>—</td></tr>
 </tbody>

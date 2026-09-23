@@ -177,8 +177,18 @@
     <text class="acc s" x="286" y="238">插入行</text>
     <text class="mut" x="352" y="238">新增一行，等于 ⌘I</text>
 
-    <text class="b s mut" x="250" y="268">数据网格（只读）</text>
-    <text class="fnt s" x="250" y="286">单元格不能编辑：双击只会跳到右侧字段栏对应的字段</text>
+    <!-- 网格底部条：行数 + 显示条数 + 统计 + 筛选/列/导出 -->
+    <rect class="s-chrome" x="250" y="250" width="538" height="26"/>
+    <line class="ln" x1="250" y1="250" x2="788" y2="250"/>
+    <text class="s" x="262" y="267">300 / 约 12,480 行</text>
+    <text class="fnt s" x="400" y="267">300 ▾</text>
+    <text class="fnt s" x="452" y="267">统计</text>
+    <text class="acc s" x="690" y="267">筛选</text>
+    <text class="acc s" x="724" y="267">列</text>
+    <text class="acc s" x="754" y="267">导出</text>
+
+    <text class="b s mut" x="250" y="302">数据网格（只读）</text>
+    <text class="fnt s" x="250" y="320">单元格不能编辑：双击只会跳到右侧字段栏对应的字段</text>
 
     <!-- 右侧字段栏 -->
     <rect class="s-sunken" x="788" y="115" width="204" height="463"/>
@@ -246,10 +256,6 @@
     <rect class="s-chrome" x="250" y="578" width="742" height="34"/>
     <line class="ln" x1="250" y1="578" x2="992" y2="578"/>
     <text class="s" x="264" y="596">● 本地开发 · app_dev · MySQL 8.0.36 · utf8mb4</text>
-    <text class="mut s" x="530" y="596">显示 300 行 / 约 12,480 行</text>
-    <text class="acc s" x="790" y="596">筛选</text>
-    <text class="acc s" x="830" y="596">列</text>
-    <text class="acc s" x="866" y="596">导出…</text>
 
     <!-- 编号热点 -->
     <g class="hot" data-hot="1"><circle cx="22" cy="45" r="11"/><text x="22" y="45">1</text></g>
@@ -286,8 +292,8 @@
   <td><b>只在表数据标签里出现</b>：纵向列出焦点行的全部字段（列名 + 类型 + 值），是<b>唯一</b>能改数据的地方。</td>
   <td>默认显示，可拖宽（260–560pt，默认 320pt）、可隐藏；没有选中行或选中多行时显示对应的提示。</td></tr>
 <tr data-hot="7"><td class="num">7</td><td class="wide">状态栏</td>
-  <td>当前状态、进度，以及随标签变化的操作按钮。</td>
-  <td>左半看状态，右半看操作。</td></tr>
+  <td>连接状态、进度与全局提示。</td>
+  <td>表数据的行数与 <b>筛选</b> / <b>列</b> / <b>导出</b> 在网格下方那条窄条上，不在这里。</td></tr>
 </tbody>
 </table>
 
@@ -749,7 +755,7 @@
 
 <h2>状态栏</h2>
 
-<p>底部一条细状态栏，内容随当前标签变化。左半是「现在什么情况」，右半是「能做什么」。</p>
+<p>底部一条细状态栏，左半永远是连接状态，右半随当前标签变化。表数据标签的行数与操作入口已经全部收进<b>网格下方条</b>，不在状态栏里。</p>
 
 <figure>
 <svg viewBox="0 0 1000 420" role="img" aria-label="状态栏在不同标签下的内容">
@@ -760,10 +766,7 @@
   <rect class="s-chrome ln" x="20" y="36" width="960" height="38" rx="6"/>
   <circle class="s-green" cx="42" cy="55" r="4.5"/>
   <text class="s" x="56" y="55">本地开发 · app_dev · MySQL 8.0.36 · utf8mb4</text>
-  <text class="mut s" x="430" y="55">显示 300 行 / 约 12,480 行</text>
-  <text class="acc s" x="782" y="55">筛选</text>
-  <text class="acc s" x="830" y="55">列</text>
-  <text class="acc s" x="866" y="55">导出…</text>
+  <text class="fnt s" x="430" y="55">（表数据的行数与筛选 / 列 / 导出在网格下方那条窄条上）</text>
 
   <!-- 查询编辑器 -->
   <text class="mut s" x="20" y="106">查询编辑器标签</text>
@@ -786,7 +789,6 @@
   <rect class="s-orange" x="20" y="282" width="360" height="38" rx="6" opacity="0.18"/>
   <text class="warn s" x="42" y="301">● 有 7 处未提交的修改（3 新增 · 2 修改 · 2 删除）</text>
   <text class="acc s" x="400" y="301">查看详情</text>
-  <text class="mut s" x="620" y="301">显示 300 行 / 约 12,480 行</text>
   <rect class="s-accent" x="820" y="288" width="120" height="26" rx="6"/>
   <text class="c s" x="880" y="301" fill="#fff">提交修改 · 7</text>
 
@@ -799,7 +801,7 @@
   <text class="fnt s" x="700" y="383">（禁用，悬停说明原因）</text>
   <text class="err s" x="940" y="383">提交</text>
 </svg>
-<figcaption><b>图 2-7</b>　状态栏在不同标签下的内容。左半边永远是连接状态，右半边随标签变。</figcaption>
+<figcaption><b>图 2-7</b>　状态栏在不同标签下的内容。左半边永远是连接状态，右半边随标签变；表数据标签的右半边是空的。</figcaption>
 </figure>
 
 <h3>状态栏左侧的连接状态</h3>

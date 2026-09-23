@@ -8,12 +8,12 @@ final class GridStateTests: XCTestCase {
 
     func testStatusTextShowsVisibleAndEstimatedRows() {
         let state = RowLimitState(limit: 300, rowCount: RowCountEstimate(approximate: 12480))
-        XCTAssertEqual(state.statusText(visibleCount: 300), "显示 300 行 / 约 12,480 行")
-        XCTAssertEqual(state.statusText(visibleCount: 0), "显示 0 行 / 约 12,480 行")
+        XCTAssertEqual(state.statusText(visibleCount: 300), "300 / 约 12,480 行")
+        XCTAssertEqual(state.statusText(visibleCount: 0), "0 / 约 12,480 行")
     }
 
     func testStatusTextWithoutEstimate() {
-        XCTAssertEqual(RowLimitState(limit: 300).statusText(visibleCount: 5), "显示 5 行 / 行数未知")
+        XCTAssertEqual(RowLimitState(limit: 300).statusText(visibleCount: 5), "5 / 行数未知")
     }
 
     func testInvalidLimitFallsBack() {

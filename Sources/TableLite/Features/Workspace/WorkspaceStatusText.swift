@@ -81,16 +81,16 @@ enum WorkspaceStatusText {
 
     // MARK: 加载耗时（`specs/12-feedback.md` §6）
 
-    /// 网络慢于该时长才在状态栏显示耗时。
+    /// 网络慢于该时长才在网格底部条显示耗时。
     static let slowQueryThresholdMilliseconds = 1_000
-    /// 慢于该时长在状态栏文字后附「取消」按钮。
+    /// 慢于该时长在网格底部条文字后附「取消」按钮。
     static let cancellableQueryThresholdMilliseconds = 10_000
 
-    /// 表数据状态栏左侧摘要：基础文本 + 超时耗时。
+    /// 表数据网格底部条左侧摘要：基础文本 + 超时耗时。
     ///
     /// 耗时只在 **> 1 秒** 时追加，避免每次重新加载都闪一个「12 ms」
-    /// （`specs/12-feedback.md` §6）。基础文本由 `TableDataViewModel.statusBarText`
-    /// 或 `tabSummary` 提供，耗时口径统一在这里，不在 ViewModel 里重复拼接。
+    /// （`specs/12-feedback.md` §6）。基础文本由 `TableDataViewModel.rowCountBarText`
+    /// 提供，耗时口径统一在这里，不在 ViewModel 里重复拼接。
     static func tableDataSummary(base: String, elapsedMilliseconds: Int?) -> String {
         guard let milliseconds = elapsedMilliseconds,
               milliseconds > slowQueryThresholdMilliseconds else { return base }
