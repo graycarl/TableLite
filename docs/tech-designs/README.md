@@ -63,6 +63,7 @@
 | 导出方式 | 只支持 CSV；流式写出、临时文件原子替换 | [11](11-schema-and-import-export.md) §3、[13](13-open-questions.md) S9 |
 | 口令存储 | 密码 / Passphrase 只进 Keychain，禁止写进 JSON / UserDefaults | [02](02-persistence.md) §2、§3 |
 | 连接失效处理 | 不自动重连，保留未提交改动，由用户点「重新连接」 | [05](05-session-management.md) §6、[13](13-open-questions.md) L7 |
+| 当前数据库 | 服务器默认库在「切库时」同步（发 `USE`），不在「执行时」同步；失败回滚选择；编辑器拦截手写 `USE` | [05](05-session-management.md) §11、[10](10-query-editor.md) §5.5、[13](13-open-questions.md) S38 |
 | 启动行为 | **每次启动都进连接列表**，不自动连接、不自动进工作区；标签现场按连接记住，连上后才还原 | [05](05-session-management.md) §8、[13](13-open-questions.md) S36 |
 | 只读模式 | 语句级拦截（不是权限控制） | [10](10-query-editor.md) §10、[13](13-open-questions.md) L3 |
 | 工程组织 | XcodeGen，`TableLite.xcodeproj` 不进版本控制 | [12](12-build-and-deps.md) §1 |

@@ -48,6 +48,8 @@ final class QueryResultTab: Identifiable {
     static let largeRowThreshold = 100_000
     /// 只读拦截详情面板的一句话（`specs/09-readonly-mode.md` §5、`manual/09-readonly.html` 提示文案汇总）。
     static let readOnlyBlockedMessage = "当前连接处于只读模式，只能执行查询语句。如需修改，请在连接菜单中关闭只读模式。"
+    /// `USE` 被拦截时的一句话（切库请走侧栏库切换器，`specs/06-query-editor.md` §3）。
+    static let useBlockedMessage = "请通过侧栏切换数据库"
 
     init(ordinal: Int, statement: SQLStatement) {
         self.ordinal = ordinal
@@ -79,10 +81,11 @@ final class QueryResultTab: Identifiable {
         }
     }
 
-    func markBlocked(reason: String) {
+    func markBlocked(reason: String, label: String = QueryResultTab.blockedLabel) {
         kind = .blocked
         error = nil
         blockedReason = reason
+        blockedLabel = label
     }
 
     func markFailure(_ error: MySQLError, durationMilliseconds: Int) {
@@ -92,6 +95,12 @@ final class QueryResultTab: Identifiable {
     }
 
     private(set) var blockedReason: String?
+    /// 拦截结果标签的文字；只读拦截用「只读拦截」，`USE` 拦截用「已拦截」。
+    private(set) var blockedLabel: String?
+    /// 默认的拦截标签文字。
+    static let blockedLabel = "只读拦截"
+    /// `USE` 拦截的标签文字。
+    static let useBlockedLabel = "已拦截"
 
     /// 结果集里所有值的近似字节数（文本按 UTF-8、二进制按原始长度；复用于状态栏进度）。
     static func byteCount(of rows: [[SQLValue]]) -> Int {
@@ -111,7 +120,7 @@ final class QueryResultTab: Identifiable {
         case .resultSet: return "结果 \(ordinal)"
         case .affected: return "完成"
         case .failure: return "错误"
-        case .blocked: return "只读拦截"
+        case .blocked: return blockedLabel ?? Self.blockedLabel
         }
     }
 

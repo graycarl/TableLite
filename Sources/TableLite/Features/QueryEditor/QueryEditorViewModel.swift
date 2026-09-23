@@ -204,8 +204,19 @@ final class QueryEditorViewModel {
         runTask = Task { @MainActor [weak self] in
             guard let self else { return }
             var blockedCount = 0
+            var useBlockedCount = 0
             for (index, statement) in statements.enumerated() {
                 if Task.isCancelled { break }
+                // `USE` 一律拦截，引导走侧栏库切换器（只读模式也一视同仁）。
+                // 见 `specs/06-query-editor.md` §3、`docs/tech-designs/10-query-editor.md` §5.5。
+                if SQLStatementClassifier.isUseStatement(statement.text) {
+                    let blocked = QueryResultTab(ordinal: index + 1, statement: statement)
+                    blocked.markBlocked(reason: QueryResultTab.useBlockedMessage,
+                                        label: QueryResultTab.useBlockedLabel)
+                    self.append(blocked)
+                    useBlockedCount += 1
+                    continue
+                }
                 if self.session.isReadOnly, !SQLStatementClassifier.isReadOnlyAllowed(statement.text) {
                     let blocked = QueryResultTab(ordinal: index + 1, statement: statement)
                     blocked.markBlocked(reason: QueryResultTab.readOnlyBlockedMessage)
@@ -249,7 +260,7 @@ final class QueryEditorViewModel {
                     if stopOnError { break }
                 }
             }
-            self.finishRun(blockedCount: blockedCount)
+            self.finishRun(blockedCount: blockedCount, useBlockedCount: useBlockedCount)
         }
     }
 
@@ -276,7 +287,7 @@ final class QueryEditorViewModel {
         await task?.value
     }
 
-    private func finishRun(blockedCount: Int) {
+    private func finishRun(blockedCount: Int, useBlockedCount: Int) {
         isRunning = false
         isStopping = false
         elapsedTask?.cancel()
@@ -285,7 +296,9 @@ final class QueryEditorViewModel {
             elapsedMilliseconds = Self.milliseconds(from: startedAt, to: clock.now)
         }
         runTask = nil
-        if blockedCount > 0 {
+        if useBlockedCount > 0 {
+            showNotice(QueryResultTab.useBlockedMessage)
+        } else if blockedCount > 0 {
             showNotice("只读模式：已跳过 \(blockedCount) 条写操作语句")
         }
         if let last = results.last, last.kind == .failure, last.error?.isCancellation == true {

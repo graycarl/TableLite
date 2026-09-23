@@ -267,6 +267,45 @@ final class QueryEditorTests: XCTestCase {
         XCTAssertEqual(model.results.first?.kind, .blocked)
     }
 
+    // MARK: USE 拦截
+
+    func testUseStatementIsBlockedAndNotSent() async throws {
+        let session = try await connect()
+        await harness.mysql.setResponses(SessionTestSupport.successfulResponses() + [
+            ("SELECT 1", .single(columns: ["a"], rows: [["1"]])),
+        ])
+        let model = makeModel(session)
+        model.textChanged("USE other; SELECT 1;")
+        model.executeAll()
+        await model.waitForExecution()
+
+        XCTAssertEqual(model.results.count, 2)
+        XCTAssertEqual(model.results[0].kind, .blocked)
+        XCTAssertEqual(model.results[0].title, QueryResultTab.useBlockedLabel)
+        XCTAssertEqual(model.results[0].blockedReason, QueryResultTab.useBlockedMessage)
+        XCTAssertEqual(model.results[1].kind, .resultSet)
+
+        // `USE` 不下发服务器；其余语句照常执行。
+        let executed = await harness.mysql.executedSQL
+        XCTAssertFalse(executed.contains { $0.uppercased().hasPrefix("USE ") })
+        XCTAssertTrue(executed.contains { $0.contains("SELECT 1") })
+        XCTAssertEqual(model.notice, QueryResultTab.useBlockedMessage)
+    }
+
+    func testUseStatementIsBlockedEvenInReadOnlyMode() async throws {
+        let session = try await connect()
+        session.setReadOnly(true)
+        let model = makeModel(session)
+        model.textChanged("USE other;")
+        model.executeAll()
+        await model.waitForExecution()
+
+        // 只读与否一致：提示「请通过侧栏切换数据库」，而不是只读拦截文案。
+        XCTAssertEqual(model.results.first?.kind, .blocked)
+        XCTAssertEqual(model.results.first?.blockedReason, QueryResultTab.useBlockedMessage)
+        XCTAssertEqual(model.notice, QueryResultTab.useBlockedMessage)
+    }
+
     // MARK: 历史与草稿
 
     func testExecuteWritesHistoryAndConsoleLog() async throws {

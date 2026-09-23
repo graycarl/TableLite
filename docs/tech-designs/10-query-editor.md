@@ -47,6 +47,12 @@
 
 服务器报错 → 该语句标红。**后续是否继续由偏好决定**：`editor.stopOnError` 默认 **true**（遇错即停，不再下发后面的语句），可关闭以继续跑完（类似 `mysql --force`）——因为语句是逐条下发的，上层不发下一条即可，两种取值都能精确实现。
 
+### 5.5 默认数据库与 `USE`
+
+- 执行的语句默认落在 `ConnectionSession.selectedDatabase` 上：切库时就向服务器发过一次 `USE`（`05-session-management.md` §11），编辑器不再逐条带库名。
+- 脚本里的 `USE` 用 `SQLStatementClassifier.isUseStatement` 识别，在只读检查**之前**拦截：不下发，生成 `.blocked` 结果标签（标题 `已拦截`，原因 `请通过侧栏切换数据库`），并给一条轻提示。只读模式与普通模式一致。
+- 结果标签文字：只读拦截用 `只读拦截`，`USE` 拦截用 `已拦截`（`QueryResultTab.blockedLabel`）。
+
 ## 6. 结果标签
 
 - 每个结果一个标签：查询结果（只读网格）/ 影响行数 / 失败。

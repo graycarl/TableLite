@@ -184,7 +184,7 @@
 <tr data-hot="4"><td class="num">4</td><td class="wide">分隔条</td>
   <td>上下拖拽调整编辑器和结果区的比例，比例会被记住。</td></tr>
 <tr data-hot="5"><td class="num">5</td><td class="wide">结果标签</td>
-  <td>每条语句一个标签。类型有<b>结果 N</b>（有返回行）、<b>完成</b>（非查询语句）、<b>错误</b>（失败）、<b>只读拦截</b>（被只读模式挡下）。超过 24 个会折叠。</td></tr>
+  <td>每条语句一个标签。类型有<b>结果 N</b>（有返回行）、<b>完成</b>（非查询语句）、<b>错误</b>（失败）、<b>只读拦截</b>（被只读模式挡下）、<b>已拦截</b>（被拦下的 <code>USE</code>）。超过 24 个会折叠。</td></tr>
 <tr data-hot="6"><td class="num">6</td><td class="wide">状态栏</td>
   <td>显示执行了几条、总耗时、总返回行数。执行中这里会变成进度，右边出现「停止」。</td></tr>
 </tbody>
@@ -278,6 +278,11 @@
 
 <p>语句按分号切分。字符串里、反引号里、注释里的分号<b>不算</b>分隔符；最后一段即使没有分号也算一条语句；空语句和纯注释段会被跳过。</p>
 
+<h3>默认数据库</h3>
+
+<p>执行的语句默认落在左侧栏<a href="02-workspace.html">库切换器</a>当前选中的数据库上，不需要写 <code>USE</code>。
+脚本里写 <code>USE xxx</code> 会被拦截（不下发数据库）：那条语句的结果标签标红、写成 <code>已拦截</code>，并提示 <code>请通过侧栏切换数据库</code>。想换库请用左侧栏的库切换器。</p>
+
 <h3>执行中的样子</h3>
 
 <figure>
@@ -369,7 +374,7 @@
   <text class="s" x="534" y="322">当前连接处于只读模式，只能执行查询语句。</text>
   <text class="fnt s" x="534" y="340">混合脚本里被拦截的语句不会中断后面的安全语句</text>
 </svg>
-<figcaption><b>图 6-4</b>　四种结果标签。</figcaption>
+<figcaption><b>图 6-4</b>　结果标签的类型。</figcaption>
 </figure>
 
 <table>
@@ -379,6 +384,7 @@
 <tr><td><code>完成</code></td><td>非查询语句，显示影响行数与 <code>last_insert_id</code></td></tr>
 <tr><td><code>错误</code></td><td>该语句失败</td></tr>
 <tr><td><code>只读拦截</code></td><td>被只读模式拒绝</td></tr>
+<tr><td><code>已拦截</code></td><td>被拦下的 <code>USE</code>（切库请用左侧栏）</td></tr>
 </tbody>
 </table>
 
