@@ -136,7 +136,7 @@ public enum TabKind: Sendable, Hashable {
 /// 只持有「身份 + 展示状态 + 内容视图挂载点」；具体内容视图与 ViewModel 由后续 Wave 装配
 /// （`06-ui-layer.md` §2：每个标签的 ViewModel 由标签自己持有）。
 ///
-/// 分页 / 排序 / 过滤 / 隐藏列等状态使 `session.json` 的 `SessionTabState` 能往返
+/// 显示条数 / 排序 / 过滤 / 隐藏列等状态使 `session.json` 的 `SessionTabState` 能往返
 /// （`05-session-management.md` §8）。
 @MainActor
 @Observable
@@ -159,7 +159,7 @@ public final class Tab: Identifiable {
 
     // MARK: 表数据标签状态
 
-    public var page: PageState
+    public var rowLimit: RowLimitState
     public var sort: [SortOrder]
     public var hiddenColumns: [String]
     public var filter: FilterState?
@@ -193,7 +193,7 @@ public final class Tab: Identifiable {
         self.queryNumber = queryNumber
         self.isStale = isStale
         self.hasPendingChanges = hasPendingChanges
-        self.page = PageState()
+        self.rowLimit = RowLimitState()
         self.sort = []
         self.hiddenColumns = []
         self.filter = nil
@@ -235,7 +235,7 @@ public final class Tab: Identifiable {
             objectName: kind.objectName,
             queryDraftID: kind.draftID,
             filePath: filePath,
-            page: kind.isTableData ? page : nil,
+            rowLimit: kind.isTableData ? rowLimit : nil,
             sort: sort,
             hiddenColumns: hiddenColumns,
             filter: filter,
@@ -261,7 +261,7 @@ public final class Tab: Identifiable {
             customTitle = state.title
         }
         filePath = state.filePath
-        page = state.page ?? PageState()
+        rowLimit = state.rowLimit ?? RowLimitState()
         sort = state.sort
         hiddenColumns = state.hiddenColumns
         filter = state.filter

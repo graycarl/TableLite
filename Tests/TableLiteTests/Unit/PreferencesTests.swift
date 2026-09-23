@@ -18,7 +18,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.keepAliveInterval, 30)
         XCTAssertEqual(preferences.maxSessions, 8)
         // 表数据
-        XCTAssertEqual(preferences.pageSize, 300)
+        XCTAssertEqual(preferences.rowLimit, 300)
         XCTAssertEqual(preferences.gridFontSize, 13)
         XCTAssertTrue(preferences.alternateRowColors)
         XCTAssertTrue(preferences.autoHideScrollers)
@@ -60,19 +60,19 @@ final class PreferencesTests: XCTestCase {
         let store = InMemoryKeyValueStore()
         let preferences = Preferences(store: store)
 
-        preferences.pageSize = 1000
+        preferences.rowLimit = 1000
         preferences.nullDisplayText = "(null)"
         preferences.csvDelimiter = .tab
         preferences.defaultExecutionScope = .allStatements
         preferences.lazyLargeColumns = false
 
         // 底层键值已经写入
-        XCTAssertEqual(store.object(forKey: PreferenceKey.gridPageSize.rawValue) as? Int, 1000)
+        XCTAssertEqual(store.object(forKey: PreferenceKey.gridRowLimit.rawValue) as? Int, 1000)
         XCTAssertEqual(store.object(forKey: PreferenceKey.gridNullDisplayText.rawValue) as? String, "(null)")
 
         // 新建实例读到同样的值
         let reloaded = Preferences(store: store)
-        XCTAssertEqual(reloaded.pageSize, 1000)
+        XCTAssertEqual(reloaded.rowLimit, 1000)
         XCTAssertEqual(reloaded.nullDisplayText, "(null)")
         XCTAssertEqual(reloaded.csvDelimiter, .tab)
         XCTAssertEqual(reloaded.defaultExecutionScope, .allStatements)
@@ -82,10 +82,10 @@ final class PreferencesTests: XCTestCase {
     func testClamping() {
         let preferences = Preferences(store: InMemoryKeyValueStore())
 
-        preferences.pageSize = 999_999
-        XCTAssertEqual(preferences.pageSize, PageSize.maximum)
-        preferences.pageSize = 0
-        XCTAssertEqual(preferences.pageSize, 1)
+        preferences.rowLimit = 999_999
+        XCTAssertEqual(preferences.rowLimit, RowLimit.maximum)
+        preferences.rowLimit = 0
+        XCTAssertEqual(preferences.rowLimit, 1)
 
         preferences.inspectorWidth = 10
         XCTAssertEqual(preferences.inspectorWidth, 260)
@@ -111,16 +111,16 @@ final class PreferencesTests: XCTestCase {
     func testResetToDefaults() {
         let store = InMemoryKeyValueStore()
         let preferences = Preferences(store: store)
-        preferences.pageSize = 1000
+        preferences.rowLimit = 1000
         preferences.nullDisplayText = "(null)"
         preferences.consoleLogWriteToFile = true
 
         preferences.resetToDefaults()
 
-        XCTAssertEqual(preferences.pageSize, 300)
+        XCTAssertEqual(preferences.rowLimit, 300)
         XCTAssertEqual(preferences.nullDisplayText, "NULL")
         XCTAssertFalse(preferences.consoleLogWriteToFile)
-        XCTAssertEqual(Preferences(store: store).pageSize, 300)
+        XCTAssertEqual(Preferences(store: store).rowLimit, 300)
     }
 
     func testEveryKeyHasDefaultValue() {
@@ -132,10 +132,10 @@ final class PreferencesTests: XCTestCase {
     func testUnknownStoredValueFallsBackToDefault() {
         let store = InMemoryKeyValueStore(storage: [
             PreferenceKey.csvDelimiter.rawValue: "not-a-delimiter",
-            PreferenceKey.gridPageSize.rawValue: "不是数字",
+            PreferenceKey.gridRowLimit.rawValue: "不是数字",
         ])
         let preferences = Preferences(store: store)
         XCTAssertEqual(preferences.csvDelimiter, .comma)
-        XCTAssertEqual(preferences.pageSize, 300)
+        XCTAssertEqual(preferences.rowLimit, 300)
     }
 }

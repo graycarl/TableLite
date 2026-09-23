@@ -29,7 +29,7 @@ final class SessionStateStoreTests: XCTestCase {
         )
         tab.sort = [SortOrder(column: "id", direction: .descending)]
         tab.hiddenColumns = ["payload"]
-        tab.page = PageState(pageIndex: 2, pageSize: 300)
+        tab.rowLimit = RowLimitState(limit: 1000)
         tab.filter = FilterState(rawWhere: "id > 10", isRawMode: true, isVisible: true)
 
         let session = SessionState(

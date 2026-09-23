@@ -40,10 +40,10 @@ public struct SortOrder: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-// MARK: - 分页
+// MARK: - 显示条数
 
-/// 每页行数的可选档位与上限。见 `specs/03-data-browsing.md` §2。
-public enum PageSize {
+/// 一次加载最多取多少行：可选档位与上限。见 `specs/03-data-browsing.md` §2。
+public enum RowLimit {
     public static let presets = [100, 300, 1000, 5000]
     public static let `default` = 300
     public static let maximum = 10000
@@ -91,58 +91,27 @@ public struct RowCountEstimate: Sendable, Codable, Equatable, Hashable {
     }
 }
 
-/// 分页状态。页码从 0 开始。
-public struct PageState: Sendable, Codable, Equatable, Hashable {
-    public var pageIndex: Int
-    public var pageSize: Int
+/// 表数据「显示前 N 行」的状态。取消分页后不再有页码。
+///
+/// `session.json` 里内层字段名沿用旧的 `pageSize`，旧文件可直接读回。
+public struct RowLimitState: Sendable, Codable, Equatable, Hashable {
+    /// 最多显示多少行（`RowLimit.isValid` 之外的取值回落到默认值）。
+    public var limit: Int
     public var rowCount: RowCountEstimate?
 
-    public init(pageIndex: Int = 0, pageSize: Int = PageSize.default, rowCount: RowCountEstimate? = nil) {
-        self.pageIndex = max(0, pageIndex)
-        self.pageSize = PageSize.isValid(pageSize) ? pageSize : PageSize.default
+    public init(limit: Int = RowLimit.default, rowCount: RowCountEstimate? = nil) {
+        self.limit = RowLimit.isValid(limit) ? limit : RowLimit.default
         self.rowCount = rowCount
     }
 
-    /// 查询用的 `OFFSET`。
-    public var offset: Int { pageIndex * pageSize }
-
-    /// 从 `pageSize + 1` 行的查询结果判断是否有下一页（多出的一行不显示）。
-    public func hasNextPage(fetchedRowCount: Int) -> Bool {
-        fetchedRowCount > pageSize
-    }
-
-    /// 实际展示的行数（去掉用于探测下一页的那一行）。
-    public func visibleRowCount(fetchedRowCount: Int) -> Int {
-        min(fetchedRowCount, pageSize)
-    }
-
-    /// 加深分页提示的阈值（偏移超过 10 万行）。
-    public var isDeepOffset: Bool { offset > 100_000 }
-
-    /// 状态栏文案：`行 1–300 / 约 12,480 行 · 第 1 页 · 300 行/页`。
+    /// 状态栏文案：`显示 300 行 / 约 12,480 行`。
     public func statusText(visibleCount: Int) -> String {
-        let first = visibleCount == 0 ? 0 : offset + 1
-        let last = offset + visibleCount
         let total = rowCount?.displayText ?? "行数未知"
-        return "行 \(first)–\(last) / \(total) · 第 \(pageIndex + 1) 页 · \(pageSize) 行/页"
+        return "显示 \(visibleCount) 行 / \(total)"
     }
 
-    /// 过滤器 / 排序变化后重置到第 1 页。
-    public mutating func resetToFirstPage() {
-        pageIndex = 0
-    }
-
-    public mutating func goToNextPage() {
-        pageIndex += 1
-    }
-
-    public mutating func goToPreviousPage() {
-        pageIndex = max(0, pageIndex - 1)
-    }
-
-    /// 相对估算行数的总页数；估算不可靠时为 nil。
-    public var pageCount: Int? {
-        guard let rowCount, rowCount.isReliable, pageSize > 0 else { return nil }
-        return Int((rowCount.approximate + Int64(pageSize) - 1) / Int64(pageSize))
+    private enum CodingKeys: String, CodingKey {
+        case limit = "pageSize"
+        case rowCount
     }
 }

@@ -1,9 +1,9 @@
 import XCTest
 @testable import TableLite
 
-/// 表数据查询 SQL：列清单、大字段截断投影、稳定排序、分页。
+/// 表数据查询 SQL：列清单、大字段截断投影、稳定排序、显示条数。
 ///
-/// 见 `docs/tech-designs/07-data-grid.md` §3。
+/// 见 `docs/tech-designs/07-data-grid.md` §3、§7。
 final class TableQueryBuilderTests: XCTestCase {
 
     private let columns: [ColumnInfo] = [
@@ -13,21 +13,20 @@ final class TableQueryBuilderTests: XCTestCase {
         TestSupport.column("created_at", type: .datetime),
     ]
 
-    func testPageQueryProjectsLargeColumnsAndPaginates() {
-        let query = TableQueryBuilder.selectPage(
+    func testQueryProjectsLargeColumnsAndLimitsRows() {
+        let query = TableQueryBuilder.selectRows(
             database: "db",
             table: "t",
             columns: columns,
             primaryKeyColumns: ["id"],
-            pageIndex: 0,
-            pageSize: 300
+            rowLimit: 300
         )
         XCTAssertEqual(
             query.sql,
             "SELECT `id`, `name`, LEFT(`content`, 4096) AS `content`, OCTET_LENGTH(`content`) AS `__mtl_len_2`, `created_at` "
-                + "FROM `db`.`t` ORDER BY `id` ASC LIMIT 301"
+                + "FROM `db`.`t` ORDER BY `id` ASC LIMIT 300"
         )
-        XCTAssertEqual(query.limit, 301)
+        XCTAssertEqual(query.limit, 300)
         XCTAssertEqual(query.offset, 0)
         XCTAssertEqual(query.orderByColumns, ["id"])
         XCTAssertTrue(query.projections[2].isTruncated)
@@ -36,66 +35,62 @@ final class TableQueryBuilderTests: XCTestCase {
         XCTAssertFalse(query.projections[0].isTruncated)
     }
 
-    func testPageQueryOffset() {
-        let query = TableQueryBuilder.selectPage(
+    func testQueryHasNoOffset() {
+        let query = TableQueryBuilder.selectRows(
             database: "db",
             table: "t",
             columns: columns,
             primaryKeyColumns: ["id"],
-            pageIndex: 2,
-            pageSize: 100
+            rowLimit: 1000
         )
-        XCTAssertTrue(query.sql.hasSuffix("LIMIT 101 OFFSET 200"))
+        XCTAssertTrue(query.sql.hasSuffix("LIMIT 1000"))
+        XCTAssertFalse(query.sql.contains("OFFSET"))
     }
 
     func testNoPrimaryKeyOmitsOrderBy() {
-        let query = TableQueryBuilder.selectPage(
+        let query = TableQueryBuilder.selectRows(
             database: "db",
             table: "t",
             columns: columns,
             primaryKeyColumns: [],
-            pageIndex: 0,
-            pageSize: 300
+            rowLimit: 300
         )
         XCTAssertFalse(query.sql.contains("ORDER BY"))
         XCTAssertTrue(query.orderByColumns.isEmpty)
     }
 
     func testUserSortAppendsPrimaryKeyAsSecondary() {
-        let query = TableQueryBuilder.selectPage(
+        let query = TableQueryBuilder.selectRows(
             database: "db",
             table: "t",
             columns: columns,
             primaryKeyColumns: ["id"],
             sort: [SortOrder(column: "name", direction: .descending)],
-            pageIndex: 0,
-            pageSize: 300
+            rowLimit: 300
         )
         XCTAssertTrue(query.sql.contains("ORDER BY `name` DESC, `id` ASC"))
         XCTAssertEqual(query.orderByColumns, ["name", "id"])
     }
 
     func testUserSortOnPrimaryKeyIsNotDuplicated() {
-        let query = TableQueryBuilder.selectPage(
+        let query = TableQueryBuilder.selectRows(
             database: "db",
             table: "t",
             columns: columns,
             primaryKeyColumns: ["id"],
             sort: [SortOrder(column: "id", direction: .descending)],
-            pageIndex: 0,
-            pageSize: 300
+            rowLimit: 300
         )
-        XCTAssertTrue(query.sql.contains("ORDER BY `id` DESC LIMIT 301"))
+        XCTAssertTrue(query.sql.contains("ORDER BY `id` DESC LIMIT 300"))
     }
 
     func testLazyLargeColumnsDisabledSkipsTruncation() {
-        let query = TableQueryBuilder.selectPage(
+        let query = TableQueryBuilder.selectRows(
             database: "db",
             table: "t",
             columns: columns,
             primaryKeyColumns: ["id"],
-            pageIndex: 0,
-            pageSize: 300,
+            rowLimit: 300,
             options: TableQueryOptions(lazyLargeColumns: false)
         )
         XCTAssertFalse(query.sql.contains("LEFT("))
@@ -104,28 +99,26 @@ final class TableQueryBuilderTests: XCTestCase {
     }
 
     func testFilterClauseIsAppliedBeforeOrderBy() {
-        let query = TableQueryBuilder.selectPage(
+        let query = TableQueryBuilder.selectRows(
             database: "db",
             table: "t",
             columns: columns,
             primaryKeyColumns: ["id"],
             filterClause: "`name` = 'a'",
-            pageIndex: 0,
-            pageSize: 300
+            rowLimit: 300
         )
         XCTAssertTrue(query.sql.contains("FROM `db`.`t` WHERE `name` = 'a' ORDER BY `id` ASC"))
     }
 
-    func testInvalidPageSizeFallsBackToDefault() {
-        let query = TableQueryBuilder.selectPage(
+    func testInvalidRowLimitFallsBackToDefault() {
+        let query = TableQueryBuilder.selectRows(
             database: "db",
             table: "t",
             columns: columns,
             primaryKeyColumns: ["id"],
-            pageIndex: 0,
-            pageSize: 0
+            rowLimit: 0
         )
-        XCTAssertEqual(query.limit, PageSize.default + 1)
+        XCTAssertEqual(query.limit, RowLimit.default)
     }
 
     func testSelectRowByKeyUsesFullColumnsAndLocator() throws {
@@ -154,14 +147,13 @@ final class TableQueryBuilderTests: XCTestCase {
     }
 
     func testUnknownSortColumnIsDropped() {
-        let query = TableQueryBuilder.selectPage(
+        let query = TableQueryBuilder.selectRows(
             database: "db",
             table: "t",
             columns: columns,
             primaryKeyColumns: ["id"],
             sort: [SortOrder(column: "missing", direction: .ascending)],
-            pageIndex: 0,
-            pageSize: 300
+            rowLimit: 300
         )
         XCTAssertFalse(query.sql.contains("missing"))
         XCTAssertTrue(query.sql.contains("ORDER BY `id` ASC"))

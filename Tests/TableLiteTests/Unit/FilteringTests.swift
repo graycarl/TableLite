@@ -93,25 +93,20 @@ final class TableDataFilteringTests: XCTestCase {
         return ("FROM `app_dev`.`users`", .single(columns: ["id", "name", "status"], rows: rows))
     }
 
-    // MARK: 应用与分页
+    // MARK: 应用
 
-    func testApplyFilterResetsToFirstPageAndGeneratesWhere() async throws {
+    func testApplyFilterGeneratesWhere() async throws {
         harness.preferences.lazyLargeColumns = false
         let session = try await makeSession()
         let (viewModel, tab) = makeViewModel(session: session)
-        await harness.mysql.setResponses([pageResponse(rowCount: 301)])
+        await harness.mysql.setResponses([pageResponse(rowCount: 300)])
         await viewModel.start()
-
-        viewModel.goToNextPage()
-        await viewModel.waitForPendingWork()
-        XCTAssertEqual(viewModel.pageIndex, 1)
 
         viewModel.addFilterCondition(column: "name", op: .contains, value: "张")
         await harness.mysql.setResponses([pageResponse(rowCount: 10)])
         viewModel.applyFilter()
         await viewModel.waitForPendingWork()
 
-        XCTAssertEqual(viewModel.pageIndex, 0)
         XCTAssertNil(viewModel.filterError)
         let sql = await harness.mysql.executedSQL.last ?? ""
         XCTAssertTrue(sql.contains("WHERE (`name` LIKE '%张%'"), sql)

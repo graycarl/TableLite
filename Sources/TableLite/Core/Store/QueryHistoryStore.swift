@@ -128,7 +128,7 @@ public actor QueryHistoryStore {
     /// - Parameters:
     ///   - connectionID: `nil` 表示全部连接（历史标签按连接过滤时传值）。
     ///   - search: SQL 内容子串搜索。
-    ///   - limit / offset: 分页。
+    ///   - limit: 取前 N 行（无分页）。
     ///   - since / until: 时间范围。
     public func recent(
         connectionID: UUID? = nil,

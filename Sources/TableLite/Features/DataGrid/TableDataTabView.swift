@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 表数据标签的内容视图。
 ///
-/// 组合：过滤栏占位（T10）→ 数据网格（AppKit）→ 插入行脚 → 分页栏。
+/// 组合：过滤栏占位（T10）→ 数据网格（AppKit）→ 插入行脚 → 显示条数栏。
 /// 右侧字段栏由 `WorkspaceView` 渲染，读的是 `tab.content` 里的同一个 ViewModel。
 /// T9 在这里挂上预览 / 提交失败 / 放弃确认 / 快速查看的呈现。
 struct TableDataTabView: View {
@@ -94,7 +94,7 @@ struct TableDataTabView: View {
                 }
             }
 
-            PaginationBarView(viewModel: viewModel)
+            RowLimitBarView(viewModel: viewModel)
         }
         .overlay(alignment: .top) {
             if let notice = viewModel.copyNotice {
@@ -170,7 +170,7 @@ struct TableDataTabView: View {
             // 首次读取：骨架占位，不用转圈（`specs/12-feedback.md` §6）。
             GridSkeletonView()
         case .loading:
-            // 翻页 / 排序 / 过滤：保留旧数据，叠一层半透明加载遮罩。
+            // 切换显示条数 / 排序 / 过滤：保留旧数据，叠一层半透明加载遮罩。
             ZStack {
                 Color(nsColor: .textBackgroundColor).opacity(0.45)
                 ProgressView()

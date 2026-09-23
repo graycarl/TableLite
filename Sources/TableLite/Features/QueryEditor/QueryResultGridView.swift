@@ -3,7 +3,7 @@ import AppKit
 
 /// 查询结果网格：只读，复用表数据网格的**单元格渲染**（`GridCellView` + `CellDisplayFormatter`）。
 ///
-/// 决策：`DataGridView` 与 `TableDataViewModel`（分页 / 暂存 / 字段栏 / 行定位）强绑定，
+/// 决策：`DataGridView` 与 `TableDataViewModel`（显示条数 / 暂存 / 字段栏 / 行定位）强绑定，
 /// 结果集没有行定位键也不需要编辑（S16），因此不复用整个 `DataGridView`，
 /// 而是复用其单元格渲染与 `CellDisplayFormatter` 这一「展示规则的唯一实现」，
 /// 另写一层更轻的 `NSTableView` 桥接。见交付报告。

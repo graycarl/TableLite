@@ -116,7 +116,7 @@ struct PreferencesView: View {
     @ViewBuilder
     private func gridRows(_ preferences: Preferences) -> some View {
         @Bindable var preferences = preferences
-        Picker("每页行数", selection: $preferences.pageSize) {
+        Picker("默认显示行数", selection: $preferences.rowLimit) {
             ForEach([100, 300, 1000, 5000], id: \.self) { size in
                 Text("\(size)").tag(size)
             }

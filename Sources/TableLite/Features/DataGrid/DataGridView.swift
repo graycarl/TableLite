@@ -258,7 +258,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
 
         if tableColumn.identifier == Self.rowNumberIdentifier {
             let cell = rowNumberCell(tableView)
-            let number = viewModel.pageState.offset + row + 1
+            let number = row + 1
             cell.textField?.stringValue = gridRow.changeKind?.marker ?? String(number)
             return cell
         }
@@ -498,12 +498,12 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         pushSelection()
     }
 
-    /// `⌘↑`：跳到当前页首行（`specs/02-workspace.md` §9）。
+    /// `⌘↑`：跳到已加载数据首行（`specs/02-workspace.md` §9）。
     func moveFocusToFirstRow() {
         moveFocus(toRowIndex: 0)
     }
 
-    /// `⌘↓`：跳到当前页末行（`specs/02-workspace.md` §9）。
+    /// `⌘↓`：跳到已加载数据末行（`specs/02-workspace.md` §9）。
     func moveFocusToLastRow() {
         moveFocus(toRowIndex: viewModel.gridRows.count - 1)
     }

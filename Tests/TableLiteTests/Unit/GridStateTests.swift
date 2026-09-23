@@ -1,56 +1,24 @@
 import XCTest
 @testable import TableLite
 
-/// 分页 / 排序 / 行数估算 / Console Log 环形缓冲。
+/// 显示条数 / 排序 / 行数估算 / Console Log 环形缓冲。
 final class GridStateTests: XCTestCase {
 
-    // MARK: 分页
+    // MARK: 显示条数
 
-    func testOffsetAndVisibleRowCount() {
-        let page = PageState(pageIndex: 2, pageSize: 300)
-        XCTAssertEqual(page.offset, 600)
-        XCTAssertEqual(page.visibleRowCount(fetchedRowCount: 301), 300)
-        XCTAssertEqual(page.visibleRowCount(fetchedRowCount: 120), 120)
+    func testStatusTextShowsVisibleAndEstimatedRows() {
+        let state = RowLimitState(limit: 300, rowCount: RowCountEstimate(approximate: 12480))
+        XCTAssertEqual(state.statusText(visibleCount: 300), "显示 300 行 / 约 12,480 行")
+        XCTAssertEqual(state.statusText(visibleCount: 0), "显示 0 行 / 约 12,480 行")
     }
 
-    func testHasNextPage() {
-        let page = PageState(pageIndex: 0, pageSize: 300)
-        XCTAssertTrue(page.hasNextPage(fetchedRowCount: 301))
-        XCTAssertFalse(page.hasNextPage(fetchedRowCount: 300))
+    func testStatusTextWithoutEstimate() {
+        XCTAssertEqual(RowLimitState(limit: 300).statusText(visibleCount: 5), "显示 5 行 / 行数未知")
     }
 
-    func testPageStatusText() {
-        let page = PageState(pageIndex: 0, pageSize: 300, rowCount: RowCountEstimate(approximate: 12480))
-        XCTAssertEqual(page.statusText(visibleCount: 300), "行 1–300 / 约 12,480 行 · 第 1 页 · 300 行/页")
-    }
-
-    func testPageCount() {
-        let page = PageState(pageIndex: 0, pageSize: 300, rowCount: RowCountEstimate(approximate: 12480))
-        XCTAssertEqual(page.pageCount, 42)
-        let unreliable = PageState(rowCount: RowCountEstimate(approximate: 0, isReliable: false))
-        XCTAssertNil(unreliable.pageCount)
-    }
-
-    func testInvalidPageSizeFallsBack() {
-        XCTAssertEqual(PageState(pageSize: 0).pageSize, PageSize.default)
-        XCTAssertEqual(PageState(pageSize: 99999).pageSize, PageSize.default)
-    }
-
-    func testNavigation() {
-        var page = PageState(pageIndex: 1)
-        page.goToNextPage()
-        XCTAssertEqual(page.pageIndex, 2)
-        page.goToPreviousPage()
-        page.goToPreviousPage()
-        page.goToPreviousPage()
-        XCTAssertEqual(page.pageIndex, 0)
-        page.resetToFirstPage()
-        XCTAssertEqual(page.pageIndex, 0)
-    }
-
-    func testDeepOffsetFlag() {
-        XCTAssertFalse(PageState(pageIndex: 100, pageSize: 300).isDeepOffset) // offset 30000
-        XCTAssertTrue(PageState(pageIndex: 400, pageSize: 300).isDeepOffset) // offset 120000
+    func testInvalidLimitFallsBack() {
+        XCTAssertEqual(RowLimitState(limit: 0).limit, RowLimit.default)
+        XCTAssertEqual(RowLimitState(limit: 99999).limit, RowLimit.default)
     }
 
     // MARK: 行数估算

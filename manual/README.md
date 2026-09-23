@@ -26,7 +26,7 @@ open manual/index.html
 | `index.html` | 整体界面一览、功能与章节对照 |
 | `01-connections.html` | 连接列表、连接表单、测试连接 |
 | `02-workspace.html` | 工具栏、左侧栏、标签栏、状态栏、空状态 |
-| `03-data-browsing.html` | 数据网格、分页、排序、快速查看、复制 |
+| `03-data-browsing.html` | 数据网格、显示条数、排序、快速查看、复制 |
 | `04-data-editing.html` | 各类编辑器、增删改行、预览、提交、并发限制 |
 | `05-filtering.html` | 行过滤器、操作符、高级模式、列过滤器、快速过滤 |
 | `06-query-editor.html` | 编辑器、执行、结果标签、查询历史、Console Log |

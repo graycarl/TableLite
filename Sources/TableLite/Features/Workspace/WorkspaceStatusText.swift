@@ -88,7 +88,7 @@ enum WorkspaceStatusText {
 
     /// 表数据状态栏左侧摘要：基础文本 + 超时耗时。
     ///
-    /// 耗时只在 **> 1 秒** 时追加，避免每次翻页都闪一个「12 ms」
+    /// 耗时只在 **> 1 秒** 时追加，避免每次重新加载都闪一个「12 ms」
     /// （`specs/12-feedback.md` §6）。基础文本由 `TableDataViewModel.statusBarText`
     /// 或 `tabSummary` 提供，耗时口径统一在这里，不在 ViewModel 里重复拼接。
     static func tableDataSummary(base: String, elapsedMilliseconds: Int?) -> String {
@@ -117,7 +117,7 @@ enum WorkspaceStatusText {
             parts.append("耗时 \(elapsedMilliseconds) ms")
         }
         if totalReturnedRows > 0 {
-            // 千位分隔符与分页状态栏 / manual 图 2-7 保持一致（`1,204 行`）。
+            // 千位分隔符与显示条数栏 / manual 图 2-7 保持一致（`1,204 行`）。
             parts.append("返回 \(RowCountEstimate.grouped(Int64(totalReturnedRows))) 行")
         }
         return parts.joined(separator: " · ")
@@ -132,11 +132,11 @@ enum WorkspaceStatusText {
 
     /// 状态栏标签区的兜底文案。表数据 / 查询 / 结构的真实摘要由各自 ViewModel 提供，
     /// 这里只覆盖标签尚未装配 ViewModel 或没有专属摘要的情况。
-    static func tabSummary(for kind: TabKind, page: PageState?, consoleLogCount: Int) -> String {
+    static func tabSummary(for kind: TabKind, rowLimit: RowLimitState?, consoleLogCount: Int) -> String {
         switch kind {
         case .tableData:
-            if let page {
-                return "第 \(page.pageIndex + 1) 页 · \(page.pageSize) 行/页"
+            if let rowLimit {
+                return "最多 \(rowLimit.limit) 行"
             }
             return "等待加载数据"
         case .tableStructure:
