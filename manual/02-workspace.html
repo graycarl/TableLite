@@ -541,18 +541,19 @@
   <text x="220" y="598">📋 Console Log</text>
 
   <!-- 右键菜单 -->
-  <rect class="s-window ln2" x="450" y="230" width="252" height="256" rx="9"/>
+  <rect class="s-window ln2" x="450" y="230" width="252" height="286" rx="9"/>
   <text x="468" y="252">打开数据</text>
-  <text x="468" y="282">打开结构</text>
-  <line class="ln" x1="450" y1="298" x2="702" y2="298"/>
-  <text x="468" y="316">复制表名</text>
-  <text x="468" y="346">导出…</text>
-  <line class="ln" x1="450" y1="362" x2="702" y2="362"/>
-  <text class="acc" x="468" y="380">导入 CSV…</text>
-  <line class="ln" x1="450" y1="396" x2="702" y2="396"/>
-  <text class="err" x="468" y="414">截断表…</text>
-  <text class="err" x="468" y="444">删除表…</text>
-  <text class="fnt s" x="468" y="470">↑ 这两项直接生效，不进暂存区</text>
+  <text x="468" y="282">在新标签打开</text>
+  <text x="468" y="312">打开结构</text>
+  <line class="ln" x1="450" y1="328" x2="702" y2="328"/>
+  <text x="468" y="346">复制表名</text>
+  <text x="468" y="376">导出…</text>
+  <line class="ln" x1="450" y1="392" x2="702" y2="392"/>
+  <text class="acc" x="468" y="410">导入 CSV…</text>
+  <line class="ln" x1="450" y1="426" x2="702" y2="426"/>
+  <text class="err" x="468" y="444">截断表…</text>
+  <text class="err" x="468" y="474">删除表…</text>
+  <text class="fnt s" x="468" y="500">↑ 这两项直接生效，不进暂存区</text>
 
   <!-- 热点 -->
   <g class="hot" data-hot="1"><circle cx="46" cy="46" r="11"/><text x="46" y="46">1</text></g>
@@ -576,7 +577,7 @@
 <tr data-hot="3"><td class="num">3</td><td class="wide">分组标题</td>
   <td>表 / 视图两组，标题上带数量。可以折叠，折叠状态会记住。分组内容只在展开时才去加载，加载期间显示占位行。</td></tr>
 <tr data-hot="4"><td class="num">4</td><td class="wide">对象项</td>
-  <td><b>单击表</b>打开数据视图（已打开则切过去）；<b>双击</b>在新标签打开；<b>单击视图</b>在新标签打开只读定义。<b>右键</b>展开菜单。</td></tr>
+  <td><b>单击表</b>打开数据视图（已打开则切过去）；<b>单击视图</b>在新标签打开只读定义。<b>右键</b>展开菜单，菜单里有「在新标签打开」。</td></tr>
 <tr data-hot="5"><td class="num">5</td><td class="wide">右键菜单</td>
   <td>见下表。注意最后两项是<b>红色</b>的，因为它们直接生效、不进暂存区。</td></tr>
 <tr data-hot="6"><td class="num">6</td><td class="wide">查询历史 / Console Log</td>
@@ -592,6 +593,7 @@
 <thead><tr><th>菜单项</th><th>行为</th><th>是否可撤销</th></tr></thead>
 <tbody>
 <tr><td>打开数据</td><td>在当前标签打开数据视图</td><td>—</td></tr>
+<tr><td>在新标签打开</td><td>强制新开一个标签打开数据视图</td><td>—</td></tr>
 <tr><td>打开结构</td><td>在新标签打开表结构视图</td><td>—</td></tr>
 <tr><td>复制表名</td><td>把表名放进剪贴板</td><td>—</td></tr>
 <tr><td>导出…</td><td>打开导出面板，源是整张表</td><td>—</td></tr>
