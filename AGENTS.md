@@ -4,7 +4,7 @@
 
 ## 项目是什么
 
-`TableLite` —— macOS 原生的 MySQL 客户端，参考 TablePlus 但只保留高频功能。自用工具，不签名、不公证、不开沙箱。最低 macOS 版本跟随构建机的 Homebrew（见 `docs/tech-designs/12-build-and-deps.md` §3.3）。
+`TableLite` —— macOS 原生的 MySQL 客户端，参考 TablePlus 但只保留高频功能。自用工具，不公证、不开沙箱；签名用本机自签名证书（只为让 Keychain 的「始终允许」授权跨构建有效，见 `docs/tech-designs/12-build-and-deps.md` §3.4）。最低 macOS 版本跟随构建机的 Homebrew（见 `docs/tech-designs/12-build-and-deps.md` §3.3）。
 
 ## 当前状态
 
@@ -67,6 +67,7 @@
 ```sh
 make deps      # 检查依赖 + 生成 Configs/Local.xcconfig
 make gen       # xcodegen generate（改了 project.yml 或新增文件后必须跑）
+make signing   # 建/导入本机自签名证书（新机器上一次性执行；见 tech-designs/12 §3.4）
 make build
 make run
 make test

@@ -55,7 +55,7 @@
 ## 5. 沙箱与签名
 
 - **不开启 App Sandbox**，理由：需要读 `~/.ssh/config` 与私钥、以用户身份启动 `ssh` 子进程、连接任意 TCP 主机。
-- 不签名、不公证，关闭 hardened runtime。
+- 签名用本机自签名证书（只为让 Keychain 的「始终允许」授权跨构建有效，见 `12-build-and-deps.md` §3.4）；不公证，关闭 hardened runtime。
 - 仍申请 `com.apple.security.network.client`，便于将来切换。
 
 ## 6. 依赖与外部约束

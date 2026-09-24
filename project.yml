@@ -66,9 +66,14 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: Sources/TableLite/Resources/TableLite.entitlements
 
-        # 自用工具：本地 ad-hoc 签名，不公证，不开沙箱
+        # 自用工具：不开沙箱、不公证。签名身份优先用本机自签名证书
+        # （scripts/dev/codesign-identity.sh 建的，为的是让 Keychain 的「始终允许」
+        # 授权跨构建有效）；没装证书的机器落到 ad-hoc 签名。
+        # 必须是这种变量间接写法：target 级设置会盖住工程级 xcconfig，
+        # 把身份直接写进 Configs/Local.xcconfig 是不会生效的。
+        # 见 docs/tech-designs/12-build-and-deps.md §3.4。
         CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_IDENTITY: $(TABLELITE_CODESIGN_IDENTITY:default=-)
         DEVELOPMENT_TEAM: ""
         PROVISIONING_PROFILE_SPECIFIER: ""
         ENABLE_APP_SANDBOX: NO

@@ -5,7 +5,7 @@ BUILD_DIR := $(CURDIR)/.build
 CONFIG ?= Debug
 INSTALL_DIR ?= $(HOME)/Applications
 
-.PHONY: help deps gen build run test smoke dist dist-install clean distclean doctor db db-reset db-stop db-shell
+.PHONY: help deps gen build run test smoke dist dist-install clean distclean doctor signing db db-reset db-stop db-shell
 
 help: ## 显示可用目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -18,6 +18,10 @@ deps: ## 检查 Homebrew 依赖并生成 Configs/Local.xcconfig
 gen: deps ## 用 XcodeGen 生成 Xcode 工程
 	@echo "==> xcodegen generate"
 	@xcodegen generate
+
+signing: ## 建/导入本机自签名证书，让 Keychain 授权跨构建有效（新机器一次性；见 docs/tech-designs/12 §3.4）
+	@./scripts/dev/codesign-identity.sh
+	@./scripts/gen-local-xcconfig.sh
 
 build: gen ## 构建 .app
 	@echo "==> xcodebuild ($(CONFIG))"

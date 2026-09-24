@@ -98,6 +98,7 @@
 | L41 | 外部认证插件仍依赖构建机上的 `mysql-client` 安装 | `libmysqlclient` 只内建 `caching_sha2_password` / `sha256_password`；`mysql_native_password` 等在 `lib/plugin/*.so` 里，是运行期 `dlopen` 的外部文件（且默认路径指向版本化 Cellar 路径）。用这类账号连老服务器时，静态链接的产物依旧需要那个 `.so` 及其 Homebrew 依赖 | 目标场景是 MySQL 8.0+（`15-testing.md` §1），默认认证就是 `caching_sha2_password`，影响面小；真要覆盖老服务器，得把插件一起内嵌（需自建 libmysqlclient） |
 | L42 | 导出进行中只有导出面板显示进度 | 面板在导出期间一直开着（关闭即取消），所以不再另做全局进度提示 | 若要改成「面板可关、后台继续跑」的任务队列（T8），得重新决定进度放哪 |
 | L43 | 只读连接下每张表的数据视图都会挂一条不可编辑提示条 | 比原来的全局状态栏多占约 26pt；而只读本身已经有锁图标、颜色带、标题栏三重信号 | 若觉得吵，可只对表级原因（无主键 / 视图）显示，全局原因（只读连接）保留在工具栏与标题栏。见 `specs/04-data-editing.md` §2 |
+| L44 | 本机自签名证书是机器本地状态，不在仓库里 | 换机 / 删证书 / 重建证书后 DR 变了，Keychain 会再弹一次授权（每个条目一次） | `make signing` 重建证书，点一次「始终允许」即可；没装证书的机器退回 ad-hoc（每次重新构建都弹）。见 `12-build-and-deps.md` §3.4 |
 
 ## 3. 待定事项
 
@@ -112,6 +113,7 @@
 | T9 | 二进制 / 图片单元格是否支持直接编辑（例如替换图片文件） | 需求不明确 | 使用后按需 |
 | T10 | 是否引入第三方 Swift Package（当前为零依赖） | 引入必须先在本文档登记理由 | 任何时候 |
 | T12 | `ProcessRunner` / `PortAllocator` 要不要抽成协议、接口长什么样 | 抽早了只会猜错接口；隧道那套可控测试环境（sshd）也还没定 | P10 做 SSH 隧道时，见 `15-testing.md` §3 |
+| T13 | 是否改用 Apple Development 证书 + data protection keychain（彻底没有 Keychain ACL 与授权弹窗） | 需要 Apple ID / team / provisioning profile；换来的是不再依赖 ACL。实测 ad-hoc 签名 + 手写 `keychain-access-groups` entitlement 会被 AMFI `Killed: 9`，所以这条路绕不开真签名 | 本机自签名不够用时（频繁换机、要把构建搬到多台机器上），见 `12-build-and-deps.md` §3.4 |
 
 ## 4. 变更记录
 
@@ -151,5 +153,6 @@
 | 2026-09-23 | **表数据状态栏瘦身**：行数摘要与 `筛选` / `列` / `导出` 从窗口状态栏移到网格下方条（`GridStatusBarView`，原 `RowLimitBarView`），合并重复的行数信息；行数文案改为 `300 / 约 12,480 行`、显示条数下拉改为 `300 ▾`、`精确统计` 改为 `统计`；慢加载的耗时与「取消」也一并移到下方条。未提交改动提示条、提交进度、不可编辑原因仍留在状态栏（最小改动；后半段已被 2026-09-24 的「去掉窗口底部状态栏」取代）。见 `specs/02-workspace.md` §7、`specs/03-data-browsing.md` §2、`specs/05-filtering.md` §1/§2、`specs/08-import-export.md`、`specs/12-feedback.md` §6、`docs/tech-designs/07-data-grid.md` §7 |
 | 2026-09-24 | **去掉窗口底部状态栏**（S39）：连接信息（版本 / 字符集 / 只读 / SSH 隧道端口）改到工具栏连接切换器的悬停详情；查询 / 提交 / 导出进度留在各自视图；不可编辑原因改挂网格底部条上方的提示条；表结构概况收进结构标签底部；进入只读提示改走轻提示；未提交改动只由标签橙点与 `提交(N)` 角标体现。登记 L42（导出进度只在面板里）与 L43（只读连接下每张表都挂一条提示条）。见 `specs/02-workspace.md` §1/§2/§7、`specs/12-feedback.md` §1/§2/§3/§7、`specs/03-data-browsing.md` §11/§12、`specs/04-data-editing.md` §2/§10/§12、`specs/06-query-editor.md` §3、`specs/07-schema-view.md` §5、`specs/08-import-export.md` §1、`specs/09-readonly-mode.md` §3/§5、`specs/10-ssh-tunnel.md` §4、`manual/02`、`manual/index`、`05-session-management.md` §10 |
 | 2026-09-24 | **支持外观主题三选一**（S40）：偏好设置 §6 「界面」新增「外观」（亮色 / 暗色 / 跟随系统，默认跟随系统，分段控件），切换立即生效、系统外观变化实时跟随；网格 / 编辑器 / 快速查看等 AppKit 桥接控件一律用动态语义色，不写死亮色值。S13 改写为「界面只有中文／不做语法配色与快捷键自定义」，删除 T6（配色自定义待定），`specs/00-scope.md` §2.2 不再列「浅色 / 深色主题自定义」。见 `specs/11-preferences.md` §6/§8、`specs/00-scope.md` §2.2、`manual/11-preferences.html` 图 11-4、`06-ui-layer.md` §9、`10-query-editor.md` §3 |
+| 2026-09-25 | **开发机构建改用本机自签名证书**（`make signing`），修掉「每次重新构建都要重新授权 Keychain」：ad-hoc 签名的 DR 就是二进制 cdhash，改一行代码就变，Keychain 的「始终允许」随之失效（Debug 的 `TableLite.debug.dylib` 也躲不掉，主二进制壳会跟着变）。签名身份经 `Configs/Local.xcconfig` 注入（`project.yml` 用 `$(TABLELITE_CODESIGN_IDENTITY:default=-)`），没装证书的机器自动退回 ad-hoc。登记 L44、T13。见 `12-build-and-deps.md` §1/§3.4/§4/§4.1、`02-persistence.md` §3 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

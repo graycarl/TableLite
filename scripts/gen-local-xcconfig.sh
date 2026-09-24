@@ -37,6 +37,19 @@ ZSTD_PREFIX = $ZSTD_PREFIX
 ZLIB_NG_PREFIX = $ZLIB_NG_PREFIX
 EOF
 
+# 本机自签名签名身份（由 scripts/dev/codesign-identity.sh 建于登录钥匙串）。
+# 装上就用它签名，让 Keychain 的「始终允许」授权跨构建有效；没装就不写，
+# project.yml 的 $(TABLELITE_CODESIGN_IDENTITY:default=-) 落到 ad-hoc 签名。
+# 见 docs/tech-designs/12-build-and-deps.md §3.4。
+CODESIGN_IDENTITY="${TABLELITE_CODESIGN_IDENTITY:-}"
+if [[ -z "$CODESIGN_IDENTITY" ]] && security find-identity -v -p codesigning 2>/dev/null \
+     | grep -q '"TableLite Local Dev"'; then
+  CODESIGN_IDENTITY="TableLite Local Dev"
+fi
+if [[ -n "$CODESIGN_IDENTITY" ]]; then
+  printf 'TABLELITE_CODESIGN_IDENTITY = %s\n' "$CODESIGN_IDENTITY" >> "$TMP"
+fi
+
 mkdir -p "$(dirname "$OUT")"
 
 if [[ -f "$OUT" ]] && cmp -s "$TMP" "$OUT"; then

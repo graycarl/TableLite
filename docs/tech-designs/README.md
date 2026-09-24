@@ -69,7 +69,7 @@
 | 只读模式 | 语句级拦截（不是权限控制） | [10](10-query-editor.md) §10、[13](13-open-questions.md) L3 |
 | 工程组织 | XcodeGen，`TableLite.xcodeproj` 不进版本控制 | [12](12-build-and-deps.md) §1 |
 | 第三方依赖 | 零 Swift Package 依赖 | [12](12-build-and-deps.md) §1、[13](13-open-questions.md) T10 |
-| 沙箱与签名 | 不开沙箱、不签名、不公证 | [01](01-architecture.md) §5、[12](12-build-and-deps.md) §1 |
+| 沙箱与签名 | 不开沙箱；签名用**本机自签名证书**，保证 Keychain 授权跨构建有效（不公证、不做 hardened runtime） | [01](01-architecture.md) §5、[12](12-build-and-deps.md) §1、§3.4 |
 | 时区 | 客户端零处理：日期时间原样读、原样写，不解析不换算 | [03](03-mysql-layer.md) §4.3 |
 | 存储版本 | 只做向前兼容读取；破坏性变更时备份重建，不写迁移代码 | [02](02-persistence.md) §9 |
 | 界面语言 | 文案硬编码中文，不引入本地化资源 | [06](06-ui-layer.md) §8 |
