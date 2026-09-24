@@ -61,8 +61,8 @@ open manual/index.html
 | --- | --- |
 | macOS | 跟随构建机系统版本（当前 macOS 27），不声称支持更低版本 |
 | Xcode | 含命令行工具，需先 `sudo xcodebuild -license accept` 与 `xcodebuild -runFirstLaunch` |
-| Homebrew | `mysql-client`、`openssl@3`、`zstd`、`xcodegen` |
-| 运行期 | `make dist` 的产物依赖目标机器的 Homebrew（见 `13-open-questions.md` L13） |
+| Homebrew | 构建期需要 `mysql-client`、`openssl@3`、`zstd`、`zlib-ng-compat`、`xcodegen` |
+| 运行期 | 产物不依赖目标机器的 Homebrew（`make dist` 的 zip 解开即可运行）。唯一例外是用 `mysql_native_password` 等外部认证插件连老服务器时，见 [`13-open-questions.md`](docs/tech-designs/13-open-questions.md) L41 |
 
 ## 构建
 
@@ -98,8 +98,8 @@ make clean
 
 | 包 | 用途 |
 | --- | --- |
-| `mysql-client` | `libmysqlclient`（keg-only，必须显式指定路径） |
-| `openssl@3` / `zstd` | `libmysqlclient` 的运行期依赖 |
+| `mysql-client` | `libmysqlclient.a`（keg-only，必须显式指定路径） |
+| `openssl@3` / `zstd` / `zlib-ng-compat` | 与 `libmysqlclient.a` 一起被静态链接进 App |
 | `xcodegen` | 从 `project.yml` 生成 Xcode 工程 |
 
 App 图标由 [`scripts/make-appicon.swift`](scripts/make-appicon.swift) 生成（不引入外部素材）：
