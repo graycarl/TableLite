@@ -152,7 +152,7 @@ final class TableStructureViewModel {
         return false
     }
 
-    /// 是否为「表结构」标签（状态栏概况只在这一类标签上显示，`specs/02-workspace.md` §7）。
+    /// 是否为「表结构」标签（底部概况条只在这一类标签上显示，`specs/07-schema-view.md` §5）。
     var isTableStructureTab: Bool {
         if case .tableStructure = tab.kind { return true }
         return false
@@ -172,8 +172,9 @@ final class TableStructureViewModel {
         page == .definition ? definitionPageTitle : page.title
     }
 
-    /// 状态栏概况：`11 列 · 3 索引 · 1 外键 · 0 触发器`（`specs/07-schema-view.md` §5）。
-    var statusSummary: String? { structure?.summary }
+    /// 结构标签底部条的概况：`11 列 · 3 索引 · 1 外键 · 0 触发器`（`specs/07-schema-view.md` §5）。
+    /// 视图没有索引 / 外键 / 触发器，不显示。
+    var statusSummary: String? { isTableStructureTab ? structure?.summary : nil }
 
     var tableComment: String? {
         guard let comment = structure?.table.comment, !comment.isEmpty else { return nil }

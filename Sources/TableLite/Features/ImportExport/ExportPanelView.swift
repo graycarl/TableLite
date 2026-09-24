@@ -5,7 +5,7 @@ import SwiftUI
 /// 导出请求中心：把「查询结果标签右键 → 导出结果…」「网格右键 → 导出选中行…」等
 /// 深层入口的请求上抛给 `WorkspaceView`，由它用一个 `sheet` 承载 `ExportPanelView`。
 ///
-/// 同时承载进行中导出的状态栏进度文案（`specs/12-feedback.md` §2）。
+/// 进度不在这里承载：导出期间面板一直开着，面板自己显示进度（状态栏已在 2026-09-24 去掉）。
 @MainActor
 @Observable
 final class ExportRequestCenter {
@@ -17,8 +17,6 @@ final class ExportRequestCenter {
 
     /// 待呈现的导出请求；非 nil 时弹出导出面板。
     var request: Request?
-    /// 正在进行的导出进度文案；nil 表示没有导出在进行。
-    var progressText: String?
 
     /// 发起一次导出（面板开关由用户决定，导入后自行关闭）。
     func present(_ source: ExportSource) {
@@ -34,14 +32,13 @@ final class ExportRequestCenter {
 /// ```
 ///
 /// 面板自管尺寸与关闭（`@Environment(\.dismiss)`），完成后通过 `onFinish` 回调
-/// （第二个参数为「后台导出，完成后通知我」开关），进度通过 `onProgress` 上抛给状态栏。
+/// （第二个参数为「后台导出，完成后通知我」开关）。
 /// 需求见 `specs/08-import-export.md` §1；大表内存平稳的硬约束在 `CSVExportEngine`。
 struct ExportPanelView: View {
 
     let session: ConnectionSession
     let source: ExportSource
     var onFinish: ((ExportSummary, Bool) -> Void)? = nil
-    var onProgress: ((ExportProgress) -> Void)? = nil
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
@@ -89,7 +86,6 @@ struct ExportPanelView: View {
                     preferences: environment.preferences
                 )
                 model?.onFinish = onFinish
-                model?.onProgress = onProgress
             }
         }
     }

@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// 网格底部条（`specs/03-data-browsing.md` §2、`specs/02-workspace.md` §7）。在网格之下、窗口状态栏之上。
+/// 网格底部条（`specs/03-data-browsing.md` §2）。在网格之下，是表数据标签里唯一的「概况 + 操作」条，
+/// 也是不可编辑原因横幅的挂载点（原窗口状态栏已在 2026-09-24 去掉）。
 ///
 /// 表数据标签里网格下方唯一的「概况 + 操作」条：
 /// - 左侧：行数（`300 / 约 12,480 行`）、显示条数下拉、`统计`；慢加载时行数后跟耗时与「取消」；
@@ -18,8 +19,8 @@ struct GridStatusBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let hint = viewModel.noPrimaryKeyHint {
-                banner(text: hint, systemImage: "key.slash", tint: .orange)
+            if let hint = viewModel.uneditableStatusText {
+                banner(text: hint, systemImage: uneditableIcon, tint: .orange)
             }
             Divider()
             controls
@@ -103,6 +104,15 @@ struct GridStatusBarView: View {
             Button("取消", role: .cancel) {}
         } message: {
             Text("输入 1 – \(RowLimit.maximum) 之间的整数")
+        }
+    }
+
+    /// 不可编辑原因前的图标：无主键 / 视图 / 只读连接各一个（`specs/03-data-browsing.md` §11）。
+    private var uneditableIcon: String {
+        switch viewModel.editability.reason {
+        case .noPrimaryKey: return "key.slash"
+        case .view: return "eye"
+        case .readOnlyConnection, nil: return "lock"
         }
     }
 

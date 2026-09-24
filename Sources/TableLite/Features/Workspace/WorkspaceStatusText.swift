@@ -1,24 +1,27 @@
 import Foundation
 
-/// 状态栏文案的纯逻辑（`specs/02-workspace.md` §7、`docs/tech-designs/05-session-management.md` §10）。
+/// 连接信息文案的纯逻辑（`specs/02-workspace.md` §2、`docs/tech-designs/05-session-management.md` §10）。
 ///
 /// 抽成纯函数便于单测；视图只负责套颜色与图标。
+///
+/// 界面已经在 2026-09-24 去掉底部状态栏（见 `13-open-questions.md`）：连接信息改到工具栏
+/// 连接切换器的悬停详情，只读标记则跟连接切换器 / 连接列表同一套措辞。
 enum WorkspaceStatusText {
 
-    /// 状态栏只读段的文字，含前导分隔符（`specs/09-readonly-mode.md` §3：连接信息末尾追加 `· 只读`）。
+    /// 只读段的文字，含前导分隔符（`specs/09-readonly-mode.md` §3：连接信息末尾追加 `· 只读`）。
     ///
-    /// 单独抽成常量，供状态栏把只读段与连接信息主体分开着色；
+    /// 单独抽成常量，供调用方把只读段与连接信息主体分开着色；
     /// `connectionLine` 与 `connectionLineParts` 共用它，避免两处措辞漂移。
     static let readOnlyMarker = "· 只读"
 
-    /// 状态栏连接区分段结果：`body` 是连接信息主体，`readOnlyMarker` 非空时
+    /// 连接区分段结果：`body` 是连接信息主体，`readOnlyMarker` 非空时
     /// 需在末尾以醒目样式展示（`specs/09-readonly-mode.md` §3、`specs/12-feedback.md` §7）。
     struct ConnectionLineParts: Equatable {
         var body: String
         var readOnlyMarker: String?
     }
 
-    /// 状态栏连接区：`● 本地开发 · app_dev · MySQL 8.0.36 · utf8mb4 · 只读`。
+    /// 连接信息：`本地开发 · app_dev · MySQL 8.0.36 · utf8mb4 · 只读`。
     static func connectionLine(
         connection: Connection,
         state: SessionConnectionState,
@@ -37,7 +40,7 @@ enum WorkspaceStatusText {
         return "\(parts.body) \(marker)"
     }
 
-    /// 同 `connectionLine`，但把只读段拆出来，便于状态栏只给只读段套醒目颜色。
+    /// 同 `connectionLine`，但把只读段拆出来，便于调用方只给只读段套醒目颜色。
     ///
     /// 主界面正文不显示本地端口，只读标识与连接列表 / 切换器保持同一套措辞。
     static func connectionLineParts(
@@ -73,10 +76,24 @@ enum WorkspaceStatusText {
 
     /// 隧道信息行：`本地转发端口 127.0.0.1:53142`。
     ///
-    /// 用于测试面板的 SSH 步骤副标题（`specs/01-connections.md` §3）与状态栏的悬停详情
-    /// （`specs/10-ssh-tunnel.md` §4）；主界面正文不显示本地端口，避免干扰。
+    /// 用于测试面板的 SSH 步骤副标题（`specs/01-connections.md` §3）与工具栏连接切换器的
+    /// 悬停详情（`specs/10-ssh-tunnel.md` §4）；主界面正文不显示本地端口，避免干扰。
     static func tunnelDetailLine(host: String, port: UInt16) -> String {
         "本地转发端口 \(host):\(port)"
+    }
+
+    /// 工具栏连接切换器的悬停详情（多行）。
+    ///
+    /// 第一行是连接信息（只读时结尾追加 `· 只读`），启用 SSH 隧道时中间插一行本地转发端口
+    /// （`specs/10-ssh-tunnel.md` §4：主界面正文不显示本地端口，只在悬停详情里显示），
+    /// 最后一行是操作提示。
+    static func connectionTooltip(lineParts: ConnectionLineParts, tunnelLine: String?) -> String {
+        var lines = [lineParts.readOnlyMarker.map { "\(lineParts.body) \($0)" } ?? lineParts.body]
+        if let tunnelLine {
+            lines.append(tunnelLine)
+        }
+        lines.append("点击切换连接")
+        return lines.joined(separator: "\n")
     }
 
     // MARK: 加载耗时（`specs/12-feedback.md` §6）
@@ -105,7 +122,7 @@ enum WorkspaceStatusText {
     /// 查询编辑器状态栏摘要：`已执行 3 条语句 · 耗时 42 ms · 返回 1,204 行`。
     ///
     /// 尚未执行任何语句时返回 nil，由调用方决定占位文案；
-    /// `QueryEditorView` 的内部状态栏与窗口底部状态栏共用这一份拼接逻辑。
+    /// `QueryEditorView` 的内部状态栏用它拼结果概要。
     static func querySummary(
         executedStatementCount: Int,
         elapsedMilliseconds: Int,
@@ -128,27 +145,5 @@ enum WorkspaceStatusText {
     /// 保留条数与当前可见条数一起显示，不丢失原有的条数信息。
     static func consoleLogCountLabel(count: Int, capacity: Int) -> String {
         "\(count) 条 · 保留最近 \(capacity) 条"
-    }
-
-    /// 状态栏标签区的兜底文案。表数据 / 查询 / 结构的真实摘要由各自 ViewModel 提供，
-    /// 这里只覆盖标签尚未装配 ViewModel 或没有专属摘要的情况。
-    static func tabSummary(for kind: TabKind, rowLimit: RowLimitState?, consoleLogCount: Int) -> String {
-        switch kind {
-        case .tableData:
-            if let rowLimit {
-                return "最多 \(rowLimit.limit) 行"
-            }
-            return "等待加载数据"
-        case .tableStructure:
-            return "结构待加载"
-        case .objectDefinition:
-            return "定义待加载"
-        case .query:
-            return "等待执行"
-        case .history:
-            return "查询历史"
-        case .consoleLog:
-            return "已记录 \(consoleLogCount) 条语句"
-        }
     }
 }

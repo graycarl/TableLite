@@ -83,7 +83,7 @@
 <h2>主窗口长什么样</h2>
 
 <p>
-  整个程序只有一个窗口，从上到下是<b>工具栏</b>（下沿有一条连接颜色带）、<b>主体区</b>、<b>状态栏</b>。
+  整个程序只有一个窗口，从上到下是<b>工具栏</b>（下沿有一条连接颜色带）、<b>主体区</b>。
   主体区横向分三块：<b>左侧栏</b>（库、对象树）、<b>标签内容区</b>、<b>右侧字段栏</b>（表数据标签专有）。
   下图的数字对应后面表格里的说明。
 </p>
@@ -91,7 +91,7 @@
 <!-- 图 0-1 与 02-workspace.html 的图 2-1 是同一张线框图（只有编号热点不同），改一处必须同步另一处 -->
 <figure>
 <svg viewBox="0 0 1000 620" role="img"
-     aria-label="主窗口整体布局线框图：工具栏、左侧栏、标签内容区、右侧字段栏、状态栏">
+     aria-label="主窗口整体布局线框图：工具栏、左侧栏、标签内容区、右侧字段栏">
   <title>TableLite 主窗口整体布局</title>
 
   <rect class="s-window ln2" x="8" y="8" width="984" height="604" rx="11"/>
@@ -137,8 +137,8 @@
     <rect class="s-green" x="8" y="80" width="984" height="3"/>
 
     <!-- 左侧栏 -->
-    <rect class="s-sunken" x="8" y="83" width="242" height="495"/>
-    <line class="ln" x1="250" y1="83" x2="250" y2="578"/>
+    <rect class="s-sunken" x="8" y="83" width="242" height="529"/>
+    <line class="ln" x1="250" y1="83" x2="250" y2="612"/>
 
     <rect class="s-field ln2" x="20" y="96" width="218" height="26" rx="6"/>
     <text x="34" y="110">app_dev</text>
@@ -155,9 +155,9 @@
     <text class="b" x="26" y="316">▾ 视图 (3)</text>
     <text x="42" y="344">v_active_users</text>
 
-    <line class="ln" x1="8" y1="520" x2="250" y2="520"/>
-    <text x="26" y="540">🕘 查询历史</text>
-    <text x="26" y="566">📋 Console Log</text>
+    <line class="ln" x1="8" y1="582" x2="250" y2="582"/>
+    <text class="c" x="68" y="600">🕘</text>
+    <text class="c" x="189" y="600">📋</text>
 
     <!-- 标签栏 -->
     <rect class="s-chrome" x="250" y="83" width="742" height="32"/>
@@ -236,8 +236,8 @@
     <text class="fnt s" x="250" y="320">单元格不能编辑：双击只会跳到右侧字段栏对应的字段</text>
 
     <!-- 右侧字段栏 -->
-    <rect class="s-sunken" x="788" y="115" width="204" height="463"/>
-    <line class="ln" x1="788" y1="115" x2="788" y2="578"/>
+    <rect class="s-sunken" x="788" y="115" width="204" height="497"/>
+    <line class="ln" x1="788" y1="115" x2="788" y2="612"/>
 
     <rect class="s-field ln2" x="798" y="126" width="118" height="24" rx="6"/>
     <text class="fnt s" x="808" y="138">🔍 搜索字段</text>
@@ -297,11 +297,6 @@
     <text class="fnt s" x="798" y="488">改数据只在这里改，网格是只读的</text>
     <text class="fnt s" x="798" y="506">…（滚动查看更多字段）</text>
 
-    <!-- 状态栏 -->
-    <rect class="s-chrome" x="250" y="578" width="742" height="34"/>
-    <line class="ln" x1="250" y1="578" x2="992" y2="578"/>
-    <text class="s" x="264" y="596">● 本地开发 · app_dev · MySQL 8.0.36 · utf8mb4</text>
-
     <!-- 编号热点 -->
     <g class="hot" data-hot="1"><circle cx="22" cy="45" r="11"/><text x="22" y="45">1</text></g>
     <g class="hot" data-hot="2"><circle cx="258" cy="45" r="11"/><text x="258" y="45">2</text></g>
@@ -309,11 +304,10 @@
     <g class="hot" data-hot="4"><circle cx="972" cy="82" r="11"/><text x="972" y="82">4</text></g>
     <g class="hot" data-hot="5"><circle cx="22" cy="109" r="11"/><text x="22" y="109">5</text></g>
     <g class="hot" data-hot="6"><circle cx="238" cy="212" r="11"/><text x="238" y="212">6</text></g>
-    <g class="hot" data-hot="7"><circle cx="238" cy="553" r="11"/><text x="238" y="553">7</text></g>
+    <g class="hot" data-hot="7"><circle cx="238" cy="594" r="11"/><text x="238" y="594">7</text></g>
     <g class="hot" data-hot="8"><circle cx="372" cy="86" r="11"/><text x="372" y="86">8</text></g>
     <g class="hot" data-hot="9"><circle cx="700" cy="300" r="11"/><text x="700" y="300">9</text></g>
-    <g class="hot" data-hot="10"><circle cx="745" cy="596" r="11"/><text x="745" y="596">10</text></g>
-    <g class="hot" data-hot="11"><circle cx="980" cy="480" r="11"/><text x="980" y="480">11</text></g>
+    <g class="hot" data-hot="10"><circle cx="980" cy="480" r="11"/><text x="980" y="480">10</text></g>
   </g>
 </svg>
 <figcaption><b>图 0-1</b>　主窗口整体布局。数字编号对应下面的控件说明表。</figcaption>
@@ -337,14 +331,12 @@
 <tr data-hot="6"><td class="num">6</td><td class="wide">对象树</td>
   <td>当前库里的表、视图，分组标题上带数量。单击表打开数据视图，右键有更多操作。</td><td><kbd>⌘R</kbd> 刷新</td></tr>
 <tr data-hot="7"><td class="num">7</td><td class="wide">查询历史 / Console Log</td>
-  <td>左侧栏底部两个入口。<b>查询历史</b>记录你在编辑器里跑过的语句；<b>Console Log</b> 记录所有发给服务器的语句，包括客户端自动发的元数据查询。</td><td><kbd>⇧⌘C</kbd></td></tr>
+  <td>左侧栏底部两个入口，<b>只显示图标</b>（时钟 / 终端），鼠标悬停时显示名称。<b>查询历史</b>记录你在编辑器里跑过的语句；<b>Console Log</b> 记录所有发给服务器的语句，包括客户端自动发的元数据查询。</td><td><kbd>⇧⌘C</kbd></td></tr>
 <tr data-hot="8"><td class="num">8</td><td class="wide">标签栏</td>
   <td>当前连接打开的所有东西：表数据、表结构、查询、历史、日志。标题右边的橙点表示这个标签有未提交的改动。中键点击关闭标签。</td><td><kbd>⌘W</kbd> <kbd>⌘[</kbd> <kbd>⌘]</kbd> <kbd>⌘1</kbd>…<kbd>⌘9</kbd></td></tr>
 <tr data-hot="9"><td class="num">9</td><td class="wide">标签内容区（数据网格）</td>
   <td>占窗口最大的部分。表数据标签里是<b>只读</b>的数据网格：能选、能排序、能复制，但不能在格子里改值。查询标签里是编辑器加只读结果区，结构标签里是只读的列表。</td><td>—</td></tr>
-<tr data-hot="10"><td class="num">10</td><td class="wide">状态栏</td>
-  <td>连接状态、进度与全局提示。表数据的行数与 <b>筛选</b> / <b>列</b> / <b>导出</b> 在网格下方那条窄条上（图中已画出），不在这里。</td><td>—</td></tr>
-<tr data-hot="11"><td class="num">11</td><td class="wide">右侧字段栏</td>
+<tr data-hot="10"><td class="num">10</td><td class="wide">右侧字段栏</td>
   <td>表数据标签专有：选中一行后，这里列出它的<b>全部字段</b>（列名、类型、值），也是<b>唯一</b>能改数据的地方。顶部有「搜索字段」框。默认显示，用工具栏最右的 <b>▤</b> 或「视图 → 显示/隐藏右侧字段栏」开关，没有快捷键。</td><td>—</td></tr>
 </tbody>
 </table>

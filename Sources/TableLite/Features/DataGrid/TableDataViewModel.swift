@@ -321,11 +321,6 @@ public final class TableDataViewModel {
 
     public var isEditable: Bool { editability.isEditable }
 
-    /// 无主键表的状态栏提示（`specs/03-data-browsing.md` §11）。
-    public var noPrimaryKeyHint: String? {
-        primaryKeyColumns.isEmpty ? "该表没有主键，行顺序不保证，且不可编辑" : nil
-    }
-
     public var isFilterVisible: Bool { filterDraft.isVisible }
 
     /// 是否有真正生效的过滤条件（用于区分「空表」与「被过滤掉」，`specs/12-feedback.md` §6）。

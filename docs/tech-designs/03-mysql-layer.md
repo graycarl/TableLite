@@ -70,7 +70,7 @@
 ## 6. 保活
 
 - `keepAlive` 开启时定期 ping；ping 与用户查询在同一串行队列上互斥，不会插队。
-- ping 失败 → 标记 session 断开，通知 `SessionManager`（状态栏变红 + 「重新连接」）。
+- ping 失败 → 标记 session 断开，通知 `SessionManager`（连接切换器的状态点变红 + 内容区遮罩的「重新连接」）。
 - 空闲超时的 session 自动关闭（见 `05-session-management.md` §5）。
 
 ## 7. 错误映射

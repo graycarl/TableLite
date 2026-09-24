@@ -113,19 +113,23 @@
   <circle cx="574" cy="158" r="5.5" fill="#28c840"/>
   <text class="c" x="750" y="159">生产（只读）— app_prod</text>
 
-  <!-- 5 状态栏 -->
-  <text class="fnt s" x="20" y="216">⑤ 状态栏</text>
-  <rect class="s-chrome ln" x="20" y="226" width="960" height="40" rx="8"/>
+  <!-- 5 连接切换器（悬停详情） -->
+  <text class="fnt s" x="20" y="216">⑤ 连接切换器：标签上只有锁图标 + 连接名，悬停才展开详情</text>
+  <rect class="s-chrome ln" x="20" y="226" width="340" height="40" rx="8"/>
   <circle class="s-red" cx="42" cy="246" r="4.5"/>
-  <text class="s" x="56" y="246">生产 · app_prod · MySQL 8.0.36 · utf8mb4</text>
-  <rect class="s-red" x="368" y="234" width="66" height="24" rx="6" opacity="0.18"/>
-  <text class="err b s" x="380" y="246">· 只读</text>
-  <text class="fnt s" x="460" y="246">← 用醒目颜色标出来</text>
+  <text class="s" x="56" y="246">🔒 生产</text>
+  <text class="mut s" x="122" y="246">▾</text>
+  <rect class="s-field ln2" x="390" y="226" width="590" height="40" rx="8"/>
+  <text class="s" x="406" y="246">生产 · app_prod · MySQL 8.0.36 · utf8mb4</text>
+  <rect class="s-red" x="736" y="234" width="62" height="24" rx="6" opacity="0.18"/>
+  <text class="err b s" x="746" y="246">· 只读</text>
+  <text class="fnt s" x="810" y="246">← 醒目颜色</text>
+  <text class="fnt s" x="20" y="284">悬停详情里带 · 只读（原先在底部状态栏的连接信息挪到了这里）</text>
 
   <!-- 进入时提示 -->
-  <text class="fnt s" x="20" y="300">进入只读连接时会短暂显示一条状态栏提示：</text>
-  <rect class="s-chrome ln" x="20" y="312" width="960" height="40" rx="8"/>
-  <text class="warn s" x="42" y="332">该连接处于只读模式，所有写操作已被禁用。</text>
+  <text class="fnt s" x="20" y="322">进入只读连接时，窗口顶部飘一条轻提示：</text>
+  <rect class="s-window ln2" x="270" y="334" width="440" height="34" rx="17"/>
+  <text class="warn s" x="290" y="356">该连接处于只读模式，所有写操作已被禁用。</text>
 
   <!-- 禁用的按钮 -->
   <text class="fnt s" x="20" y="386">工具栏的变更操作组整体禁用，悬停时说明原因：</text>
@@ -149,9 +153,8 @@
 <thead><tr><th>位置</th><th>表现</th></tr></thead>
 <tbody>
 <tr><td>连接列表</td><td>名称前显示锁图标 🔒，摘要末尾追加 <code>· 只读</code></td></tr>
-<tr><td>连接切换器</td><td>名称前显示锁图标 🔒</td></tr>
+<tr><td>连接切换器</td><td>名称前显示锁图标 🔒；悬停详情里连接信息末尾追加 <code>· 只读</code>，用醒目颜色</td></tr>
 <tr><td>工具栏颜色带</td><td>用连接颜色着色（生产建议设红色）</td></tr>
-<tr><td>状态栏</td><td>连接信息末尾追加 <code>· 只读</code>，用醒目颜色</td></tr>
 <tr><td>标题栏</td><td>显示 <code>连接名（只读）</code></td></tr>
 </tbody>
 </table>
@@ -275,7 +278,7 @@
 <tr><td>悬停被禁用的提交按钮</td><td><code>该连接处于只读模式，无法提交修改</code></td></tr>
 <tr><td>SQL 编辑器工具栏常驻</td><td><code>只读模式：写操作已被禁用</code></td></tr>
 <tr><td>语句被拦下</td><td><code>当前连接处于只读模式，只能执行查询语句。如需修改，请在连接菜单中关闭只读模式。</code></td></tr>
-<tr><td>表数据视图不可编辑的原因</td><td>状态栏显示 <code>该连接处于只读模式</code>，同时字段栏顶部也写明这一句</td></tr>
+<tr><td>表数据视图不可编辑的原因</td><td>网格底部条上方显示 <code>该连接处于只读模式</code>，同时字段栏顶部也写明这一句</td></tr>
 </tbody>
 </table>
 

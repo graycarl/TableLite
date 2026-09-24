@@ -60,6 +60,7 @@
 | 大数据列 | 默认只取前 4 KB，点开时再取完整值；截断值绝不写回 | [07](07-data-grid.md) §3.1、[08](08-pending-changes.md) §9 |
 | 元数据来源 | `information_schema` + TTL 缓存；行数用估算，不自动 `COUNT(*)` | [11](11-schema-and-import-export.md) §1、[07](07-data-grid.md) §3.4 |
 | 表数据加载 | 不分页：固定 `LIMIT N` 从头取前 N 行，条数可切换；精确计数只在用户点「精确统计」时执行 | [07](07-data-grid.md) §7 |
+| 连接信息与进度 | **窗口底部不做常驻状态栏**：连接信息（版本 / 字符集 / 只读 / 隧道端口）在工具栏连接切换器的悬停详情；查询 / 提交 / 导出进度留在各自视图；不可编辑原因挂网格底部条 | [05](05-session-management.md) §10、[13](13-open-questions.md) S39 |
 | 导出方式 | 只支持 CSV；流式写出、临时文件原子替换 | [11](11-schema-and-import-export.md) §3、[13](13-open-questions.md) S9 |
 | 口令存储 | 密码 / Passphrase 只进 Keychain，禁止写进 JSON / UserDefaults | [02](02-persistence.md) §2、§3 |
 | 连接失效处理 | 不自动重连，保留未提交改动，由用户点「重新连接」 | [05](05-session-management.md) §6、[13](13-open-questions.md) L7 |

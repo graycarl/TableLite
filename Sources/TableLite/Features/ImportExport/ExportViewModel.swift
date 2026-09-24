@@ -34,10 +34,8 @@ public final class ExportViewModel {
     public private(set) var progress = ExportProgress(rowCount: 0, byteCount: 0)
     public private(set) var errorMessage: String?
 
-    /// 完成后回调（主 session 用它做状态栏提示 / 通知）。第二个参数是「完成后通知我」开关。
+    /// 完成后回调（主 session 用它做完成通知）。第二个参数是「完成后通知我」开关。
     public var onFinish: ((ExportSummary, Bool) -> Void)?
-    /// 进度回调；面板与状态栏共用同一份进度（`specs/12-feedback.md` §2）。
-    public var onProgress: ((ExportProgress) -> Void)?
 
     // MARK: 依赖
 
@@ -122,7 +120,6 @@ public final class ExportViewModel {
 
             let sink = try CSVExportSink(targetURL: destination, options: options)
             phase = .running
-            onProgress?(progress)
 
             let summary = await CSVExportEngine.run(
                 plan: plan,
@@ -134,7 +131,6 @@ public final class ExportViewModel {
                     Task { @MainActor in
                         let snapshot = ExportProgress(rowCount: rows, byteCount: bytes)
                         self?.progress = snapshot
-                        self?.onProgress?(snapshot)
                     }
                 }
             )

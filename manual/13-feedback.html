@@ -46,13 +46,13 @@
 <svg viewBox="0 0 1000 620" role="img" aria-label="四种反馈形态">
   <title>四种反馈形态</title>
 
-  <!-- ① 状态栏 -->
-  <text class="fnt s" x="20" y="26">① 状态栏文字　—— 不打断，常驻</text>
+  <!-- ① 常驻进度 -->
+  <text class="fnt s" x="20" y="26">① 常驻进度　—— 不打断，就在发起操作的地方</text>
   <rect class="s-chrome ln" x="20" y="38" width="960" height="40" rx="8"/>
-  <circle class="s-green" cx="42" cy="58" r="4.5"/>
-  <text class="s" x="56" y="58">本地开发 · app_dev</text>
-  <text class="mut s" x="400" y="58">正在导出… 已写入 129,480 行（24.1 MB）</text>
-  <text class="fnt s" x="760" y="58">用在：进度、结果概要、连接状态</text>
+  <text class="s" x="36" y="58">正在导出… 已写入 129,480 行（24.1 MB）</text>
+  <rect class="s-field ln2" x="820" y="45" width="80" height="26" rx="6"/>
+  <text class="c s" x="860" y="58">取消</text>
+  <text class="fnt s" x="400" y="58">用在：查询执行（编辑器状态栏）、提交（网格遮罩）、导出（导出面板）</text>
 
   <!-- ② 轻提示 -->
   <text class="fnt s" x="20" y="116">② 轻提示（Toast）　—— 不打断，2.5 秒后淡出</text>
@@ -99,7 +99,7 @@
 <table>
 <thead><tr><th>形态</th><th>用在哪</th><th>是否打断</th></tr></thead>
 <tbody>
-<tr><td>状态栏文字</td><td>进度、结果概要、连接状态</td><td>否</td></tr>
+<tr><td>常驻进度</td><td>查询执行、提交、导出</td><td>否</td></tr>
 <tr><td>轻提示（Toast）</td><td>复制成功、提交成功、导出完成</td><td>否，几秒后自动消失</td></tr>
 <tr><td>确认弹窗</td><td>破坏性操作前的确认</td><td>是</td></tr>
 <tr><td>错误面板</td><td>需要用户看清原因的错误</td><td>是</td></tr>
@@ -108,7 +108,7 @@
 
 <div class="callout">
   <span class="tag">一条总原则</span>
-  <p><b>能用状态栏和轻提示解决的，不要弹窗。</b></p>
+  <p><b>能用轻提示和常驻进度解决的，不要弹窗。</b></p>
   <p>弹窗会打断你的思路。所以「复制成功」这种不需要决定的事，只用一条飘过的提示就够了。</p>
 </div>
 
@@ -330,41 +330,46 @@
 <svg viewBox="0 0 1000 440" role="img" aria-label="危险状态的视觉提示">
   <title>危险状态提示</title>
 
-  <text class="fnt s" x="20" y="26">有未提交改动：橙色条 + 标签橙点 + 提交按钮角标</text>
-  <rect class="s-chrome ln" x="20" y="38" width="960" height="40" rx="8"/>
-  <rect class="s-orange" x="20" y="38" width="370" height="40" rx="8" opacity="0.18"/>
-  <text class="warn s" x="42" y="58">● 有 7 处未提交的修改（3 新增 · 2 修改 · 2 删除）</text>
-  <text class="acc s" x="400" y="58">查看详情</text>
-  <rect class="s-accent" x="820" y="45" width="130" height="26" rx="6"/>
-  <text class="c s" x="885" y="58" fill="#fff">提交修改</text>
-  <circle class="s-orange" cx="944" cy="45" r="10"/>
-  <text class="c s" x="944" y="45" fill="#fff">7</text>
+  <text class="fnt s" x="20" y="26">有未提交改动：标签标题的橙点 + 提交按钮上的角标数字</text>
+  <rect class="s-chrome2 ln" x="20" y="38" width="200" height="34" rx="8"/>
+  <text x="36" y="60">users</text>
+  <circle class="s-orange" cx="196" cy="48" r="5"/>
+  <rect class="s-chrome ln" x="20" y="82" width="960" height="40" rx="8"/>
+  <rect class="s-accent" x="820" y="89" width="130" height="26" rx="6"/>
+  <text class="c s" x="885" y="102" fill="#fff">提交修改</text>
+  <circle class="s-orange" cx="944" cy="89" r="10"/>
+  <text class="c s" x="944" y="89" fill="#fff">7</text>
+  <text class="fnt s" x="380" y="102">橙点 = 这个标签有未提交的改动；按钮上的数字 = 待提交条数</text>
 
-  <text class="fnt s" x="20" y="110">只读连接：锁图标 + 连接颜色带 + 状态栏「· 只读」</text>
-  <rect class="s-chrome ln" x="20" y="122" width="960" height="40" rx="8"/>
-  <circle class="s-red" cx="42" cy="142" r="4.5"/>
-  <text class="s" x="56" y="142">🔒 app_prod · MySQL 8.0.36 · utf8mb4</text>
-  <rect class="s-red" x="370" y="130" width="66" height="24" rx="6" opacity="0.18"/>
-  <text class="err b s" x="382" y="142">· 只读</text>
+  <text class="fnt s" x="20" y="164">只读连接：锁图标 + 连接颜色带 + 标题栏「（只读）」</text>
+  <rect class="s-chrome ln" x="20" y="176" width="340" height="40" rx="8"/>
+  <circle class="s-red" cx="42" cy="196" r="4.5"/>
+  <text class="s" x="56" y="196">🔒 生产</text>
+  <text class="mut s" x="122" y="196">▾</text>
+  <rect class="s-field ln2" x="390" y="176" width="590" height="40" rx="8"/>
+  <text class="s" x="406" y="196">生产 · app_prod · MySQL 8.0.36 · utf8mb4</text>
+  <rect class="s-red" x="736" y="184" width="62" height="24" rx="6" opacity="0.18"/>
+  <text class="err b s" x="746" y="196">· 只读</text>
+  <text class="fnt s" x="810" y="196">← 悬停详情</text>
 
-  <text class="fnt s" x="20" y="194">连接异常：红点 + 内容区灰色遮罩 + 「重新连接」按钮</text>
-  <rect class="s-window ln" x="20" y="206" width="460" height="120" rx="7"/>
-  <rect class="s-chrome2" x="20" y="206" width="460" height="26"/>
-  <rect class="s-chrome" x="20" y="232" width="460" height="94" opacity="0.88"/>
-  <circle class="s-red" cx="250" cy="262" r="8"/>
-  <path d="M247 259 l6 6 M253 259 l-6 6" stroke="#fff" stroke-width="2" fill="none"/>
-  <text class="c" x="250" y="286">连接已断开</text>
-  <rect class="s-field ln2" x="195" y="298" width="110" height="28" rx="6"/>
-  <text class="c acc s" x="250" y="312">重新连接</text>
+  <text class="fnt s" x="20" y="248">连接异常：红点 + 内容区灰色遮罩 + 「重新连接」按钮</text>
+  <rect class="s-window ln" x="20" y="260" width="460" height="120" rx="7"/>
+  <rect class="s-chrome2" x="20" y="260" width="460" height="26"/>
+  <rect class="s-chrome" x="20" y="286" width="460" height="94" opacity="0.88"/>
+  <circle class="s-red" cx="250" cy="316" r="8"/>
+  <path d="M247 313 l6 6 M253 313 l-6 6" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="c" x="250" y="340">连接已断开</text>
+  <rect class="s-field ln2" x="195" y="352" width="110" height="28" rx="6"/>
+  <text class="c acc s" x="250" y="366">重新连接</text>
 
-  <text class="fnt s" x="520" y="194">结构视图可能过期：顶部黄色提示条 + 「刷新」按钮</text>
-  <rect class="s-window ln" x="520" y="206" width="460" height="120" rx="7"/>
-  <rect class="s-yellow" x="520" y="206" width="460" height="34" rx="7" opacity="0.26"/>
-  <text class="warn s" x="536" y="223">这张表的结构可能已经改变，显示的内容可能不是最新的。</text>
-  <rect class="s-field ln2" x="880" y="212" width="70" height="22" rx="5"/>
-  <text class="c s" x="915" y="223">刷新</text>
-  <text class="fnt s" x="536" y="266">点「刷新」重新读取结构。</text>
-  <text class="fnt s" x="536" y="292">不自动刷新，避免在你正在看的时候列表跳动。</text>
+  <text class="fnt s" x="520" y="248">结构视图可能过期：顶部黄色提示条 + 「刷新」按钮</text>
+  <rect class="s-window ln" x="520" y="260" width="460" height="120" rx="7"/>
+  <rect class="s-yellow" x="520" y="260" width="460" height="34" rx="7" opacity="0.26"/>
+  <text class="warn s" x="536" y="277">这张表的结构可能已经改变，显示的内容可能不是最新的。</text>
+  <rect class="s-field ln2" x="880" y="266" width="70" height="22" rx="5"/>
+  <text class="c s" x="915" y="277">刷新</text>
+  <text class="fnt s" x="536" y="320">点「刷新」重新读取结构。</text>
+  <text class="fnt s" x="536" y="346">不自动刷新，避免在你正在看的时候列表跳动。</text>
 </svg>
 <figcaption><b>图 13-4</b>　四种危险状态的视觉提示。</figcaption>
 </figure>
@@ -372,8 +377,8 @@
 <table>
 <thead><tr><th>状态</th><th>表现</th></tr></thead>
 <tbody>
-<tr><td>有未提交改动</td><td>状态栏橙色条 + 标签标题的橙点 + 提交按钮上的角标数字</td></tr>
-<tr><td>只读连接</td><td>锁图标 + 连接颜色带 + 状态栏 <code>· 只读</code></td></tr>
+<tr><td>有未提交改动</td><td>标签标题的橙点 + 提交按钮上的角标数字</td></tr>
+<tr><td>只读连接</td><td>锁图标 + 连接颜色带 + 标题栏「（只读）」；连接切换器的悬停详情里有 <code>· 只读</code></td></tr>
 <tr><td>连接异常</td><td>红点 + 内容区灰色遮罩 + 「重新连接」按钮</td></tr>
 <tr><td>结构视图可能过期</td><td>顶部黄色提示条 + 「刷新」按钮</td></tr>
 </tbody>

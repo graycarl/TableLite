@@ -10,7 +10,7 @@ private struct ImportRequest: Identifiable {
 
 /// 工作区主界面（`specs/02-workspace.md` §1）。
 ///
-/// 纵向四层：工具栏 → 连接颜色带（2pt）→ 主体区 → 状态栏。
+/// 纵向三层：工具栏 → 连接颜色带（2pt）→ 主体区。
 /// 主体区横向：左侧栏（可拖宽 / 可隐藏）↔ 标签内容区 ↔ 右侧字段栏（仅表数据标签）。
 ///
 /// 菜单与快捷键通过 `.focusedSceneValue(\.workspaceActions, ...)` 暴露给 `TableLiteCommands`。
@@ -34,9 +34,6 @@ struct WorkspaceView: View {
     @State private var toastText: String?
     @State private var toastAction: ToastAction?
     @State private var toastToken = UUID()
-    /// 短暂状态栏提示（如进入只读连接，`specs/09-readonly-mode.md` §5）。
-    @State private var transientStatusMessage: String?
-    @State private var transientStatusToken = UUID()
     /// 本会话是否曾经连上过：用于区分「首次连接」与「重连」（`specs/12-feedback.md` §3）。
     @State private var hasEverConnected = false
 
@@ -84,14 +81,6 @@ struct WorkspaceView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            StatusBarView(
-                session: session,
-                onEditConnection: { showConnectionList = true },
-                onSwitchDatabase: { showDatabasePicker = true },
-                transientMessage: transientStatusMessage,
-                exportProgress: exportCenter.progressText
-            )
         }
         .frame(minWidth: 860, minHeight: 560)
         .overlay(alignment: .top) {
@@ -142,10 +131,7 @@ struct WorkspaceView: View {
             ExportPanelView(
                 session: session,
                 source: request.source,
-                onFinish: handleExportFinish,
-                onProgress: { progress in
-                    exportCenter.progressText = "正在导出… \(progress.displayText)"
-                }
+                onFinish: handleExportFinish
             )
         }
         .sheet(item: $importRequest) { request in
@@ -181,7 +167,7 @@ struct WorkspaceView: View {
         var url: URL
     }
 
-    /// 顶部中间的轻提示（复制成功 / 提交成功 / 重连 / 导出完成等）。
+    /// 顶部中间的轻提示（只读提示、复制成功、提交成功、重连、导出完成等）。
     @ViewBuilder
     private var toastOverlay: some View {
         if let toastText {
@@ -217,25 +203,26 @@ struct WorkspaceView: View {
         }
     }
 
-    /// 导出完成：清掉状态栏进度，勾选了「后台导出，完成后通知我」且成功时给轻提示
+    /// 导出完成：勾选了「后台导出，完成后通知我」且成功时给轻提示
     /// （带「在 Finder 中显示」按钮，`specs/08-import-export.md` §1、`specs/12-feedback.md` §3）。
+    ///
+    /// 进行中的进度只在导出面板里显示（面板在导出期间一直开着）。
     private func handleExportFinish(_ summary: ExportSummary, notify: Bool) {
-        exportCenter.progressText = nil
         guard notify, summary.isSuccess else { return }
         let action = summary.destinationURL.map { ToastAction(title: "在 Finder 中显示", url: $0) }
         showToast(summary.message, action: action)
     }
 
-    /// 进入工作区：恢复侧栏状态，并在已连接且只读时给出状态栏短暂提示（`specs/09-readonly-mode.md` §5）。
+    /// 进入工作区：恢复侧栏状态，并在已连接且只读时给出只读提示（`specs/09-readonly-mode.md` §5）。
     private func handleAppear() {
         loadSidebarStateIfNeeded()
         hasEverConnected = session.state.isConnected
         if session.state.isConnected, session.isReadOnly {
-            showTransientStatus("该连接处于只读模式，所有写操作已被禁用。")
+            showToast("该连接处于只读模式，所有写操作已被禁用。")
         }
     }
 
-    /// 连接状态变化：首次连上且为只读 → 状态栏只读提示；之后重连成功 → `已重新连接` 轻提示。
+    /// 连接状态变化：首次连上且为只读 → 只读提示；之后重连成功 → `已重新连接` 轻提示。
     private func handleStateChange(
         from oldValue: SessionConnectionState,
         to newValue: SessionConnectionState
@@ -246,20 +233,8 @@ struct WorkspaceView: View {
         } else {
             hasEverConnected = true
             if session.isReadOnly {
-                showTransientStatus("该连接处于只读模式，所有写操作已被禁用。")
+                showToast("该连接处于只读模式，所有写操作已被禁用。")
             }
-        }
-    }
-
-    /// 状态栏短暂提示：整条状态栏只显示它 2.5 秒（`specs/09-readonly-mode.md` §5）。
-    private func showTransientStatus(_ text: String) {
-        transientStatusMessage = text
-        let token = UUID()
-        transientStatusToken = token
-        Task {
-            try? await Task.sleep(nanoseconds: 2_500_000_000)
-            guard transientStatusToken == token else { return }
-            transientStatusMessage = nil
         }
     }
 
