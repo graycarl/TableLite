@@ -188,6 +188,10 @@ public final class Preferences {
 
     // MARK: 界面（specs/11 §6）
 
+    /// 外观（亮色 / 暗色 / 跟随系统，默认跟随系统）。
+    public var appearance: AppearanceMode {
+        didSet { persistChoice(appearance, .uiAppearance) }
+    }
     /// 对象树里显示系统数据库。
     public var showSystemDatabases: Bool {
         didSet { persist(showSystemDatabases, .uiShowSystemDatabases) }
@@ -287,6 +291,7 @@ public final class Preferences {
             .csvNullRepresentation, CSVNullRepresentation.self, fallback: .emptyString
         )
 
+        appearance = preferencesStore.choice(.uiAppearance, AppearanceMode.self, fallback: .system)
         showSystemDatabases = preferencesStore.bool(.uiShowSystemDatabases)
         sidebarWidth = Self.clamp(preferencesStore.double(.uiSidebarWidth), to: Self.sidebarWidthRange)
         editorResultSplitRatio = Self.clamp(preferencesStore.double(.uiEditorResultSplitRatio), to: 0.1...0.9)
@@ -336,6 +341,7 @@ public final class Preferences {
         csvIncludeHeader = fresh.csvIncludeHeader
         csvEncoding = fresh.csvEncoding
         csvNullRepresentation = fresh.csvNullRepresentation
+        appearance = fresh.appearance
         showSystemDatabases = fresh.showSystemDatabases
         sidebarWidth = fresh.sidebarWidth
         editorResultSplitRatio = fresh.editorResultSplitRatio

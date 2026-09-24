@@ -17,7 +17,11 @@ struct TableLiteApp: App {
         // 隐藏的编辑 / 过滤 / 查询链路端到端模式（`--edit-smoke` / `--filter-smoke` / `--query-smoke`）：
         // 不碰真实数据目录，也不在 init 里阻塞等待。
         let isHeadlessSmoke = EditSmokeRunner.isRequested || FilterSmokeRunner.isRequested || QuerySmokeRunner.isRequested
-        _environment = State(initialValue: isHeadlessSmoke ? AppEnvironment.makeFallback() : AppEnvironment.makeLiveOrFallback())
+        let environment = isHeadlessSmoke ? AppEnvironment.makeFallback() : AppEnvironment.makeLiveOrFallback()
+        _environment = State(initialValue: environment)
+        // 外观偏好尽早套到 `NSApp` 上，避免启动瞬间先按系统外观闪一下
+        // （`specs/11-preferences.md` §6、`docs/tech-designs/06-ui-layer.md` §9）。
+        NSApplication.shared.appearance = environment.preferences.appearance.nsAppearance
         EditSmokeRunner.scheduleIfRequested()
         FilterSmokeRunner.scheduleIfRequested()
         QuerySmokeRunner.scheduleIfRequested()

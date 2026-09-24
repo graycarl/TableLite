@@ -63,3 +63,14 @@
 - 术语表以 `specs/12-feedback.md` §8 为准；SQL 关键字与类型名保持英文。
 - `Info.plist` 的 `CFBundleLocalizations` 只声明 `zh-Hans`，不声明没有资源支撑的 `en`。
 - 将来要做多语言时再补资源文件，那是纯增量改动；现在为它付出的抽象成本不值得（S24）。
+
+## 9. 外观（决策记录）
+
+**外观只有亮色 / 暗色 / 跟随系统三选一，默认跟随系统，全局生效（S40）。**
+
+- 偏好键 `interface.appearance`，取值 `light` / `dark` / `system`；缺失或不可识别时取 `system`（`02-persistence.md` §9 的向前兼容读取）。
+- **生效范围**：`WindowGroup` 根视图与 `Settings` 场景都要挂 `.preferredColorScheme(...)`（`nil` 即跟随系统）。只挂一处会让偏好设置窗口与主窗口外观不一致。
+- **立即生效**：`Preferences.appearance` 是 `@Observable`，改完直接重算根视图；`system` 时系统外观变化由 AppKit 通知窗口重绘，不额外监听 `NSApplication.effectiveAppearance`。
+- **AppKit 桥接**跟随父视图的 `effectiveAppearance`，不手工设 `NSAppearance`；但自定义绘制的颜色必须是动态语义色（系统色或 `NSColor` 语义色），**禁止写死亮色 RGB**，否则暗色下不可读。`SQLHighlightTheme`（`10-query-editor.md` §3）即按这条约束只用 AppKit 语义色。
+- 把颜色解析成 `cgColor` 存进 `CALayer` 的地方（如网格的行状态底色 / 单元格高亮），必须在 `viewDidChangeEffectiveAppearance` 里重算——`cgColor` 是快照，不会跟着出现外观自动更新。
+- 不做：语法配色自定义、主题包、按连接记忆外观；macOS 自己的自动切换算系统行为，不看作「主题日程」。

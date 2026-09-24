@@ -91,8 +91,8 @@
   <rect class="s-sunken ln" x="272" y="318" width="664" height="140" rx="9"/>
   <text class="b s" x="292" y="342">关于这些开关</text>
   <text class="s" x="292" y="370">每一项改完立刻生效，不用点「应用」。</text>
-  <text class="s" x="292" y="396">这里没有主题、配色、快捷键之类的自定义——</text>
-  <text class="s" x="292" y="420">自用工具，多一套配置就多一套要维护的东西。</text>
+  <text class="s" x="292" y="396">外观只有亮色 / 暗色 / 跟随系统三选一，</text>
+  <text class="s" x="292" y="420">配色与快捷键不做自定义。</text>
 
   <!-- 热点 -->
   <g class="hot" data-hot="1"><circle cx="48" cy="66" r="11"/><text x="48" y="66">1</text></g>
@@ -352,9 +352,57 @@
 
 <h2>界面</h2>
 
+<figure>
+<svg viewBox="0 0 1000 440" role="img" aria-label="界面偏好页">
+  <title>界面偏好</title>
+
+  <text class="b" x="20" y="30">界面</text>
+  <line class="ln" x1="20" y1="46" x2="980" y2="46"/>
+
+  <text x="20" y="79">外观</text>
+  <rect class="s-field ln2" x="240" y="60" width="340" height="28" rx="6"/>
+  <rect class="s-soft" x="442" y="62" width="136" height="24" rx="5"/>
+  <line class="ln" x1="340" y1="66" x2="340" y2="82"/>
+  <line class="ln" x1="440" y1="66" x2="440" y2="82"/>
+  <text class="mut" x="290" y="79" text-anchor="middle">亮色</text>
+  <text class="mut" x="390" y="79" text-anchor="middle">暗色</text>
+  <text x="510" y="79" text-anchor="middle">跟随系统</text>
+  <text class="fnt s" x="600" y="79">改完立刻生效，系统外观变了也实时跟上</text>
+
+  <rect class="s-accent" x="240" y="110" width="16" height="16" rx="4"/>
+  <path d="M243 117 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text x="264" y="122">显示系统数据库</text>
+  <text class="fnt s" x="600" y="122">打开后对象树里显示 information_schema 等</text>
+
+  <text x="20" y="168">左侧栏宽度</text>
+  <line class="ln2" x1="240" y1="164" x2="400" y2="164"/>
+  <circle class="s-accent" cx="320" cy="164" r="7"/>
+  <text class="fnt s" x="600" y="168">拖动后自动记住</text>
+
+  <text x="20" y="214">编辑器 / 结果区分割比例</text>
+  <line class="ln2" x1="240" y1="210" x2="400" y2="210"/>
+  <circle class="s-accent" cx="300" cy="210" r="7"/>
+  <text class="fnt s" x="600" y="214">拖动后自动记住</text>
+
+  <text x="20" y="260">界面语言</text>
+  <text class="mut" x="240" y="260">中文</text>
+  <text class="fnt s" x="600" y="260">当前仅中文</text>
+
+  <line class="lnD" x1="20" y1="296" x2="980" y2="296"/>
+
+  <text class="b s" x="20" y="322">关于「外观」</text>
+  <text class="s" x="20" y="348">亮色 / 暗色 / 跟随系统 三选一，默认跟随系统。</text>
+  <text class="s" x="20" y="372">切换后主窗口、网格、编辑器、快速查看面板一起变，不用重启；</text>
+  <text class="s" x="20" y="396">macOS 自己在浅色 / 深色之间切换时也会实时跟上。</text>
+  <text class="fnt s" x="20" y="422">只改整体外观，不做语法配色自定义、不做主题包。</text>
+</svg>
+<figcaption><b>图 11-4</b>　界面偏好页。</figcaption>
+</figure>
+
 <table>
 <thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
 <tbody>
+<tr><td>外观</td><td>跟随系统</td><td>亮色 / 暗色 / 跟随系统，三选一（分段控件）。改完立刻生效</td></tr>
 <tr><td>显示系统数据库</td><td>关</td><td>打开后对象树里显示 <code>information_schema</code>、<code>performance_schema</code>、<code>mysql</code>、<code>sys</code></td></tr>
 <tr><td>左侧栏宽度</td><td>记忆</td><td>拖动后自动记住</td></tr>
 <tr><td>编辑器 / 结果区分割比例</td><td>记忆</td><td>拖动后自动记住</td></tr>
@@ -378,8 +426,7 @@
 <div class="callout danger">
   <span class="tag">偏好里不会出现这些东西</span>
   <ul>
-    <li>主题自定义——浅色 / 深色跟随系统</li>
-    <li>语法配色自定义</li>
+    <li>主题包、语法配色自定义、按连接记忆外观</li>
     <li>快捷键自定义（Keymap）</li>
     <li>多套配置文件的切换</li>
   </ul>

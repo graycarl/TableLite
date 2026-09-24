@@ -62,6 +62,23 @@ public enum InterfaceLanguage: String, Codable, Sendable, CaseIterable {
     }
 }
 
+/// 外观（`specs/11-preferences.md` §6、`06-ui-layer.md` §9）。
+///
+/// 到 `ColorScheme` 的映射在 UI 层（`AppearanceMode+UI.swift`），Core 层不依赖 SwiftUI。
+public enum AppearanceMode: String, Codable, Sendable, CaseIterable {
+    case light
+    case dark
+    case system
+
+    public var displayName: String {
+        switch self {
+        case .light: return "亮色"
+        case .dark: return "暗色"
+        case .system: return "跟随系统"
+        }
+    }
+}
+
 // MARK: - 键与默认值
 
 /// 全部偏好键。
@@ -113,6 +130,7 @@ public enum PreferenceKey: String, CaseIterable, Sendable {
     case csvNullRepresentation = "csv.nullRepresentation"
 
     // 界面（specs/11 §6）
+    case uiAppearance = "ui.appearance"
     case uiShowSystemDatabases = "ui.showSystemDatabases"
     case uiSidebarWidth = "ui.sidebarWidth"
     case uiEditorResultSplitRatio = "ui.editorResultSplitRatio"
@@ -163,6 +181,7 @@ public enum PreferenceKey: String, CaseIterable, Sendable {
         case .csvEncoding: return CSVTextEncoding.utf8.rawValue
         case .csvNullRepresentation: return CSVNullRepresentation.emptyString.rawValue
 
+        case .uiAppearance: return AppearanceMode.system.rawValue
         case .uiShowSystemDatabases: return false
         case .uiSidebarWidth: return 220.0
         case .uiEditorResultSplitRatio: return 0.5

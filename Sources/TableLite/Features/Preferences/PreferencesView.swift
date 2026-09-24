@@ -68,6 +68,8 @@ struct PreferencesView: View {
         }
         .navigationTitle("偏好设置")
         .frame(width: 660, height: 520)
+        // 偏好设置是独立 Scene，必须单独挂一次（`06-ui-layer.md` §9）。
+        .preferredColorScheme(environment.preferences.appearance.preferredColorScheme)
     }
 
     // MARK: 通用
@@ -234,6 +236,18 @@ struct PreferencesView: View {
     @ViewBuilder
     private func interfaceRows(_ preferences: Preferences) -> some View {
         @Bindable var preferences = preferences
+        LabeledContent("外观") {
+            Picker("外观", selection: $preferences.appearance) {
+                ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 260)
+        }
+        Text("亮色 / 暗色 / 跟随系统，改完立刻生效；跟随系统时随 macOS 实时切换。")
+            .preferenceCaption()
         Toggle("显示系统数据库", isOn: $preferences.showSystemDatabases)
         Text("打开后对象树里显示 information_schema 等系统库。")
             .preferenceCaption()

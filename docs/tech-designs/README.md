@@ -73,6 +73,7 @@
 | 时区 | 客户端零处理：日期时间原样读、原样写，不解析不换算 | [03](03-mysql-layer.md) §4.3 |
 | 存储版本 | 只做向前兼容读取；破坏性变更时备份重建，不写迁移代码 | [02](02-persistence.md) §9 |
 | 界面语言 | 文案硬编码中文，不引入本地化资源 | [06](06-ui-layer.md) §8 |
+| 外观 | 亮色 / 暗色 / 跟随系统三选一，默认跟随系统；全局生效，走 `preferredColorScheme`，自定义色一律用动态语义色 | [06](06-ui-layer.md) §9、[13](13-open-questions.md) S40 |
 | 可测试性 | 手写协议 + `AppEnvironment` 注入（`Clock` / `CredentialStore` / `FileSystemLocator`），不引入 DI 框架 | [15](15-testing.md) §3 |
 | 分发 | `make run` 日常验证、`make dist` 出 Release zip；产物不依赖目标机 Homebrew（老认证插件除外，见 L41） | [12](12-build-and-deps.md) §4.1 |
 | App 图标 | 脚本矢量生成、不引入外部素材；尺寸对齐苹果图标网格；小尺寸参数化简化 | [12](12-build-and-deps.md) §7 |
