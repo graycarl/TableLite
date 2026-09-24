@@ -3,8 +3,9 @@ PROJECT := TableLite.xcodeproj
 SCHEME := TableLite
 BUILD_DIR := $(CURDIR)/.build
 CONFIG ?= Debug
+INSTALL_DIR ?= $(HOME)/Applications
 
-.PHONY: help deps gen build run test smoke dist clean distclean doctor db db-reset db-stop db-shell
+.PHONY: help deps gen build run test smoke dist dist-install clean distclean doctor db db-reset db-stop db-shell
 
 help: ## 显示可用目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -59,6 +60,13 @@ db-shell: ## 进手工测试库的 mysql 客户端
 
 dist: ## 构建 Release 并打包成可分发的 zip
 	@./scripts/package-dist.sh
+
+dist-install: dist ## 构建 Release 并安装到 ~/Applications（可用 INSTALL_DIR 覆盖）
+	@echo "==> 安装到 $(INSTALL_DIR)/TableLite.app"
+	@mkdir -p "$(INSTALL_DIR)"
+	@rm -rf "$(INSTALL_DIR)/TableLite.app"
+	@ditto "$(BUILD_DIR)/Build/Products/Release/TableLite.app" "$(INSTALL_DIR)/TableLite.app"
+	@echo "  完成。启动：open \"$(INSTALL_DIR)/TableLite.app\""
 
 doctor: deps ## 打印依赖与链接情况，排查构建问题
 	@echo "== 静态链接库（App 直接链进二进制）=="
