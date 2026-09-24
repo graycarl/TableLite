@@ -17,7 +17,7 @@
 | [09-filtering.md](09-filtering.md) | 过滤器到 SQL 的映射决策与交互约束 |
 | [10-query-editor.md](10-query-editor.md) | 编辑器文本视图、语法高亮、语句拆分、执行、只读拦截 |
 | [11-schema-and-import-export.md](11-schema-and-import-export.md) | 元数据读取与缓存、CSV 编解码、流式导出、导入 |
-| [12-build-and-deps.md](12-build-and-deps.md) | 技术选型、Homebrew 依赖、链接与 rpath 风险、版本控制、Phase 0 |
+| [12-build-and-deps.md](12-build-and-deps.md) | 技术选型、Homebrew 依赖、静态链接、版本控制、Phase 0 |
 | [13-open-questions.md](13-open-questions.md) | 已知限制、刻意简化、待定事项 |
 | [14-row-inspector.md](14-row-inspector.md) | 右侧字段栏：技术选型、提交路径、大字段按需加载与暂存联动 |
 | [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI |
@@ -46,7 +46,7 @@
 | --- | --- | --- |
 | 数据库访问 | libmysqlclient（Homebrew `mysql-client`）+ 薄 C shim | [12](12-build-and-deps.md) §1 |
 | 支持的数据库 | 只支持 MySQL 8.0+，不支持 MariaDB | [15](15-testing.md) §1 |
-| 依赖链接方式 | 直接用 Homebrew 的 `/opt/homebrew/opt/<formula>/lib/…` 路径；不改写 rpath，不把 dylib 内嵌进 `.app` | [12](12-build-and-deps.md) §3.1 |
+| 依赖链接方式 | **全静态链接**：`mysql-client` / `openssl@3` / `zstd` / `zlib-ng-compat` 的 `.a` 直接链进二进制；不设 rpath，不把 dylib 内嵌进 `.app` | [12](12-build-and-deps.md) §3.1 |
 | 部署目标 | 与构建机系统版本一致（当前 27.0），不声称支持更低 macOS —— 依赖 bottle 的 `minos` 无法降低 | [12](12-build-and-deps.md) §3.3 |
 | 写入方式 | **不用 prepared statement**，生成 SQL 字面量下发 | [03](03-mysql-layer.md) §1 |
 | 字符串 / 二进制转义 | 字符串走 `mysql_real_escape_string`；二进制走 `0x…` 十六进制字面量 | [03](03-mysql-layer.md) §4.2 |
@@ -73,7 +73,7 @@
 | 存储版本 | 只做向前兼容读取；破坏性变更时备份重建，不写迁移代码 | [02](02-persistence.md) §9 |
 | 界面语言 | 文案硬编码中文，不引入本地化资源 | [06](06-ui-layer.md) §8 |
 | 可测试性 | 手写协议 + `AppEnvironment` 注入（`Clock` / `CredentialStore` / `FileSystemLocator`），不引入 DI 框架 | [15](15-testing.md) §3 |
-| 分发 | `make run` 日常验证、`make dist` 出 Release zip；产物依赖目标机 Homebrew | [12](12-build-and-deps.md) §4.1 |
+| 分发 | `make run` 日常验证、`make dist` 出 Release zip；产物不依赖目标机 Homebrew（老认证插件除外，见 L41） | [12](12-build-and-deps.md) §4.1 |
 | App 图标 | 脚本矢量生成、不引入外部素材；尺寸对齐苹果图标网格；小尺寸参数化简化 | [12](12-build-and-deps.md) §7 |
 
 「无主键表置为只读」这类**用户可感知的行为**由 `specs/` 定义（见 [`../../specs/04-data-editing.md`](../../specs/04-data-editing.md) §2），

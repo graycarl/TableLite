@@ -67,7 +67,7 @@
 | L10 | `information_schema` 的 `TABLE_ROWS` 对 InnoDB 只是估算 | 行数可能明显偏差 | 标注「约」，提供「统计」按钮 |
 | ~~L11~~ | ~~深分页（`OFFSET` 很大）会变慢~~ | **已消解（2026-09-23）**：表数据视图取消分页，固定 `LIMIT N` 从头取前 N 行，不再存在深偏移 | — |
 | L12 | 字段栏自动加载大字段的上限是 8 MB | 一行里的大字段合计超过该值时，不会自动取完整值 | 字段旁提供「加载完整内容…」按钮，点开才取 |
-| L13 | `make dist` 的产物依赖目标机器的 Homebrew | 换一台机器要先 `brew install mysql-client` 等项目，否则启动即缺库 | 自用工具，接受；真要做到自包含就回到 `12-build-and-deps.md` §3.1 的内嵌 dylib 方案（T1 已否） |
+| ~~L13~~ | ~~`make dist` 的产物依赖目标机器的 Homebrew~~ | **已消解（2026-09-24）**：改为全静态链接，产物不留任何 `/opt/homebrew` 引用，换机解开就能跑（`12-build-and-deps.md` §3.1） | — |
 | L14 | CI 不覆盖需要真库的路径 | 编译与单元测试有保障，冒烟与集成测试只在本地跑 | 合并前本地跑一次 `make smoke`。见 `15-testing.md` §5 |
 | L15 | CSV 读入一次性全量解析 | 超大 CSV 导入时内存随行数增长 | P8 导入向导实现增量解析；导出侧已是流式（11 §3.1） |
 | L16 | 纯文本复制（TSV 等）的 NULL 表示为文本 `NULL` | 与空串在粘贴后不可区分 | CSV 复制/导出走独立 `nullRepresentation`，不受影响 |
@@ -94,12 +94,13 @@
 | L38 | 导入第一步的「换行符」下拉只影响提示文案，不改变解析行为 | 解析本身兼容 LF / CRLF / CR，选项仅作展示与确认 | 下拉自动反映检测到的换行符；纯逻辑（`CSVLineEndingDetector`）已有单测 |
 | L39 | 导出的「日期格式 → 自定义」按 UTC 解析与格式化 | 日期时间无时区，原样文本与自定义格式都按同一时区换算，不改变日期分量 | 只作用于 DATE / DATETIME / TIMESTAMP / NEWDATE；无法解析时原样输出 |
 | L40 | 取消流式读取后的自动重连按连接配置库重开 | 同步只在切库 / 连接 / 重连时发生；自动重连后服务器默认库会回到连接配置里的库，编辑器可能落在旧库上，直到下次切库 | 自动重连只在取消流式读取（导出等）后发生，低频；后续可在重连后补一次同步 |
+| L41 | 外部认证插件仍依赖构建机上的 `mysql-client` 安装 | `libmysqlclient` 只内建 `caching_sha2_password` / `sha256_password`；`mysql_native_password` 等在 `lib/plugin/*.so` 里，是运行期 `dlopen` 的外部文件（且默认路径指向版本化 Cellar 路径）。用这类账号连老服务器时，静态链接的产物依旧需要那个 `.so` 及其 Homebrew 依赖 | 目标场景是 MySQL 8.0+（`15-testing.md` §1），默认认证就是 `caching_sha2_password`，影响面小；真要覆盖老服务器，得把插件一起内嵌（需自建 libmysqlclient） |
 
 ## 3. 待定事项
 
 | # | 事项 | 需要决定什么 | 何时决定 |
 | --- | --- | --- | --- |
-| T1 | rpath 处理方案 | 是补 `LD_RUNPATH_SEARCH_PATHS`，还是把 dylib 拷进 `.app` 并改写 install_name | Phase 0，用 `otool -L` 实测后定（见 `12-build-and-deps.md` §3.1） |
+| ~~T1~~ | ~~rpath 处理方案~~ | **已定案**：2026-09-21 定为动态链接（不内嵌 dylib）；2026-09-24 重定为全静态链接，见 `12-build-and-deps.md` §3.1 | — |
 | T2 | 结果集背压是否要严格实现 | 见 L1 | 实际使用中发现内存问题时 |
 | T3 | 标签存活策略 | 是全部保活，还是只保活最近 5 个 | Phase 3 实现标签容器时 |
 | T4 | 多语句执行的「遇错继续」默认值 | 默认「遇错停止」，是否保持 | Phase 7 之后按使用感受调整 |
@@ -133,6 +134,7 @@
 | 2026-09-22 | Core/Meta + Core/Session 落地（W2-T5）：MetaRepository（information_schema + TTL 缓存 + DDL 失效）、SessionManager/ConnectionSession/Tab/AppEnvironment；`MySQLSessionProtocol`/`SSHTunnelProtocol` 抽协议供测试替身（S26 手写协议）；SSH 别名模式校验已放宽（`Connection.validationIssues()` 不再强制 `ssh.user`/私钥）；保活用固定 30s 周期（未按连接各自间隔）；退出前的未提交确认待编辑 wave 补 |
 | 2026-09-22 | Features/Connections + Features/Workspace 落地（W2-T6/T7）：菜单快捷键走 `Commands + @FocusedValue`（`WorkspaceActions`/`AppActions`，后续 wave 在 WorkspaceView 里把 nil 换成真实现，nil 自动禁用）；对象树用 SwiftUI LazyVStack 不下沉 AppKit；登记 L21–L23；窗口最小尺寸取 860×560（specs 未定）；ConnectionColor 的 SwiftUI 颜色映射有两处（`swatchColor`/`swiftUIColor`）待收敛 |
 | 2026-09-22 | DataGrid 数据网格落地（W3-T8，P4）：NSTableView 桥接 + `GridCell` 区分首屏值/截断值/完整值/编辑中值（截断值不写回的安全闸门）；`SessionTab.content` 去掉 `@ObservationIgnored`（否则字段栏不重绘）；列重排禁用（`07` §2 列顺序=结果集顺序）；字段栏不设快捷键（S15）；登记 L24–L27 |
+| 2026-09-24 | **T1 重定案：改为全静态链接**（`mysql-client` / `openssl@3` / `zstd` / `zlib-ng-compat` 的 `.a` 直接链进 App），产物不留任何 `/opt/homebrew` 引用，L13 消解；新增 L41（外部认证插件仍需构建机上的 `mysql-client`）；`project.yml` 去掉 `LIBRARY_SEARCH_PATHS` / `LD_RUNPATH_SEARCH_PATHS`，显式加 `-lc++`；`make deps` 改查 `.a`，`make dist` 反过来断言无 Homebrew 引用；见 `12-build-and-deps.md` §2/§3.1/§3.2/§3.3/§4.1 |
 | 2026-09-22 | 编辑与提交落地（W3-T9，P5，M1 达成）：字段栏编辑器 + 暂存 + 预览==提交（S29）+ 事务提交/回滚保留暂存 + 关标签/断开/删除连接/退出四处确认；**修复两个真库才暴露的 bug**：`MySQLValueMapping` 把数值/时间列（charset 63）误判为二进制导致主键定位失效、提交路径忽略语句级错误导致唯一键冲突被当成功；冒烟新增 `--edit-smoke` 编辑链路 e2e（5/5）；登记 L28–L30；`⌘I`/`⌘D`/`⌫` 仅在网格焦点时生效 |
 | 2026-09-22 | 过滤器落地（W3-T10，P6）：行过滤器 14 操作符/Raw 模式互斥/列过滤浮层/右键快速筛选/250ms 防抖快速过滤/WorkspaceStateStore 持久化；冒烟新增 `--filter-smoke`（8/8）；⌘F 改为上下文分派（表数据标签=过滤横条，否则=对象树搜索）；`FilterState` 持久化草稿态保证 Esc 后保留；登记 L31–L32；外键 ↗ 跳转仍未实现（L26） |
 | 2026-09-22 | **启动不再恢复会话**：每次启动都进连接列表，连上某个连接后才还原该连接的标签现场；删除偏好「恢复上次打开的标签」，见 S36（`specs/01-connections.md` §1/§7、`specs/11-preferences.md` §1、`specs/06-query-editor.md`、`manual/01`、`manual/06`、`manual/11`、`05-session-management.md` §8） |

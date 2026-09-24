@@ -61,12 +61,26 @@ dist: ## 构建 Release 并打包成可分发的 zip
 	@./scripts/package-dist.sh
 
 doctor: deps ## 打印依赖与链接情况，排查构建问题
-	@echo "== otool -L libmysqlclient =="
-	@otool -L "$$(brew --prefix mysql-client)/lib/libmysqlclient.dylib" || true
+	@echo "== 静态链接库（App 直接链进二进制）=="
+	@for spec in mysql-client:lib/libmysqlclient.a openssl@3:lib/libssl.a \
+		openssl@3:lib/libcrypto.a zstd:lib/libzstd.a zlib-ng-compat:lib/libz.a; do \
+		f="$$(brew --prefix $${spec%%:*})/$${spec#*:}"; \
+		if [[ -f "$$f" ]]; then echo "  ✓ $$f"; else echo "  ✗ 缺失 $$f"; fi; \
+	done
 	@echo
-	@echo "== LC_RPATH =="
-	@otool -l "$$(brew --prefix mysql-client)/lib/libmysqlclient.dylib" 2>/dev/null \
-		| grep -A2 LC_RPATH || echo "(无 LC_RPATH)"
+	@echo "== 产物依赖（应为空；有输出说明退回了动态链接）=="
+	@dir="$(BUILD_DIR)/Build/Products/$(CONFIG)/TableLite.app/Contents/MacOS"; \
+	if [[ -f "$$dir/TableLite.debug.dylib" ]]; then bin="$$dir/TableLite.debug.dylib"; \
+	elif [[ -f "$$dir/TableLite" ]]; then bin="$$dir/TableLite"; else bin=""; fi; \
+	if [[ -z "$$bin" ]]; then \
+		echo "  (还没构建，先 make build)"; \
+	else \
+		echo "  $$bin"; \
+		otool -L "$$bin" | tail -n +2 | awk '{print $$1}' | grep '^/opt/homebrew/' || echo "  (无 Homebrew 引用)"; \
+	fi
+	@echo
+	@echo "== 外部认证插件（连老服务器时才用到，见 13-open-questions.md L41）=="
+	@ls "$$(brew --prefix mysql-client)/lib/plugin" 2>/dev/null || true
 
 clean: ## 清理构建产物
 	@rm -rf "$(BUILD_DIR)"

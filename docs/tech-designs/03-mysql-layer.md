@@ -1,6 +1,6 @@
 # 03 · MySQL 数据访问层
 
-依赖 Homebrew `mysql-client` 提供的 `libmysqlclient`。分两层：C shim（`CMySQLClient`）只隔离 C 宏、内存与线程模型；Swift `MySQLSession` 负责异步、类型映射与业务语义。
+依赖 Homebrew `mysql-client` 提供的 `libmysqlclient`（**静态链接**进 App，见 `12-build-and-deps.md` §3.1）。分两层：C shim（`CMySQLClient`）只隔离 C 宏、内存与线程模型；Swift `MySQLSession` 负责异步、类型映射与业务语义。
 
 ## 1. 设计原则
 
@@ -83,7 +83,7 @@
 
 C shim 链路必须通过以下验证才能进入 P1：
 
-1. 能链接并加载 `libmysqlclient.dylib`。
+1. 能链接 `libmysqlclient` 成功，且 App 产物 `otool -L` 不残留 Homebrew 动态库引用（`12-build-and-deps.md` §3.1）。
 2. 能连上 MySQL。
 3. `SELECT 1` 返回一行一列。
 4. 一次下发多条语句与单条 `CALL` 都能返回并取完全部结果集。

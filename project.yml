@@ -20,7 +20,8 @@ settings:
 targets:
   # ---------------------------------------------------------------
   # libmysqlclient 的薄 C 封装层。
-  # 只编译，不链接 libmysqlclient —— 链接由 App target 完成。
+  # 只编译，不链接 libmysqlclient —— 链接（静态）由 App target 完成。
+  # 静态链接的理由与代价见 docs/tech-designs/12-build-and-deps.md §3.1。
   #
   # Swift 侧通过 `import CMySQLClient` 使用：
   #   Sources/CMySQLClient/include/module.modulemap 把公开头文件暴露成模块，
@@ -76,16 +77,12 @@ targets:
         HEADER_SEARCH_PATHS:
           - $(SRCROOT)/Sources/CMySQLClient/include
           - $(MYSQL_CLIENT_PREFIX)/include/mysql
-        LIBRARY_SEARCH_PATHS:
-          - $(MYSQL_CLIENT_PREFIX)/lib
-          - $(OPENSSL_PREFIX)/lib
-          - $(ZSTD_PREFIX)/lib
-        OTHER_LDFLAGS: $(inherited) -lmysqlclient -lssl -lcrypto -lz -lzstd -lresolv
-        LD_RUNPATH_SEARCH_PATHS:
-          - $(inherited)
-          - $(MYSQL_CLIENT_PREFIX)/lib
-          - $(OPENSSL_PREFIX)/lib
-          - $(ZSTD_PREFIX)/lib
+
+        # 全静态链接：产物不留任何 /opt/homebrew 的 dylib 引用（决策见
+        # docs/tech-designs/12-build-and-deps.md §3.1）。
+        # 必须显式 -lc++：Swift target 不会自动带 C++ 运行库，而 libmysqlclient 是 C++ 写的。
+        # 不设 LIBRARY_SEARCH_PATHS / LD_RUNPATH_SEARCH_PATHS —— 没有动态库要找。
+        OTHER_LDFLAGS: $(inherited) $(MYSQL_CLIENT_PREFIX)/lib/libmysqlclient.a $(OPENSSL_PREFIX)/lib/libssl.a $(OPENSSL_PREFIX)/lib/libcrypto.a $(ZSTD_PREFIX)/lib/libzstd.a $(ZLIB_NG_PREFIX)/lib/libz.a -lresolv -lc++
 
   # ---------------------------------------------------------------
   # 单元测试

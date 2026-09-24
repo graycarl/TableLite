@@ -14,6 +14,7 @@ fi
 MYSQL_CLIENT_PREFIX="$(brew --prefix mysql-client 2>/dev/null || true)"
 OPENSSL_PREFIX="$(brew --prefix openssl@3 2>/dev/null || true)"
 ZSTD_PREFIX="$(brew --prefix zstd 2>/dev/null || true)"
+ZLIB_NG_PREFIX="$(brew --prefix zlib-ng-compat 2>/dev/null || true)"
 
 if [[ -z "$MYSQL_CLIENT_PREFIX" ]]; then
   echo "错误：mysql-client 未安装。请先执行：brew install mysql-client" >&2
@@ -23,6 +24,7 @@ fi
 # 依赖缺失时退化为 Homebrew 的 opt 路径，构建阶段会给出更明确的报错
 : "${OPENSSL_PREFIX:=$(brew --prefix)/opt/openssl@3}"
 : "${ZSTD_PREFIX:=$(brew --prefix)/opt/zstd}"
+: "${ZLIB_NG_PREFIX:=$(brew --prefix)/opt/zlib-ng-compat}"
 
 TMP="$(mktemp)"
 cat > "$TMP" <<EOF
@@ -32,6 +34,7 @@ cat > "$TMP" <<EOF
 MYSQL_CLIENT_PREFIX = $MYSQL_CLIENT_PREFIX
 OPENSSL_PREFIX = $OPENSSL_PREFIX
 ZSTD_PREFIX = $ZSTD_PREFIX
+ZLIB_NG_PREFIX = $ZLIB_NG_PREFIX
 EOF
 
 mkdir -p "$(dirname "$OUT")"

@@ -7,7 +7,7 @@
 | 语言 | Swift 6（严格并发） | 与 macOS 原生开发一致 |
 | 主框架 | SwiftUI | 表单、布局、菜单开发效率高 |
 | 数据网格 / 文本编辑器 | AppKit（`NSTableView` / `NSTextView`） | SwiftUI 不能满足大表滚动、冻结列、精确焦点与文本控制；右侧字段栏反过来用 SwiftUI（见 `14-row-inspector.md` §1） |
-| 数据库访问 | libmysqlclient（Homebrew `mysql-client`）+ 薄 C shim | 协议行为与官方 `mysql` 客户端一致：多结果集、多语句、全部认证插件、流式读取。纯 Swift 实现（MySQLNIO）在多结果集、认证插件覆盖上有缺口 |
+| 数据库访问 | libmysqlclient（Homebrew `mysql-client`，**静态链接**进 App）+ 薄 C shim | 协议行为与官方 `mysql` 客户端一致：多结果集、多语句、全部认证插件、流式读取。纯 Swift 实现（MySQLNIO）在多结果集、认证插件覆盖上有缺口 |
 | SSH 隧道 | 系统 `/usr/bin/ssh` + `-L` 端口转发 | `~/.ssh/config`、`ProxyJump`、ssh-agent、known_hosts 全部免费获得 |
 | 工程组织 | XcodeGen（`project.yml` 生成工程） | 文本可审阅、易 diff、无 pbxproj 冲突；纯 SwiftPM 做不了「C shim + .app bundle」 |
 | 历史 / 日志存储 | 系统 `libsqlite3` | 零额外依赖 |
@@ -19,34 +19,43 @@
 
 | 包 | 用途 |
 | --- | --- |
-| `mysql-client` | `libmysqlclient` + 头文件，**keg-only**，必须显式指定路径 |
+| `mysql-client` | `libmysqlclient.a` + 头文件，**keg-only**，必须显式指定路径 |
+| `openssl@3` / `zstd` / `zlib-ng-compat` | 与 `libmysqlclient.a` 一起被**静态链接**进 App（见 §3.1） |
 | `xcodegen` | 生成 Xcode 工程 |
-| `openssl@3` / `zstd` / `zlib-ng-compat` | `libmysqlclient` 的**运行期**硬依赖 |
 
-安装：`brew install mysql-client xcodegen`。上面三个传递依赖由 `mysql-client` 的 formula 自动带入，但它们是运行期硬依赖，`make deps` 的检查清单需要覆盖（见 `scripts/check-deps.sh`）。
+安装：`brew install mysql-client xcodegen`。后面三个是 `mysql-client` 的 formula 依赖，由它自动带入；它们是构建期静态链接的输入，少一个就是链接失败（不是运行期才发作），所以 `make deps` 的检查清单要覆盖（`scripts/check-deps.sh`）。
 
 ## 3. 构建配置
 
 - 用 `Configs/Local.xcconfig`（**不进版本控制**，由 `make deps` 生成）集中机器相关路径，而不是在 `project.yml` 里跑 `$(shell brew --prefix …)`（XcodeGen 的 `$(shell …)` 在增量构建与 CI 上不可靠）。
-- 头文件与库路径、`LD_RUNPATH_SEARCH_PATHS` 必须显式给出（keg-only）。
-- C shim 只编译，不链接 libmysqlclient（由 App target 链接）。
+- 头文件路径必须显式给出（keg-only）。**不需要** `LIBRARY_SEARCH_PATHS` 与 `LD_RUNPATH_SEARCH_PATHS`：静态链接没有动态库要找（§3.1）。
+- C shim 只编译，不链接 libmysqlclient（由 App target 链接，且直接给 `.a` 的绝对路径而不是 `-l`）。
 
-### 3.1 rpath 处理（决策记录，T1 已定案）
+### 3.1 静态链接（决策记录，T1 于 2026-09-24 重定案）
 
-Phase 0 用 `otool -L` / `otool -l` 实测（macOS 27 / `mysql-client` 26.7.0）：
+**决策：App 把 Homebrew 的静态库直接链进二进制 —— `libmysqlclient.a`、`libssl.a`、`libcrypto.a`、`libzstd.a`、`libz.a`。产物不留任何 `/opt/homebrew` 的 dylib 引用。**
 
-- `libmysqlclient.dylib` 的 `LC_ID_DYLIB` 与它的全部依赖都指向 `/opt/homebrew/opt/<formula>/lib/…`，**没有指向版本化 Cellar 路径**（如 `/opt/homebrew/Cellar/openssl@3/3.6.4/lib`）的引用，`LC_RPATH` 为空。
-- `/opt/homebrew/opt/<formula>` 是 Homebrew 维护的稳定符号链接，升级 formula 不会改变它。
-
-**结论：不做任何处理。** 不写 post-build `install_name_tool`，也不把 dylib 拷进 `.app`（§3.2 不采用）。
-
-- 前提：依赖的 keg-only 目录在运行时存在 —— 自用工具已接受（§1）。
-- 代价：`libmysqlclient.<major>.dylib` 的 ABI 大版本号会写进 App 二进制。Homebrew 升级到下一个 ABI 大版本后必须重新 `make build`，否则启动即 `dyld` 失败。
-- 附带结论：`-lz` 解析到系统 `/usr/lib/libz.1.dylib`，不是 keg-only 的 `zlib-ng-compat`，App 侧少一个外部依赖；但 `libmysqlclient` 自身链接了 `zlib-ng-compat` 的 `libz.1.dylib`，运行时仍必须有该 formula（§2）。
+- 动机：让 `make dist` 的产物自包含 —— 换一台机器解开就能跑，不必先 `brew install mysql-client`。
+- 前提：Homebrew 的 keg-only 目录里同时提供这些 `.a`（Phase 0 时只看了 `.dylib`，结论已不成立）。
+- 必须显式加 `-lc++`：Swift target 不会自动带 C++ 运行库，而 `libmysqlclient` 是 C++ 实现的，漏了会报一片 `___cxa_throw` / `___gxx_personality_v0` undefined symbol。
+- 实测（macOS 27 / `mysql-client` 26.7.0）：静态链接后 `otool -L` 只剩 `/usr/lib` 与 `/System/...`；`make smoke` 在 `mysql:8.4` 上全部验证项通过（含 TLS 与 `caching_sha2_password`）。
+- 代价：
+  - 体积：Debug 的 `TableLite.debug.dylib` 18 MB → 30 MB（Release 约 +12 MB）。
+  - `openssl@3` / `zstd` 的安全更新必须重新 `make build` 才生效，静态链接吃不到动态库的补丁。
+  - `mysql_native_password` 等外部认证插件**没有**内建（`nm` 检查确认只内建了 `caching_sha2_password` / `sha256_password`），连老服务器时仍要用 `lib/plugin/*.so`（L41）。
+  - `minos` 不会因此降低（§3.3）。
+- 边界：依赖的 keg-only 目录只需在**构建时**存在 —— 这正是这套方案的收益。
+- 历史：Phase 0 曾据「依赖全部指向 `/opt/homebrew/opt/<formula>` 稳定符号链接」定案为动态链接；该定案未失效（今天仍成立），只是自包含的价值更高，故改。
+- 回归防护：`scripts/package-dist.sh` 反过来断言产物里**一个** Homebrew 引用都没有，残留即失败。
 
 ### 3.2 备选方案（不采用）
 
-把 `libmysqlclient` 及其依赖拷进 `.app/Contents/Frameworks/` 并改写引用为 `@rpath`。代价是「App 自包含、不依赖 Homebrew 环境」，多一个脚本多一处坏的可能。§3.1 实测表明没有必要，**不采用**；只有将来要在没有 Homebrew 的机器上运行时再重新评估。
+| 方案 | 为什么不用 |
+| --- | --- |
+| 把 dylib 拷进 `.app/Contents/Frameworks/` 并改写为 `@rpath` | 效果与 §3.1 相同，但多一个 post-build 脚本、多一处会坏的地方 |
+| 把预编译产物 vendor 进仓库（`Vendor/*.a`） | 仓库多 ~14 MB 二进制，还要自己维护升级流程；构建机装 Homebrew 对本项目不是负担 |
+| 换 C 依赖来源（MySQL 官方 tarball / 自建） | 只在要降低 `minos`、支持更低 macOS 时才有必要（§3.3） |
+| 舍弃 C 依赖，改纯 Swift 协议实现 | §1 已否（多结果集、认证插件覆盖有缺口） |
 
 ### 3.3 部署目标（决策记录，T11 已定案）
 
@@ -57,9 +66,10 @@ Homebrew 的 bottle 按构建时的系统构建，`minos` 会写进 dylib 本身
 - 理由：自用单机工具。在低于依赖 `minos` 的系统上运行是 Apple 不支持的组合 —— 行为未定义（可能加载期 `Symbol not found`，也可能运行到某个调用路径才崩溃）。把声明写成实际能做到的值，比留一个无法验证的承诺要好。
 - 副作用（正面）：`Info.plist` 的 `LSMinimumSystemVersion` 也随之变成 27.0，旧系统会直接拒给启动，而不是进入未定义行为。
 - 实测澄清：`minos` **并不阻止 dyld 加载**（在 macOS 27 上 `dlopen` 一个 `minos` = 99.0 的 dylib 成功）。所以这不是「启动即失败」，而是「未定义行为」。
-- §3.2 的「内嵌 dylib」**降低不了 `minos`**，与本决策无关。
+- §3.2 的「内嵌 dylib / vendor 预编译产物」**降低不了 `minos`**，与本决策无关。
 - 升级 macOS 后需同步这个值（`make deps` 不会自动改），否则链接警告会重新出现。
 - 若将来确实要支持更低系统，需在旧 SDK 上自建 dylib，或改用 MySQL 官方 tarball 的库 —— 届时重开此决策，并重新评估 `03-mysql-layer.md` 锁定的「Homebrew `mysql-client`」方案。
+- **静态链接（§3.1）降低不了 `minos`**：`.a` 里的目标文件本身就带 `minos 27.0`，链接产物仍是 27.0（实测）。
 
 ## 4. 构建入口
 
@@ -84,8 +94,8 @@ xcodebuild -runFirstLaunch
 日常验证用 `make run`（Debug）；要归档时用 `make dist`。
 
 - Release 配置构建，产出 `dist/TableLite-<版本>.zip`；用 `ditto -c -k --keepParent` 打包，保留扩展属性。
-- 打包前逐个检查 `otool -L` 里的 Homebrew 依赖是否还在，缺一个就失败 —— 否则会得到一个看起来正常、换机就跑不起来的 zip。
-- **产物仍依赖目标机器的 Homebrew**（`mysql-client` / `openssl@3` / `zstd`，见 §3.1）。换机前先 `brew install mysql-client`（L13）。
+- 打包前断言 `otool -L` 里**没有**任何 `/opt/homebrew` 引用，有一处就失败 —— 这是一道回归门，防的是链接配置被改回动态链接（§3.1）。
+- **产物不依赖目标机器的 Homebrew**，换机解开就能跑。唯一例外是用 `mysql_native_password` 等外部认证插件连老服务器时（L41）。
 - 不签名、不公证（`specs/00-scope.md` 的 D3）。
 
 ## 5. 版本控制
@@ -107,7 +117,7 @@ xcodebuild -runFirstLaunch
 
 - [ ] `make deps` 通过，`Configs/Local.xcconfig` 生成
 - [ ] `make build` 产出 `.app`，`make run` 打开一个空窗口
-- [ ] `otool -L` 检查通过，App 启动时不缺动态库。**注意 Xcode 27 的 Debug 构建会把实际代码放进 `TableLite.debug.dylib`，主二进制只是个壳 —— 要检查的是 `TableLite.app/Contents/MacOS/TableLite.debug.dylib`；Release 构建才直接看主二进制**
+- [ ] `otool -L` 检查通过，App 启动时不缺动态库，且**没有** `/opt/homebrew` 引用。**注意 Xcode 27 的 Debug 构建会把实际代码放进 `TableLite.debug.dylib`，主二进制只是个壳 —— 要检查的是 `TableLite.app/Contents/MacOS/TableLite.debug.dylib`；Release 构建才直接看主二进制**
 - [ ] 冒烟脚本的 7 项验证全部通过（见 `03-mysql-layer.md` §8）
 - [ ] 退出 App 后没有残留的 ssh 进程
 

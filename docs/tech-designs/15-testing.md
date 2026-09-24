@@ -7,7 +7,8 @@
 **只支持 MySQL，保证范围是 MySQL 8.0 及以上。不支持 MariaDB。**
 
 - 实测依据：7 项冒烟验证（`03-mysql-layer.md` §8）在 `mysql:8.4.11` 上全部通过，
-  客户端是 Homebrew `mysql-client` 26.7.0 提供的 libmysqlclient。
+  客户端是 Homebrew `mysql-client` 26.7.0 提供的 `libmysqlclient`（静态链接进 App，见 `12-build-and-deps.md` §3.1）。
+- 默认认证插件 `caching_sha2_password` 已内建；老服务器的 `mysql_native_password` 走外部插件，见 `13-open-questions.md` L41。
 - 低于 8.0 的版本不做兼容分支，失败按服务器原始错误展示（`03-mysql-layer.md` §7）。
 - **测试矩阵只有一档**：`mysql:8.4`。要验别的版本就把 `MYSQL_HOST` 指向它，跑同一个脚本。
 

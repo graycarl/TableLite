@@ -40,14 +40,14 @@ else
   miss "xcodegen 未安装" "brew install xcodegen"
 fi
 
-# ---- mysql-client ----
+# ---- mysql-client（静态库）----
 if brew list --formula mysql-client >/dev/null 2>&1; then
   MYSQL_PREFIX="$(brew --prefix mysql-client)"
   ok "mysql-client ($MYSQL_PREFIX)"
-  if [[ -f "$MYSQL_PREFIX/lib/libmysqlclient.dylib" ]]; then
-    ok "libmysqlclient.dylib 存在"
+  if [[ -f "$MYSQL_PREFIX/lib/libmysqlclient.a" ]]; then
+    ok "libmysqlclient.a 存在"
   else
-    miss "找不到 $MYSQL_PREFIX/lib/libmysqlclient.dylib" "brew reinstall mysql-client"
+    miss "找不到 $MYSQL_PREFIX/lib/libmysqlclient.a" "brew reinstall mysql-client"
   fi
   if [[ -f "$MYSQL_PREFIX/include/mysql/mysql.h" ]]; then
     ok "mysql.h 存在"
@@ -58,35 +58,34 @@ else
   miss "mysql-client 未安装" "brew install mysql-client"
 fi
 
-# ---- 构建期链接依赖（App 显式 -lssl / -lcrypto / -lzstd，链接器必须能找到）----
-for dep in openssl@3 zstd; do
-  if brew list --formula "$dep" >/dev/null 2>&1; then
-    ok "$dep ($(brew --prefix "$dep"))"
+# ---- 静态链接库 ----
+# App 直接把下面这些 .a 链进二进制（决策见 12-build-and-deps.md §3.1），
+# 所以它们必须存在；少一个就是链接失败，而不是运行期才发作。
+printf "\n== 静态链接库 ==\n"
+for spec in "openssl@3:lib/libssl.a" "openssl@3:lib/libcrypto.a" \
+            "zstd:lib/libzstd.a" "zlib-ng-compat:lib/libz.a"; do
+  formula="${spec%%:*}"; rel="${spec#*:}"
+  if brew list --formula "$formula" >/dev/null 2>&1; then
+    prefix="$(brew --prefix "$formula")"
+    if [[ -f "$prefix/$rel" ]]; then
+      ok "$formula  $(basename "$rel")"
+    else
+      miss "找不到 $prefix/$rel" "brew reinstall $formula"
+    fi
   else
-    miss "$dep 未安装" "brew install $dep"
+    miss "$formula 未安装（缺 $(basename "$rel")）" "brew install $formula"
   fi
 done
 
-# ---- libmysqlclient 的运行期依赖 ----
-# 直接读 dylib 的依赖表，而不是硬编码 formula 名单：Homebrew 换依赖时不会漏检。
-# 背景见 docs/tech-designs/12-build-and-deps.md §2、§3.1。
-MYSQL_DYLIB="${MYSQL_PREFIX:-}/lib/libmysqlclient.dylib"
-if [[ -f "$MYSQL_DYLIB" ]]; then
-  if command -v otool >/dev/null 2>&1; then
-    while IFS= read -r lib; do
-      case "$lib" in
-        /opt/homebrew/*)
-          formula="$(printf '%s' "$lib" | sed -n 's|^/opt/homebrew/opt/\([^/]*\)/.*|\1|p')"
-          if [[ -f "$lib" ]]; then
-            ok "运行期依赖 $(basename "$lib")"
-          else
-            miss "运行期依赖缺失：$lib" "brew reinstall ${formula:-$lib}"
-          fi
-          ;;
-      esac
-    done < <(otool -L "$MYSQL_DYLIB" | tail -n +2 | awk '{print $1}')
+# ---- 外部认证插件（不是构建依赖，是运行期可选依赖）----
+# libmysqlclient 内建 caching_sha2_password / sha256_password；
+# mysql_native_password 等只在 lib/plugin/*.so 里，连老服务器时才被 dlopen。
+# 详见 docs/tech-designs/13-open-questions.md L41。
+if [[ -n "${MYSQL_PREFIX:-}" ]]; then
+  if [[ -f "$MYSQL_PREFIX/lib/plugin/mysql_native_password.so" ]]; then
+    ok "认证插件 mysql_native_password.so（连老服务器时才用到）"
   else
-    note "找不到 otool，跳过 libmysqlclient 的运行期依赖检查"
+    note "没有 $MYSQL_PREFIX/lib/plugin/mysql_native_password.so；用 mysql_native_password 账号连服务器会失败"
   fi
 fi
 
