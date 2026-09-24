@@ -4,7 +4,7 @@
 
 | 部分 | 技术 |
 | --- | --- |
-| 窗口、菜单、工具栏、连接列表、主界面布局、右侧字段栏、对象树、标签栏、状态栏、过滤器面板 | SwiftUI |
+| 窗口、菜单、工具栏、连接列表、主界面布局、右侧字段栏、对象树、标签栏、过滤器面板 | SwiftUI |
 | 数据网格 | **AppKit `NSTableView`**（见 `07-data-grid.md` §1） |
 | SQL 编辑器 | **AppKit `NSTextView`** |
 | 快速查看面板 | AppKit `NSPanel` + SwiftUI 内容 |

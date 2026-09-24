@@ -8,7 +8,7 @@ import Foundation
 public enum ExportSource: Sendable, Equatable {
     /// 对象树右键表 →「导出…」：整张表，不受过滤条件影响。
     case table(database: String, table: String)
-    /// 数据视图状态栏「导出…」：当前过滤条件下的全部数据（不是只加载的前 N 行）。
+    /// 数据视图底部条「导出…」：当前过滤条件下的全部数据（不是只加载的前 N 行）。
     ///
     /// `filterSummary` 是**真实**的过滤条件文本（取自 `FilterSQLBuilder` 生成的 `WHERE` 子句），
     /// `rowCountEstimate` 是当前过滤条件下界面已知的行数估算（来自显示条数栏的同一份估算）。
@@ -197,7 +197,7 @@ public struct ExportProgress: Sendable, Equatable {
         self.byteCount = byteCount
     }
 
-    /// 面板 / 状态栏用的文案：`已写入 129,480 行（24.1 MB）`。
+    /// 面板用的文案：`已写入 129,480 行（24.1 MB）`。
     public var displayText: String {
         "已写入 \(ExportSource.grouped(Int64(rowCount))) 行（\(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))）"
     }

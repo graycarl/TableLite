@@ -154,6 +154,24 @@ struct ConnectionSwitcher: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
+        .help(connectionHelp)
+    }
+
+    /// 工具栏连接切换器的悬停详情：连接信息 + 只读标记 + SSH 隧道本地端口
+    /// （原底部状态栏的连接信息，状态栏已在 2026-09-24 去掉）。
+    private var connectionHelp: String {
+        WorkspaceStatusText.connectionTooltip(
+            lineParts: WorkspaceStatusText.connectionLineParts(
+                connection: session.connection,
+                state: session.state,
+                database: session.selectedDatabase,
+                serverInfo: session.serverInfo,
+                isReadOnly: session.isReadOnly
+            ),
+            tunnelLine: session.tunnelEndpoint.map {
+                WorkspaceStatusText.tunnelDetailLine(host: $0.host, port: $0.port)
+            }
+        )
     }
 
     private func reconnect() {

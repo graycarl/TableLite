@@ -4,7 +4,7 @@ import Foundation
 
 /// 一次查询取全的服务器信息（`docs/tech-designs/05-session-management.md` §4）。
 ///
-/// 状态栏连接区用它显示版本与字符集（`specs/02-workspace.md` §7）。
+/// 工具栏连接切换器的悬停详情用它显示版本与字符集（`specs/02-workspace.md` §2）。
 public struct ServerInfo: Sendable, Equatable, Codable {
     /// `VERSION()` 原文。
     public var version: String

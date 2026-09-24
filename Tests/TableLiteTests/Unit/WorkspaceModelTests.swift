@@ -200,10 +200,18 @@ final class WorkspaceModelTests: XCTestCase {
         XCTAssertEqual(line, "生产 · SSH 隧道已断开")
     }
 
-    func testTabSummaryForConsoleLogUsesCount() {
+    func testConnectionTooltipListsTunnelAndHint() {
+        let parts = WorkspaceStatusText.ConnectionLineParts(body: "生产 · app_prod", readOnlyMarker: "· 只读")
         XCTAssertEqual(
-            WorkspaceStatusText.tabSummary(for: .consoleLog, rowLimit: nil, consoleLogCount: 7),
-            "已记录 7 条语句"
+            WorkspaceStatusText.connectionTooltip(
+                lineParts: parts,
+                tunnelLine: "本地转发端口 127.0.0.1:53142"
+            ),
+            "生产 · app_prod · 只读\n本地转发端口 127.0.0.1:53142\n点击切换连接"
+        )
+        XCTAssertEqual(
+            WorkspaceStatusText.connectionTooltip(lineParts: parts, tunnelLine: nil),
+            "生产 · app_prod · 只读\n点击切换连接"
         )
     }
 

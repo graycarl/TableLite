@@ -60,6 +60,21 @@ struct TableStructureTabView: View {
 
             pageBody(viewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if let summary = viewModel.statusSummary {
+                Divider()
+                // 概况条（`specs/07-schema-view.md` §5）：原窗口状态栏的内容，现收在结构标签底部。
+                HStack(spacing: 8) {
+                    Text(summary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 10)
+                .frame(height: 24)
+                .background(.bar)
+            }
         }
         .overlay(alignment: .top) {
             if let notice = viewModel.copyNotice {

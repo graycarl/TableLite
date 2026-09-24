@@ -38,11 +38,11 @@ struct ObjectTreeSidebar: View {
 
             Divider()
 
-            HStack(spacing: 0) {
-                entryButton("查询历史", systemImage: "clock.arrow.circlepath") {
+            HStack(spacing: 4) {
+                SidebarEntryButton(title: "查询历史", systemImage: "clock.arrow.circlepath") {
                     session.openHistoryTab()
                 }
-                entryButton("Console Log", systemImage: "terminal") {
+                SidebarEntryButton(title: "Console Log", systemImage: "terminal") {
                     session.openConsoleLogTab()
                 }
             }
@@ -241,20 +241,6 @@ struct ObjectTreeSidebar: View {
         }
     }
 
-    // MARK: 底部入口
-
-    private func entryButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.callout)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-        }
-        .buttonStyle(.plain)
-    }
-
     private func emptyState(
         _ text: String,
         systemImage: String,
@@ -324,5 +310,35 @@ struct ObjectTreeSidebar: View {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(name, forType: .string)
+    }
+}
+
+/// 左侧栏底部的入口按钮：只显示图标，名称放在悬停提示里，悬停时给一块淡底
+/// 提示可点（`specs/02-workspace.md` §5）。
+private struct SidebarEntryButton: View {
+
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.callout)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
+                )
+        }
+        .buttonStyle(.plain)
+        .help(title)
+        .accessibilityLabel(title)
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.1), value: isHovering)
     }
 }

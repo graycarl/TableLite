@@ -10,7 +10,7 @@ TableLite 是一个 macOS 原生的 MySQL 客户端，功能和交互参考 Tabl
 | --- | --- |
 | [00-scope.md](00-scope.md) | 产品定位、功能范围、非目标、已确认的产品决策 |
 | [01-connections.md](01-connections.md) | 连接列表、连接配置表单、连接状态与切换 |
-| [02-workspace.md](02-workspace.md) | 主界面结构、对象树、Tab、状态栏、菜单与快捷键 |
+| [02-workspace.md](02-workspace.md) | 主界面结构、对象树、Tab、连接信息与进度显示、菜单与快捷键 |
 | [03-data-browsing.md](03-data-browsing.md) | 浏览表数据：限量加载、排序、单元格显示、快速查看、复制 |
 | [04-data-editing.md](04-data-editing.md) | 编辑数据、变更暂存、预览、提交、放弃 |
 | [05-filtering.md](05-filtering.md) | 行过滤与列过滤 |

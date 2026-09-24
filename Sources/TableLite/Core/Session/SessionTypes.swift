@@ -21,7 +21,7 @@ public enum ConnectStep: String, Sendable, Codable, CaseIterable, Equatable, Has
         }
     }
 
-    /// 状态栏 / 错误面板里的步骤名。
+    /// 连接进度 / 错误面板里的步骤名。
     public var displayName: String {
         switch self {
         case .sshTunnel: return "SSH 隧道"
@@ -138,7 +138,7 @@ public struct ConnectFailure: Error, Sendable, Equatable {
     /// 失败步骤的标题。
     ///
     /// 隧道启动失败与运行中断开要分开（`specs/10-ssh-tunnel.md` §4）：
-    /// 运行中断开时状态栏显示 `SSH 隧道已断开`。
+    /// 运行中断开时连接信息显示 `SSH 隧道已断开`。
     public var title: String {
         switch step {
         case .sshTunnel:
