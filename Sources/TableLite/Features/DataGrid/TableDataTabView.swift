@@ -12,6 +12,7 @@ struct TableDataTabView: View {
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(ExportRequestCenter.self) private var exportCenter
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var viewModel: TableDataViewModel?
     @State private var quickLook: QuickLookPanelController?
@@ -59,7 +60,8 @@ struct TableDataTabView: View {
                     committingOverlay(viewModel)
                 }
                 if viewModel.isColumnFilterPresented {
-                    Color.black.opacity(0.12)
+                    // 列过滤面板的点击外部关闭遮罩：暗色下黑色遮罩要更浓一点才看得出层次。
+                    Color.black.opacity(colorScheme == .dark ? 0.4 : 0.12)
                         .ignoresSafeArea()
                         .onTapGesture { viewModel.dismissColumnFilter() }
                     ColumnFilterPanel(

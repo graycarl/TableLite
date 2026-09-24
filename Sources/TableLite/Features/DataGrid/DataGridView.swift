@@ -300,9 +300,9 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     private func rowBackgroundColor(for row: Int) -> NSColor? {
         guard row >= 0, row < viewModel.gridRows.count else { return nil }
         switch viewModel.gridRows[row].changeKind {
-        case .insertion: return NSColor.systemGreen.withAlphaComponent(0.12)
-        case .update: return NSColor.systemYellow.withAlphaComponent(0.10)
-        case .deletion: return NSColor.systemRed.withAlphaComponent(0.10)
+        case .insertion: return NSColor.systemGreen.withDynamicAlpha(0.12)
+        case .update: return NSColor.systemYellow.withDynamicAlpha(0.10)
+        case .deletion: return NSColor.systemRed.withDynamicAlpha(0.10)
         case nil: return nil
         }
     }
@@ -963,6 +963,9 @@ final class GridCellView: NSTableCellView {
     /// 外键列尾部固定的 `↗`（`specs/03-data-browsing.md` §10）。
     private let foreignKeyArrow = NSTextField(labelWithString: "↗")
     private var foreignKeyWidthConstraint: NSLayoutConstraint!
+    /// 最近一次配置的行状态；外观切换时按新外观重算底色（`06-ui-layer.md` §9）。
+    private var changeKind: GridRowChangeKind?
+    private var isEdited = false
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -1096,19 +1099,27 @@ final class GridCellView: NSTableCellView {
 
     /// 已修改单元格橙色底 + 左上角小三角（`specs/04-data-editing.md` §3、`07-data-grid.md` §4）。
     private func applyEditingBackground(changeKind: GridRowChangeKind?, isEdited: Bool) {
+        self.changeKind = changeKind
+        self.isEdited = isEdited
         wantsLayer = true
         let isModified = changeKind == .update && isEdited
         switch changeKind {
         case .insertion:
-            layer?.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.10).cgColor
+            layer?.backgroundColor = NSColor.systemGreen.withDynamicAlpha(0.10).cgColor
         case .deletion:
             layer?.backgroundColor = NSColor.clear.cgColor
         case .update where isEdited:
-            layer?.backgroundColor = NSColor.systemOrange.withAlphaComponent(0.22).cgColor
+            layer?.backgroundColor = NSColor.systemOrange.withDynamicAlpha(0.22).cgColor
         default:
             layer?.backgroundColor = NSColor.clear.cgColor
         }
         editMarker.isHidden = !isModified
+    }
+
+    /// `cgColor` 是快照，不会随外观自动更新（`06-ui-layer.md` §9），外观变了要重算。
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyEditingBackground(changeKind: changeKind, isEdited: isEdited)
     }
 
     private func alignment(for alignment: CellAlignment) -> NSTextAlignment {

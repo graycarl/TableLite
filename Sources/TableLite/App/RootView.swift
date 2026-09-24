@@ -26,6 +26,13 @@ struct RootView: View {
             }
         }
         .focusedSceneValue(\.appActions, appActions)
+        // 外观三选一（`specs/11-preferences.md` §6、`06-ui-layer.md` §9）：
+        // SwiftUI 侧走 `preferredColorScheme`，同时把 `NSApp.appearance` 改掉，
+        // 让 `NSAlert` / 快速查看面板等 AppKit 自建窗口一起切。
+        .preferredColorScheme(environment.preferences.appearance.preferredColorScheme)
+        .onChange(of: environment.preferences.appearance) { _, mode in
+            NSApplication.shared.appearance = mode.nsAppearance
+        }
         .background(
             WindowConfigurator(autosaveName: WorkspaceStateStore.windowFrameAutosaveName)
                 .frame(width: 0, height: 0)
