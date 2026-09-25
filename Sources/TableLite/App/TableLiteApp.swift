@@ -37,6 +37,8 @@ struct TableLiteApp: App {
                     await environment.start()
                 }
         }
+        // 窗口工具栏与系统标题栏合一（`06-ui-layer.md` §10）。
+        .windowToolbarStyle(.unified)
         .windowResizability(.contentMinSize)
         .commands {
             // 单窗口应用：不要「新建窗口」；其余菜单见 `TableLiteCommands`。

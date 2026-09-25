@@ -69,7 +69,7 @@ struct FilterBarView: View {
                 } label: {
                     Label("添加条件", systemImage: "plus")
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.subtle)
                 .keyboardShortcut("i", modifiers: .command)
                 .help("添加一行过滤条件（⌘I）")
                 Spacer()
@@ -110,7 +110,7 @@ struct FilterBarView: View {
         HStack(spacing: 10) {
             if viewModel.filterDraft.isRawMode {
                 Button("切换回条件行") { viewModel.switchFilterToConditionsMode() }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.subtle)
             } else {
                 Picker("组合方式", selection: combinationBinding) {
                     ForEach(FilterCombination.allCases, id: \.self) { combination in
@@ -122,10 +122,11 @@ struct FilterBarView: View {
                 .frame(maxWidth: 220)
 
                 Button("高级 / 直接写条件") { viewModel.switchFilterToRawMode() }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.subtle)
             }
             Spacer()
             Button("重置") { viewModel.resetFilter() }
+                .buttonStyle(.subtle)
             Button("应用") { viewModel.applyFilter() }
                 .buttonStyle(.borderedProminent)
         }
@@ -185,7 +186,7 @@ private struct FilterConditionRow: View {
                 } label: {
                     Image(systemName: "plus")
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.subtle)
                 .help("添加条件（⌘I）")
 
                 Button {
@@ -193,7 +194,7 @@ private struct FilterConditionRow: View {
                 } label: {
                     Image(systemName: "minus")
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.subtle)
                 .help("删除这一条")
                 Spacer()
             }

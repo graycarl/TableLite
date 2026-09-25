@@ -41,6 +41,7 @@ struct GridStatusBarView: View {
             if viewModel.loadState.isLoading,
                WorkspaceStatusText.showsCancelButton(elapsedMilliseconds: viewModel.elapsedMilliseconds) {
                 Button("取消") { viewModel.cancelInFlight() }
+                    .buttonStyle(.subtle)
                     .controlSize(.small)
                     .help("取消正在进行的查询（⌘.）")
             }
@@ -50,6 +51,7 @@ struct GridStatusBarView: View {
             Button("统计") {
                 viewModel.runExactCount()
             }
+            .buttonStyle(.subtle)
             .disabled(viewModel.isCountingExact || !viewModel.isMetadataLoaded)
             .help("执行一次 COUNT(*)，可能很慢；完成后把「约 N 行」换成精确总行数")
 
@@ -61,12 +63,15 @@ struct GridStatusBarView: View {
             Spacer(minLength: 12)
 
             Button("筛选") { viewModel.toggleFilterVisible() }
+                .buttonStyle(.subtle)
                 .controlSize(.small)
                 .help("打开或关闭行过滤器（⌘F）")
             Button("列") { viewModel.presentColumnFilter() }
+                .buttonStyle(.subtle)
                 .controlSize(.small)
                 .help("选择要显示的列（⌥⌘F）")
             Button("导出", action: onExport)
+                .buttonStyle(.subtle)
                 .controlSize(.small)
                 .help("导出当前过滤条件下的全部数据（⇧⌘E）")
         }

@@ -3,6 +3,8 @@ import SwiftUI
 /// 标签条（`specs/02-workspace.md` §6）。
 ///
 /// - 标签过多时横向滚动；
+/// - 当前标签用圆角底色块突出，顶边 2pt 连接色（无颜色连接用系统强调色）；
+///   非活动标签无分隔线，悬停出淡底（`docs/tech-designs/06-ui-layer.md` §10）；
 /// - 有未提交改动时标题右侧显示橙色圆点；
 /// - `⌘W` / 关闭按钮关闭当前标签，有未提交改动时先确认；
 /// - 查询标签可右键重命名。
@@ -18,11 +20,12 @@ struct TabBarView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
+            HStack(spacing: 2) {
                 ForEach(session.tabs) { tab in
                     TabItemView(
                         tab: tab,
                         isActive: tab.id == session.activeTabID,
+                        accentColor: tabAccentColor,
                         onSelect: { session.selectTab(tab) },
                         onClose: { requestClose(tab) },
                         onRename: {
@@ -36,13 +39,12 @@ struct TabBarView: View {
                     onNewQuery()
                 } label: {
                     Image(systemName: "plus")
-                        .font(.caption)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
+                        .font(.callout)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.subtle)
                 .help("新建查询")
             }
+            .padding(.horizontal, AppSpacing.xs)
         }
         .frame(height: 30)
         .background(.bar)
@@ -57,6 +59,12 @@ struct TabBarView: View {
             }
             Button("取消", role: .cancel) { renamingTab = nil }
         }
+    }
+
+    /// 活动标签顶边的颜色：连接配置的颜色，无色时用系统强调色（`specs/02-workspace.md` §6）。
+    private var tabAccentColor: Color {
+        let connectionColor = session.connection.color
+        return connectionColor == .none ? Color.accentColor : connectionColor.swiftUIColor
     }
 
     private var renamePresented: Binding<Bool> {
@@ -82,6 +90,7 @@ private struct TabItemView: View {
 
     let tab: Tab
     let isActive: Bool
+    let accentColor: Color
     var onSelect: () -> Void
     var onClose: () -> Void
     var onRename: () -> Void
@@ -112,19 +121,34 @@ private struct TabItemView: View {
                 .help("关闭标签")
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .frame(maxHeight: .infinity)
-        .background(isActive ? Color(nsColor: .windowBackgroundColor) : Color.clear)
-        .overlay(alignment: .trailing) { Divider() }
+        .padding(.horizontal, AppSpacing.m)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: AppRadius.m)
+                .fill(backgroundColor)
+        )
+        .overlay(alignment: .top) {
+            if isActive {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(accentColor)
+                    .frame(height: 2)
+                    .padding(.horizontal, AppSpacing.xs)
+            }
+        }
         .contentShape(Rectangle())
         .onTapGesture(perform: onSelect)
         .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.1), value: isHovering)
         .contextMenu {
             if tab.kind.isQuery {
                 Button("重命名…", action: onRename)
             }
             Button("关闭标签", action: onClose)
         }
+    }
+
+    private var backgroundColor: Color {
+        if isActive { return Color.primary.opacity(0.10) }
+        return Color.primary.opacity(isHovering ? 0.05 : 0)
     }
 }

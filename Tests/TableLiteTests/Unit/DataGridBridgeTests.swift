@@ -67,7 +67,10 @@ final class DataGridBridgeTests: XCTestCase {
         XCTAssertEqual(tableView.numberOfColumns, 3) // 行号 + id + name
         XCTAssertEqual(tableView.tableColumns.first?.identifier, DataGridCoordinator.rowNumberIdentifier)
         XCTAssertEqual(coordinator.numberOfRows(in: tableView), 2)
-        XCTAssertEqual(tableView.tableColumns[1].headerCell.attributedStringValue.string, "🔑 id")
+        // 主键表头：SF Symbol 钥匙图标附件（`07-data-grid.md` §4），附件在 .string 里是 U+FFFC 占位符。
+        let header = tableView.tableColumns[1].headerCell.attributedStringValue
+        XCTAssertEqual(header.string, "\u{FFFC} id")
+        XCTAssertTrue(header.containsAttachments(in: NSRange(location: 0, length: header.length)))
     }
 
     func testCoordinatorProvidesCellViews() async throws {

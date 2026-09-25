@@ -44,8 +44,8 @@ struct QueryResultGridView: NSViewRepresentable {
         tableView.usesAlternatingRowBackgroundColors = alternateRowColors
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.style = .plain
-        tableView.gridStyleMask = [.solidVerticalGridLineMask, .solidHorizontalGridLineMask]
-        tableView.gridColor = .separatorColor
+        // 不画网格线：分行靠隔行变色（`docs/tech-designs/07-data-grid.md` §4）。
+        tableView.gridStyleMask = []
         tableView.intercellSpacing = NSSize(width: 0, height: 1)
         tableView.rowHeight = coordinator.rowHeight
         tableView.target = coordinator
@@ -125,7 +125,7 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
     }
 
     var rowHeight: CGFloat {
-        max(20, CGFloat(fontSize) + 9)
+        max(20, CGFloat(fontSize) + 8)
     }
 
     func sync() {

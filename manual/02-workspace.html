@@ -36,8 +36,8 @@
 
 <h1><span class="chapter">第 02 章</span>界面结构</h1>
 <p class="lede">
-  整个程序只有一个窗口。窗口从上到下分三层：工具栏、连接颜色带、主体区；
-  主体区横向再分三块：左侧栏、标签内容区、右侧字段栏。
+  整个程序只有一个窗口。窗口最上面是与系统标题栏合一的工具栏（红绿灯按钮与窗口标题就在这一行里），
+  往下依次是连接颜色带、主体区；主体区横向再分三块：左侧栏、标签内容区、右侧字段栏。
   把这一章看明白，后面每一章都只是往这张图里填内容。
 </p>
 
@@ -45,220 +45,211 @@
 
 <!-- 图 2-1 与 index.html 的图 0-1 是同一张线框图（只有编号热点不同），改一处必须同步另一处 -->
 <figure>
-<svg viewBox="0 0 1000 620" role="img"
-     aria-label="主窗口整体布局线框图：工具栏、左侧栏、标签内容区、右侧字段栏">
+<svg viewBox="0 0 1000 592" role="img"
+     aria-label="主窗口整体布局线框图：与标题栏合一的工具栏、左侧栏、标签内容区、右侧字段栏">
   <title>主窗口整体布局</title>
 
-  <rect class="s-window ln2" x="8" y="8" width="984" height="604" rx="11"/>
-  <clipPath id="win"><rect x="9" y="9" width="982" height="602" rx="10"/></clipPath>
+  <rect class="s-window ln2" x="8" y="8" width="984" height="576" rx="11"/>
+  <clipPath id="win"><rect x="9" y="9" width="982" height="574" rx="10"/></clipPath>
   <g clip-path="url(#win)">
 
-    <!-- 标题栏 -->
-    <rect class="s-chrome" x="8" y="8" width="984" height="28"/>
-    <circle class="s-red" cx="26" cy="22" r="5.5"/>
-    <circle class="s-yellow" cx="44" cy="22" r="5.5"/>
-    <circle class="s-green" cx="62" cy="22" r="5.5"/>
-    <text class="c b" x="500" y="23">本地开发 — app_dev</text>
+    <!-- 工具栏（与系统标题栏合一：红绿灯与窗口标题也在这一行） -->
+    <rect class="s-chrome" x="8" y="8" width="984" height="44"/>
+    <circle class="s-red" cx="26" cy="30" r="5.5"/>
+    <circle class="s-yellow" cx="44" cy="30" r="5.5"/>
+    <circle class="s-green" cx="62" cy="30" r="5.5"/>
+    <text class="s b" x="84" y="31">本地开发 — app_dev</text>
 
-    <!-- 工具栏 -->
-    <rect class="s-chrome" x="8" y="36" width="984" height="44"/>
-    <line class="ln" x1="8" y1="80" x2="992" y2="80"/>
+    <rect class="s-field ln2" x="210" y="17" width="140" height="26" rx="6"/>
+    <circle class="s-green" cx="224" cy="30" r="4.5"/>
+    <text x="236" y="31">本地开发</text>
+    <text class="mut s" x="328" y="31">▾</text>
 
-    <rect class="s-field ln2" x="20" y="45" width="156" height="26" rx="6"/>
-    <circle class="s-green" cx="34" cy="58" r="4.5"/>
-    <text x="46" y="59">本地开发</text>
-    <text class="mut s" x="152" y="59">▾</text>
+    <line class="ln" x1="360" y1="16" x2="360" y2="44"/>
+    <text class="mut" x="370" y="31">‹</text>
+    <text class="fnt" x="388" y="31">›</text>
+    <line class="ln" x1="410" y1="16" x2="410" y2="44"/>
 
-    <line class="ln" x1="188" y1="44" x2="188" y2="72"/>
-    <text class="mut" x="198" y="59">‹</text>
-    <text class="fnt" x="216" y="59">›</text>
-    <line class="ln" x1="238" y1="44" x2="238" y2="72"/>
+    <rect class="s-field ln2" x="428" y="17" width="104" height="26" rx="6"/>
+    <text class="c" x="480" y="31">+ 新建查询</text>
+    <rect class="s-field ln2" x="540" y="17" width="104" height="26" rx="6"/>
+    <text class="c" x="592" y="31">+ 打开表…</text>
 
-    <rect class="s-field ln2" x="256" y="45" width="104" height="26" rx="6"/>
-    <text class="c" x="308" y="59">+ 新建查询</text>
-    <rect class="s-field ln2" x="368" y="45" width="104" height="26" rx="6"/>
-    <text class="c" x="420" y="59">+ 打开表…</text>
-
-    <rect class="s-field ln2" x="604" y="45" width="70" height="26" rx="6"/>
-    <text class="c mut" x="639" y="59">放弃</text>
-    <rect class="s-field ln2" x="682" y="45" width="70" height="26" rx="6"/>
-    <text class="c mut" x="717" y="59">预览</text>
-    <rect class="s-accent" x="760" y="45" width="150" height="26" rx="6"/>
-    <text class="c" x="835" y="59" fill="#fff">提交修改 · 7</text>
-    <rect class="s-field ln2" x="926" y="45" width="54" height="26" rx="6"/>
-    <text class="c" x="953" y="59">▤</text>
+    <rect class="s-field ln2" x="676" y="17" width="64" height="26" rx="6"/>
+    <text class="c mut" x="708" y="31">放弃</text>
+    <rect class="s-field ln2" x="748" y="17" width="64" height="26" rx="6"/>
+    <text class="c mut" x="780" y="31">预览</text>
+    <rect class="s-accent" x="820" y="17" width="110" height="26" rx="6"/>
+    <text class="c" x="875" y="31" fill="#fff">提交修改 · 7</text>
+    <rect class="s-field ln2" x="938" y="17" width="44" height="26" rx="6"/>
+    <text class="c" x="960" y="31">▤</text>
 
     <!-- 连接颜色带 -->
-    <rect class="s-green" x="8" y="80" width="984" height="3"/>
+    <rect class="s-green" x="8" y="52" width="984" height="3"/>
 
     <!-- 左侧栏 -->
-    <rect class="s-sunken" x="8" y="83" width="242" height="529"/>
-    <line class="ln" x1="250" y1="83" x2="250" y2="612"/>
+    <rect class="s-sunken" x="8" y="55" width="242" height="529"/>
+    <line class="ln" x1="250" y1="55" x2="250" y2="584"/>
 
-    <rect class="s-field ln2" x="20" y="96" width="218" height="26" rx="6"/>
-    <text x="34" y="110">app_dev</text>
-    <text class="mut s" x="214" y="110">▾</text>
-    <rect class="s-field ln2" x="20" y="130" width="218" height="26" rx="6"/>
-    <text class="fnt" x="34" y="144">🔍 搜索表、视图…</text>
+    <rect class="s-field ln2" x="20" y="68" width="218" height="26" rx="6"/>
+    <text x="34" y="82">app_dev</text>
+    <text class="mut s" x="214" y="82">▾</text>
+    <rect class="s-field ln2" x="20" y="102" width="218" height="26" rx="6"/>
+    <text class="fnt" x="34" y="116">🔍 搜索表、视图…</text>
 
-    <text class="b" x="26" y="178">▾ 表 (128)</text>
-    <rect class="s-sel" x="20" y="192" width="218" height="26" rx="5"/>
-    <text x="42" y="205">users</text>
-    <text x="42" y="233">orders</text>
-    <text x="42" y="261">articles</text>
-    <text class="fnt" x="42" y="289">…</text>
-    <text class="b" x="26" y="316">▾ 视图 (3)</text>
-    <text x="42" y="344">v_active_users</text>
+    <text class="b" x="26" y="150">▾ 表 (128)</text>
+    <rect class="s-sel" x="20" y="164" width="218" height="26" rx="5"/>
+    <text x="42" y="177">users</text>
+    <text x="42" y="205">orders</text>
+    <text x="42" y="233">articles</text>
+    <text class="fnt" x="42" y="261">…</text>
+    <text class="b" x="26" y="288">▾ 视图 (3)</text>
+    <text x="42" y="316">v_active_users</text>
 
-    <line class="ln" x1="8" y1="582" x2="250" y2="582"/>
-    <text class="c" x="68" y="600">🕘</text>
-    <text class="c" x="189" y="600">📋</text>
+    <line class="ln" x1="8" y1="554" x2="250" y2="554"/>
+    <text class="c" x="68" y="572">🕘</text>
+    <text class="c" x="189" y="572">📋</text>
 
-    <!-- 标签栏 -->
-    <rect class="s-chrome" x="250" y="83" width="742" height="32"/>
-    <line class="ln" x1="250" y1="115" x2="992" y2="115"/>
-    <rect class="s-window" x="250" y="83" width="118" height="32"/>
-    <line class="lnA" x1="250" y1="113" x2="368" y2="113"/>
-    <text class="c" x="309" y="100">users</text>
-    <circle class="s-orange" cx="352" cy="93" r="3"/>
-    <text class="mut" x="384" y="100">查询 1</text>
-    <text class="mut" x="448" y="100">orders</text>
-    <text class="fnt" x="512" y="100">＋</text>
+    <!-- 标签栏：当前标签圆角底色块 + 连接色顶线 -->
+    <rect class="s-chrome" x="250" y="55" width="742" height="32"/>
+    <line class="ln" x1="250" y1="87" x2="992" y2="87"/>
+    <rect class="s-sel" x="254" y="59" width="110" height="24" rx="6"/>
+    <rect class="s-green" x="254" y="55" width="110" height="2"/>
+    <text class="c" x="299" y="75">users</text>
+    <circle class="s-orange" cx="346" cy="68" r="3"/>
+    <text class="mut" x="380" y="75">查询 1</text>
+    <text class="mut" x="444" y="75">orders</text>
+    <text class="fnt" x="508" y="75">＋</text>
 
-    <!-- 标签内容区：数据网格（只读） -->
-    <rect class="s-chrome2" x="250" y="115" width="538" height="26"/>
-    <line class="ln" x1="250" y1="141" x2="788" y2="141"/>
-    <text class="mut s r" x="272" y="129">#</text>
-    <text class="b" x="286" y="129">🔑 id</text>
-    <text class="b" x="352" y="129">name</text>
-    <text class="b" x="452" y="129">email</text>
-    <text class="b" x="580" y="129">content</text>
-    <text class="b" x="700" y="129">created_at</text>
+    <!-- 标签内容区：数据网格（只读，无竖线） -->
+    <rect class="s-chrome2" x="250" y="87" width="538" height="26"/>
+    <line class="ln" x1="250" y1="113" x2="788" y2="113"/>
+    <text class="mut s r" x="272" y="101">#</text>
+    <text class="b" x="286" y="101">🔑 id</text>
+    <text class="b" x="352" y="101">name</text>
+    <text class="b" x="452" y="101">email</text>
+    <text class="b" x="580" y="101">content</text>
+    <text class="b" x="700" y="101">created_at</text>
 
     <g class="ln">
-      <line x1="250" y1="167" x2="788" y2="167"/>
-      <line x1="250" y1="193" x2="788" y2="193"/>
-      <line x1="250" y1="219" x2="788" y2="219"/>
-      <line x1="250" y1="245" x2="788" y2="245"/>
-      <line x1="278" y1="115" x2="278" y2="245"/>
-      <line x1="340" y1="115" x2="340" y2="245"/>
-      <line x1="440" y1="115" x2="440" y2="245"/>
-      <line x1="568" y1="115" x2="568" y2="245"/>
-      <line x1="690" y1="115" x2="690" y2="245"/>
+      <line x1="250" y1="139" x2="788" y2="139"/>
+      <line x1="250" y1="165" x2="788" y2="165"/>
+      <line x1="250" y1="191" x2="788" y2="191"/>
+      <line x1="250" y1="217" x2="788" y2="217"/>
     </g>
-    <rect class="s-alt" x="278" y="167" width="510" height="26"/>
-    <rect class="s-sel" x="278" y="141" width="510" height="26"/>
-    <rect class="s-edit" x="440" y="141" width="128" height="26" opacity="0.8"/>
-    <path class="lnO sw2" d="M444 143 l9 0 l-9 9 z"/>
+    <rect class="s-alt" x="278" y="139" width="510" height="26"/>
+    <rect class="s-sel" x="278" y="113" width="510" height="26"/>
+    <rect class="s-edit" x="440" y="113" width="128" height="26" opacity="0.8"/>
+    <path class="lnO sw2" d="M444 115 l9 0 l-9 9 z"/>
 
-    <text class="fnt s c" x="264" y="154">1</text>
-    <text x="286" y="154">1</text>
-    <text x="352" y="154">张三</text>
-    <text class="mut" x="452" y="154">zs@example.c…</text>
-    <text class="mut" x="580" y="154">这是一篇很长的文…</text>
-    <text class="mut" x="700" y="154">2025-01-01</text>
+    <text class="fnt s c" x="264" y="126">1</text>
+    <text x="286" y="126">1</text>
+    <text x="352" y="126">张三</text>
+    <text class="mut" x="452" y="126">zs@example.c…</text>
+    <text class="mut" x="580" y="126">这是一篇很长的文…</text>
+    <text class="mut" x="700" y="126">2025-01-01</text>
 
-    <text class="fnt s c" x="264" y="180">2</text>
-    <text x="286" y="180">2</text>
-    <text x="352" y="180">李四</text>
-    <text class="mut" x="452" y="180">ls@example.c…</text>
-    <text class="mut s" x="580" y="180">«BLOB 12.3 KB»</text>
-    <text class="mut" x="700" y="180">2025-01-02</text>
+    <text class="fnt s c" x="264" y="152">2</text>
+    <text x="286" y="152">2</text>
+    <text x="352" y="152">李四</text>
+    <text class="mut" x="452" y="152">ls@example.c…</text>
+    <text class="mut s" x="580" y="152">«BLOB 12.3 KB»</text>
+    <text class="mut" x="700" y="152">2025-01-02</text>
 
-    <text class="fnt s c" x="264" y="206">3</text>
-    <text x="286" y="206">3</text>
-    <text x="352" y="206">王五</text>
-    <text class="fnt" x="452" y="206">NULL</text>
-    <text class="fnt" x="580" y="206">NULL</text>
-    <text class="mut" x="700" y="206">2025-01-03</text>
+    <text class="fnt s c" x="264" y="178">3</text>
+    <text x="286" y="178">3</text>
+    <text x="352" y="178">王五</text>
+    <text class="fnt" x="452" y="178">NULL</text>
+    <text class="fnt" x="580" y="178">NULL</text>
+    <text class="mut" x="700" y="178">2025-01-03</text>
 
     <!-- 底部常驻的「插入行」行 -->
-    <text class="fnt s c" x="264" y="238">＋</text>
-    <text class="acc s" x="286" y="238">插入行</text>
-    <text class="mut" x="352" y="238">新增一行，等于 ⌘I</text>
+    <text class="fnt s c" x="264" y="210">＋</text>
+    <text class="acc s" x="286" y="210">插入行</text>
+    <text class="mut" x="352" y="210">新增一行，等于 ⌘I</text>
 
     <!-- 网格底部条：行数 + 显示条数 + 统计 + 筛选/列/导出 -->
-    <rect class="s-chrome" x="250" y="250" width="538" height="26"/>
-    <line class="ln" x1="250" y1="250" x2="788" y2="250"/>
-    <text class="s" x="262" y="267">300 / 约 12,480 行</text>
-    <text class="fnt s" x="400" y="267">300 ▾</text>
-    <text class="fnt s" x="452" y="267">统计</text>
-    <text class="acc s" x="690" y="267">筛选</text>
-    <text class="acc s" x="724" y="267">列</text>
-    <text class="acc s" x="754" y="267">导出</text>
+    <rect class="s-chrome" x="250" y="222" width="538" height="26"/>
+    <line class="ln" x1="250" y1="222" x2="788" y2="222"/>
+    <text class="s" x="262" y="239">300 / 约 12,480 行</text>
+    <text class="fnt s" x="400" y="239">300 ▾</text>
+    <text class="fnt s" x="452" y="239">统计</text>
+    <text class="acc s" x="690" y="239">筛选</text>
+    <text class="acc s" x="724" y="239">列</text>
+    <text class="acc s" x="754" y="239">导出</text>
 
-    <text class="b s mut" x="250" y="302">数据网格（只读）</text>
-    <text class="fnt s" x="250" y="320">单元格不能编辑：双击只会跳到右侧字段栏对应的字段</text>
+    <text class="b s mut" x="250" y="274">数据网格（只读）</text>
+    <text class="fnt s" x="250" y="292">单元格不能编辑：双击只会跳到右侧字段栏对应的字段</text>
 
     <!-- 右侧字段栏 -->
-    <rect class="s-sunken" x="788" y="115" width="204" height="497"/>
-    <line class="ln" x1="788" y1="115" x2="788" y2="612"/>
+    <rect class="s-sunken" x="788" y="87" width="204" height="497"/>
+    <line class="ln" x1="788" y1="87" x2="788" y2="584"/>
 
-    <rect class="s-field ln2" x="798" y="126" width="118" height="24" rx="6"/>
-    <text class="fnt s" x="808" y="138">🔍 搜索字段</text>
-    <text class="mut s r" x="982" y="138">18 字段</text>
+    <rect class="s-field ln2" x="798" y="98" width="118" height="24" rx="6"/>
+    <text class="fnt s" x="808" y="110">🔍 搜索字段</text>
+    <text class="mut s r" x="982" y="110">18 字段</text>
 
     <!-- 字段 1：主键 -->
-    <text class="b" x="798" y="175">🔑 id</text>
-    <text class="fnt s r" x="982" y="175">int unsigned</text>
-    <rect class="s-field ln2" x="798" y="184" width="150" height="20" rx="5"/>
-    <text class="s" x="806" y="194">1</text>
-    <rect class="s-field ln2" x="954" y="184" width="28" height="20" rx="5"/>
-    <text class="c s" x="968" y="194">∅</text>
+    <text class="b" x="798" y="147">🔑 id</text>
+    <text class="fnt s r" x="982" y="147">int unsigned</text>
+    <rect class="s-field ln2" x="798" y="156" width="150" height="20" rx="5"/>
+    <text class="s" x="806" y="166">1</text>
+    <rect class="s-field ln2" x="954" y="156" width="28" height="20" rx="5"/>
+    <text class="c s" x="968" y="166">∅</text>
 
     <!-- 字段 2 -->
-    <text class="b" x="798" y="219">name</text>
-    <text class="fnt s r" x="982" y="219">varchar(255)</text>
-    <rect class="s-field ln2" x="798" y="228" width="150" height="20" rx="5"/>
-    <text class="s" x="806" y="238">张三</text>
-    <rect class="s-field ln2" x="954" y="228" width="28" height="20" rx="5"/>
-    <text class="c s" x="968" y="238">∅</text>
+    <text class="b" x="798" y="191">name</text>
+    <text class="fnt s r" x="982" y="191">varchar(255)</text>
+    <rect class="s-field ln2" x="798" y="200" width="150" height="20" rx="5"/>
+    <text class="s" x="806" y="210">张三</text>
+    <rect class="s-field ln2" x="954" y="200" width="28" height="20" rx="5"/>
+    <text class="c s" x="968" y="210">∅</text>
 
     <!-- 字段 3：已修改 -->
-    <text class="b" x="798" y="263">email</text>
-    <text class="fnt s r" x="982" y="263">varchar(255)</text>
-    <rect class="s-edit ln2" x="798" y="272" width="150" height="20" rx="5"/>
-    <text class="s" x="806" y="282">zs@example.com</text>
-    <path class="lnO sw2" d="M802 274 l8 0 l-8 8 z"/>
-    <rect class="s-field ln2" x="954" y="272" width="28" height="20" rx="5"/>
-    <text class="c s" x="968" y="282">∅</text>
+    <text class="b" x="798" y="235">email</text>
+    <text class="fnt s r" x="982" y="235">varchar(255)</text>
+    <rect class="s-edit ln2" x="798" y="244" width="150" height="20" rx="5"/>
+    <text class="s" x="806" y="254">zs@example.com</text>
+    <path class="lnO sw2" d="M802 246 l8 0 l-8 8 z"/>
+    <rect class="s-field ln2" x="954" y="244" width="28" height="20" rx="5"/>
+    <text class="c s" x="968" y="254">∅</text>
 
     <!-- 字段 4 -->
-    <text class="b" x="798" y="307">content</text>
-    <text class="fnt s r" x="982" y="307">longtext</text>
-    <rect class="s-field ln2" x="798" y="316" width="150" height="20" rx="5"/>
-    <text class="mut s" x="806" y="326">这是一篇很长的文…</text>
-    <rect class="s-field ln2" x="954" y="316" width="28" height="20" rx="5"/>
-    <text class="c s" x="968" y="326">∅</text>
+    <text class="b" x="798" y="279">content</text>
+    <text class="fnt s r" x="982" y="279">longtext</text>
+    <rect class="s-field ln2" x="798" y="288" width="150" height="20" rx="5"/>
+    <text class="mut s" x="806" y="298">这是一篇很长的文…</text>
+    <rect class="s-field ln2" x="954" y="288" width="28" height="20" rx="5"/>
+    <text class="c s" x="968" y="298">∅</text>
 
     <!-- 字段 5 -->
-    <text class="b" x="798" y="351">photo</text>
-    <text class="fnt s r" x="982" y="351">blob</text>
-    <rect class="s-field ln2" x="798" y="360" width="150" height="20" rx="5"/>
-    <text class="mut s" x="806" y="370">«图片 PNG 45.2 KB»</text>
-    <rect class="s-field ln2" x="954" y="360" width="28" height="20" rx="5"/>
-    <text class="c s" x="968" y="370">∅</text>
+    <text class="b" x="798" y="323">photo</text>
+    <text class="fnt s r" x="982" y="323">blob</text>
+    <rect class="s-field ln2" x="798" y="332" width="150" height="20" rx="5"/>
+    <text class="mut s" x="806" y="342">«图片 PNG 45.2 KB»</text>
+    <rect class="s-field ln2" x="954" y="332" width="28" height="20" rx="5"/>
+    <text class="c s" x="968" y="342">∅</text>
 
     <!-- 字段 6 -->
-    <text class="b" x="798" y="395">created_at</text>
-    <text class="fnt s r" x="982" y="395">datetime</text>
-    <rect class="s-field ln2" x="798" y="404" width="150" height="20" rx="5"/>
-    <text class="mut s" x="806" y="414">2025-01-01 10:00</text>
-    <rect class="s-field ln2" x="954" y="404" width="28" height="20" rx="5"/>
-    <text class="c s" x="968" y="414">∅</text>
+    <text class="b" x="798" y="367">created_at</text>
+    <text class="fnt s r" x="982" y="367">datetime</text>
+    <rect class="s-field ln2" x="798" y="376" width="150" height="20" rx="5"/>
+    <text class="mut s" x="806" y="386">2025-01-01 10:00</text>
+    <rect class="s-field ln2" x="954" y="376" width="28" height="20" rx="5"/>
+    <text class="c s" x="968" y="386">∅</text>
 
-    <text class="b s" x="798" y="452">右侧字段栏</text>
-    <text class="fnt s" x="798" y="470">表数据标签专有 · 默认显示</text>
-    <text class="fnt s" x="798" y="488">改数据只在这里改，网格是只读的</text>
-    <text class="fnt s" x="798" y="506">…（滚动查看更多字段）</text>
+    <text class="b s" x="798" y="424">右侧字段栏</text>
+    <text class="fnt s" x="798" y="442">表数据标签专有 · 默认显示</text>
+    <text class="fnt s" x="798" y="460">改数据只在这里改，网格是只读的</text>
+    <text class="fnt s" x="798" y="478">…（滚动查看更多字段）</text>
 
     <!-- 编号热点 -->
-    <g class="hot" data-hot="1"><circle cx="22" cy="45" r="11"/><text x="22" y="45">1</text></g>
-    <g class="hot" data-hot="2"><circle cx="972" cy="84" r="11"/><text x="972" y="84">2</text></g>
-    <g class="hot" data-hot="3"><circle cx="22" cy="109" r="11"/><text x="22" y="109">3</text></g>
-    <g class="hot" data-hot="4"><circle cx="560" cy="99" r="11"/><text x="560" y="99">4</text></g>
-    <g class="hot" data-hot="5"><circle cx="760" cy="232" r="11"/><text x="760" y="232">5</text></g>
-    <g class="hot" data-hot="6"><circle cx="975" cy="540" r="11"/><text x="975" y="540">6</text></g>
+    <g class="hot" data-hot="1"><circle cx="658" cy="30" r="11"/><text x="658" y="30">1</text></g>
+    <g class="hot" data-hot="2"><circle cx="972" cy="55" r="11"/><text x="972" y="55">2</text></g>
+    <g class="hot" data-hot="3"><circle cx="22" cy="81" r="11"/><text x="22" y="81">3</text></g>
+    <g class="hot" data-hot="4"><circle cx="560" cy="71" r="11"/><text x="560" y="71">4</text></g>
+    <g class="hot" data-hot="5"><circle cx="760" cy="204" r="11"/><text x="760" y="204">5</text></g>
+    <g class="hot" data-hot="6"><circle cx="975" cy="512" r="11"/><text x="975" y="512">6</text></g>
   </g>
 </svg>
 <figcaption><b>图 2-1</b>　主窗口整体布局。主体区分三块：左侧栏、标签内容区、右侧字段栏。</figcaption>
@@ -277,7 +268,7 @@
   <td>选择库、浏览对象，底部两个图标入口（时钟 = 查询历史，终端 = Console Log，悬停显示名称）。</td>
   <td>随当前连接和当前库变化；可拖宽、可整体隐藏（<kbd>⌃⌘S</kbd>）。</td></tr>
 <tr data-hot="4"><td class="num">4</td><td class="wide">标签栏</td>
-  <td>当前连接打开的所有标签。有未提交改动的标签，标题右边有个橙色小圆点。</td>
+  <td>当前连接打开的所有标签。当前标签用圆角底色块突出，顶边是连接颜色线；有未提交改动的标签，标题右边有个橙色小圆点。</td>
   <td>完全随打开的内容变化。</td></tr>
 <tr data-hot="5"><td class="num">5</td><td class="wide">标签内容区</td>
   <td>所有实际内容都在这里。表数据标签里是<b>只读</b>的数据网格；查询标签里是编辑器加只读的结果网格。</td>
@@ -312,65 +303,68 @@
   <rect class="s-chrome ln" x="8" y="38" width="984" height="52" rx="8"/>
   <text class="fnt s" x="8" y="124">工具栏底部</text>
 
+  <!-- 红绿灯与窗口标题（工具栏与系统标题栏合一） -->
+  <circle class="s-red" cx="26" cy="64" r="4.5"/>
+  <circle class="s-yellow" cx="42" cy="64" r="4.5"/>
+  <circle class="s-green" cx="58" cy="64" r="4.5"/>
+  <text class="s b" x="74" y="64">本地开发 — app_dev</text>
+
   <!-- 连接切换器 -->
-  <rect class="s-field ln2" x="22" y="47" width="170" height="34" rx="7"/>
-  <circle class="s-green" cx="38" cy="64" r="5"/>
-  <text x="52" y="64">本地开发</text>
-  <text class="mut s" x="172" y="64">▾</text>
-  <line class="ln" x1="204" y1="47" x2="204" y2="81"/>
+  <rect class="s-field ln2" x="200" y="47" width="170" height="34" rx="7"/>
+  <circle class="s-green" cx="216" cy="64" r="5"/>
+  <text x="230" y="64">本地开发</text>
+  <text class="mut s" x="350" y="64">▾</text>
+  <line class="ln" x1="382" y1="47" x2="382" y2="81"/>
 
   <!-- 前进后退 -->
-  <text class="mut m" x="216" y="64">‹</text>
-  <text class="fnt m" x="238" y="64">›</text>
-  <line class="ln" x1="262" y1="47" x2="262" y2="81"/>
+  <text class="mut m" x="394" y="64">‹</text>
+  <text class="fnt m" x="416" y="64">›</text>
+  <line class="ln" x1="440" y1="47" x2="440" y2="81"/>
 
   <!-- 新建查询 / 打开表 -->
-  <rect class="s-field ln2" x="278" y="47" width="112" height="34" rx="7"/>
-  <text class="c" x="334" y="64">+ 新建查询</text>
-  <rect class="s-field ln2" x="398" y="47" width="112" height="34" rx="7"/>
-  <text class="c" x="454" y="64">+ 打开表…</text>
-
-  <!-- 拖动区提示 -->
-  <text class="fnt s c" x="556" y="64">（拖动窗口）</text>
+  <rect class="s-field ln2" x="456" y="47" width="112" height="34" rx="7"/>
+  <text class="c" x="512" y="64">+ 新建查询</text>
+  <rect class="s-field ln2" x="576" y="47" width="112" height="34" rx="7"/>
+  <text class="c" x="632" y="64">+ 打开表…</text>
 
   <!-- 变更操作组 -->
-  <rect class="s-field ln2" x="610" y="47" width="78" height="34" rx="7"/>
-  <text class="c mut" x="649" y="64">放弃</text>
-  <rect class="s-field ln2" x="696" y="47" width="78" height="34" rx="7"/>
-  <text class="c mut" x="735" y="64">预览</text>
-  <rect class="s-accent" x="782" y="47" width="158" height="34" rx="7"/>
-  <text class="c" x="861" y="64" fill="#fff">提交修改</text>
-  <circle class="s-orange" cx="920" cy="50" r="12"/>
-  <text class="c" x="920" y="50" fill="#fff" style="font:600 11px var(--sans)">7</text>
+  <rect class="s-field ln2" x="706" y="47" width="72" height="34" rx="7"/>
+  <text class="c mut" x="742" y="64">放弃</text>
+  <rect class="s-field ln2" x="786" y="47" width="72" height="34" rx="7"/>
+  <text class="c mut" x="822" y="64">预览</text>
+  <rect class="s-accent" x="866" y="47" width="76" height="34" rx="7"/>
+  <text class="c" x="900" y="64" fill="#fff">提交修改</text>
+  <circle class="s-orange" cx="930" cy="50" r="12"/>
+  <text class="c" x="930" y="50" fill="#fff" style="font:600 11px var(--sans)">7</text>
 
   <!-- 右侧字段栏开关 -->
-  <rect class="s-field ln2" x="950" y="47" width="34" height="34" rx="7"/>
-  <text class="c" x="967" y="64">▤</text>
+  <rect class="s-field ln2" x="952" y="47" width="32" height="34" rx="7"/>
+  <text class="c" x="968" y="64">▤</text>
 
   <!-- 颜色带 -->
   <rect class="s-green" x="8" y="94" width="984" height="6"/>
   <text class="mut s" x="8" y="118">↑ 连接颜色带（跟随连接配置里的颜色，生产库建议设红色）</text>
 
   <!-- 热点 -->
-  <g class="hot" data-hot="1"><circle cx="30" cy="16" r="11"/><text x="30" y="16">1</text></g>
-  <path class="leader" d="M30 27 L30 47"/>
-  <g class="hot" data-hot="2"><circle cx="228" cy="16" r="11"/><text x="228" y="16">2</text></g>
-  <path class="leader" d="M228 27 L228 47"/>
-  <g class="hot" data-hot="3"><circle cx="334" cy="16" r="11"/><text x="334" y="16">3</text></g>
-  <path class="leader" d="M334 27 L334 47"/>
-  <g class="hot" data-hot="4"><circle cx="454" cy="16" r="11"/><text x="454" y="16">4</text></g>
-  <path class="leader" d="M454 27 L454 47"/>
-  <g class="hot" data-hot="5"><circle cx="649" cy="16" r="11"/><text x="649" y="16">5</text></g>
-  <path class="leader" d="M649 27 L649 47"/>
-  <g class="hot" data-hot="6"><circle cx="735" cy="16" r="11"/><text x="735" y="16">6</text></g>
-  <path class="leader" d="M735 27 L735 47"/>
-  <g class="hot" data-hot="7"><circle cx="861" cy="16" r="11"/><text x="861" y="16">7</text></g>
-  <path class="leader" d="M861 27 L861 47"/>
+  <g class="hot" data-hot="1"><circle cx="285" cy="16" r="11"/><text x="285" y="16">1</text></g>
+  <path class="leader" d="M285 27 L285 47"/>
+  <g class="hot" data-hot="2"><circle cx="405" cy="16" r="11"/><text x="405" y="16">2</text></g>
+  <path class="leader" d="M405 27 L405 47"/>
+  <g class="hot" data-hot="3"><circle cx="512" cy="16" r="11"/><text x="512" y="16">3</text></g>
+  <path class="leader" d="M512 27 L512 47"/>
+  <g class="hot" data-hot="4"><circle cx="632" cy="16" r="11"/><text x="632" y="16">4</text></g>
+  <path class="leader" d="M632 27 L632 47"/>
+  <g class="hot" data-hot="5"><circle cx="742" cy="16" r="11"/><text x="742" y="16">5</text></g>
+  <path class="leader" d="M742 27 L742 47"/>
+  <g class="hot" data-hot="6"><circle cx="822" cy="16" r="11"/><text x="822" y="16">6</text></g>
+  <path class="leader" d="M822 27 L822 47"/>
+  <g class="hot" data-hot="7"><circle cx="904" cy="16" r="11"/><text x="904" y="16">7</text></g>
+  <path class="leader" d="M904 27 L904 47"/>
   <g class="hot" data-hot="8"><circle cx="970" cy="112" r="11"/><text x="970" y="112">8</text></g>
-  <g class="hot" data-hot="9"><circle cx="967" cy="16" r="11"/><text x="967" y="16">9</text></g>
-  <path class="leader" d="M967 27 L967 47"/>
+  <g class="hot" data-hot="9"><circle cx="968" cy="16" r="11"/><text x="968" y="16">9</text></g>
+  <path class="leader" d="M968 27 L968 47"/>
 </svg>
-<figcaption><b>图 2-2</b>　工具栏。左半边是「我在哪」，右半边是「改了什么、要不要提交」。</figcaption>
+<figcaption><b>图 2-2</b>　工具栏（与系统标题栏合一，红绿灯按钮与窗口标题也在这一行）。左半边是「我在哪」，右半边是「改了什么、要不要提交」。</figcaption>
 </figure>
 
 <table class="controls">

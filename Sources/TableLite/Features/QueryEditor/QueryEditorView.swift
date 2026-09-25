@@ -110,12 +110,13 @@ struct QueryEditorView: View {
     // MARK: 工具栏
 
     private func toolbar(_ viewModel: QueryEditorViewModel) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: AppSpacing.xs) {
             Button {
                 viewModel.executeDefault()
             } label: {
                 Label("执行", systemImage: "play.fill")
             }
+            .buttonStyle(.borderedProminent)
             .help("\(viewModel.defaultScope.displayName)（⌘↩）")
             .disabled(viewModel.isRunning)
 
@@ -126,7 +127,8 @@ struct QueryEditorView: View {
                 Image(systemName: "chevron.down")
             }
             .menuStyle(.borderlessButton)
-            .frame(width: 28)
+            .menuIndicator(.hidden)
+            .frame(width: 24)
             .help("默认执行范围：\(viewModel.defaultScope.displayName)")
 
             Button {
@@ -134,6 +136,7 @@ struct QueryEditorView: View {
             } label: {
                 Label("执行全部", systemImage: "forward.end.fill")
             }
+            .buttonStyle(.subtle)
             .help("执行全部（⇧⌘↩）")
             .disabled(viewModel.isRunning)
 
@@ -142,22 +145,26 @@ struct QueryEditorView: View {
             } label: {
                 Label("停止", systemImage: "stop.fill")
             }
+            .buttonStyle(.subtle)
             .help("停止（⌘.）")
             .disabled(!viewModel.isRunning || viewModel.isStopping)
 
             Divider().frame(height: 18)
 
             Button("打开") { openScript() }
+                .buttonStyle(.subtle)
             Button("另存为") { _ = viewModel.saveScriptAs() }
+                .buttonStyle(.subtle)
 
             Spacer()
 
             if !viewModel.text.isEmpty {
                 Button("清空") { viewModel.textChanged("") }
+                    .buttonStyle(.subtle)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, AppSpacing.m)
+        .padding(.vertical, AppSpacing.xs)
         .background(.bar)
         .overlay(alignment: .bottom) { Divider() }
     }

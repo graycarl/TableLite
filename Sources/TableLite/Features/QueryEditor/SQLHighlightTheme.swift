@@ -10,7 +10,7 @@ enum SQLHighlightTheme {
 
     static func color(for kind: SQLTokenKind) -> NSColor {
         switch kind {
-        case .keyword: return .systemPink
+        case .keyword: return .systemPurple
         case .function: return .systemBlue
         case .type: return .systemIndigo
         case .string: return .systemRed

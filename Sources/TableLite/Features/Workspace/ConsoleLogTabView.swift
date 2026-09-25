@@ -56,12 +56,15 @@ struct ConsoleLogTabView: View {
             Button("回到底部") {
                 withAnimation { isFollowing = true }
             }
+            .buttonStyle(.subtle)
             .disabled(isFollowing)
             .help("继续跟随最新记录")
 
             Button("复制") { copyAll() }
+                .buttonStyle(.subtle)
                 .disabled(visibleEntries.isEmpty)
             Button("清空") { showClearConfirmation = true }
+                .buttonStyle(.subtle)
                 .disabled(environment.consoleLog.entries.isEmpty)
         }
         .padding(.horizontal, 12)

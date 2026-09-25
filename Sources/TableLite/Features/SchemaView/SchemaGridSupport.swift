@@ -75,7 +75,7 @@ enum SchemaRowStyle {
     }
 }
 
-/// 表头单元格。
+/// 表头单元格。填满整列：GridRow 的行背景是按单元格传播的，填满才能连成一条。
 struct SchemaHeaderCell: View {
     let text: String
 
@@ -85,11 +85,13 @@ struct SchemaHeaderCell: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .background(Color(nsColor: .controlBackgroundColor))
     }
 }
 
 /// 数据单元格。`mono` 用于列名 / 类型 / SQL 等，`secondary` 用于 `—` 这类占位。
+/// 同样填满整列，让行斑马纹 / 主键底色连成一条而不是一格一个「 chip」。
 struct SchemaCell: View {
     let text: String
     var mono: Bool = false
@@ -101,6 +103,7 @@ struct SchemaCell: View {
             .foregroundStyle(secondary ? Color.secondary : Color.primary)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .textSelection(.enabled)
     }
 

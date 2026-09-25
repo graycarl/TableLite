@@ -81,6 +81,7 @@ struct HistoryTabView: View {
                 pendingClearAll = NSEvent.modifierFlags.contains(.option)
                 showClearConfirmation = true
             }
+            .buttonStyle(.subtle)
             .disabled(entries.isEmpty)
             .help("清空当前连接的记录；按住 ⌥ 清空所有连接")
         }
