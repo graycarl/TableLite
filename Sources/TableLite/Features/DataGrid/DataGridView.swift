@@ -37,8 +37,8 @@ struct DataGridView: NSViewRepresentable {
         tableView.usesAlternatingRowBackgroundColors = preferences.alternateRowColors
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.style = .plain
-        tableView.gridStyleMask = [.solidVerticalGridLineMask, .solidHorizontalGridLineMask]
-        tableView.gridColor = .separatorColor
+        // 不画网格线：分行靠隔行变色（`docs/tech-designs/07-data-grid.md` §4）。
+        tableView.gridStyleMask = []
         tableView.intercellSpacing = NSSize(width: 0, height: 1)
         tableView.rowHeight = coordinator.rowHeight
         tableView.target = coordinator
@@ -118,7 +118,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     }
 
     var rowHeight: CGFloat {
-        max(20, CGFloat(preferences.gridFontSize) + 9)
+        max(20, CGFloat(preferences.gridFontSize) + 8)
     }
 
     // MARK: 同步
@@ -200,8 +200,13 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     }
 
     private func headerTitle(for column: ColumnInfo, baseFont: NSFont) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        // 主键列：钥匙图标（SF Symbol，不用 emoji，`07-data-grid.md` §4）+ 列名加粗。
+        if column.isPrimaryKey {
+            result.append(Self.primaryKeyIcon(fontSize: baseFont.pointSize))
+            result.append(NSAttributedString(string: " "))
+        }
         var text = column.name
-        if column.isPrimaryKey { text = "🔑 " + text }
         if let index = viewModel.sortOrders.firstIndex(where: { $0.column == column.name }) {
             let direction = viewModel.sortOrders[index].direction
             let marker = viewModel.sortOrders.count > 1 ? "\(direction.arrow)\(index + 1)" : direction.arrow
@@ -210,7 +215,22 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         let font: NSFont = column.isPrimaryKey
             ? NSFont.boldSystemFont(ofSize: baseFont.pointSize)
             : baseFont
-        return NSAttributedString(string: text, attributes: [.font: font])
+        result.append(NSAttributedString(string: text, attributes: [.font: font]))
+        return result
+    }
+
+    /// 主键表头的钥匙图标：SF Symbol `key.fill`，模板渲染跟随表头文字色。
+    private static func primaryKeyIcon(fontSize: CGFloat) -> NSAttributedString {
+        let attachment = NSTextAttachment()
+        if let base = NSImage(systemSymbolName: "key.fill", accessibilityDescription: "主键") {
+            let configured = base.withSymbolConfiguration(
+                NSImage.SymbolConfiguration(pointSize: fontSize - 2, weight: .medium)
+            ) ?? base
+            configured.isTemplate = true
+            attachment.image = configured
+            attachment.bounds = CGRect(x: 0, y: -1.5, width: configured.size.width, height: configured.size.height)
+        }
+        return NSAttributedString(attachment: attachment)
     }
 
     private func fallbackWidth(for column: ColumnInfo) -> CGFloat {

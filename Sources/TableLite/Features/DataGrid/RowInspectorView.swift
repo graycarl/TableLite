@@ -213,7 +213,11 @@ struct InspectorFieldRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
-                if column.isPrimaryKey { Text("🔑") }
+                if column.isPrimaryKey {
+                    Image(systemName: "key.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
                 Text(column.name)
                     .fontWeight(column.isPrimaryKey ? .semibold : .regular)
                     .lineLimit(1)

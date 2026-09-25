@@ -120,7 +120,7 @@ private struct ConnectionListContent: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("TableLite")
-                .font(.largeTitle.bold())
+                .font(.title.bold())
             Text("macOS 原生 MySQL 客户端")
                 .foregroundStyle(.secondary)
         }

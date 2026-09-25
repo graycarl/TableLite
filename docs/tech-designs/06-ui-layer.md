@@ -74,3 +74,19 @@
 - **AppKit 桥接**跟随父视图的 `effectiveAppearance`，不手工设 `NSAppearance`；但自定义绘制的颜色必须是动态语义色（系统色或 `NSColor` 语义色），**禁止写死亮色 RGB**，否则暗色下不可读。`SQLHighlightTheme`（`10-query-editor.md` §3）即按这条约束只用 AppKit 语义色。
 - 把颜色解析成 `cgColor` 存进 `CALayer` 的地方（如网格的行状态底色 / 单元格高亮），必须在 `viewDidChangeEffectiveAppearance` 里重算——`cgColor` 是快照，不会跟着出现外观自动更新。
 - 不做：语法配色自定义、主题包、按连接记忆外观；macOS 自己的自动切换算系统行为，不看作「主题日程」。
+
+## 10. 设计系统（决策记录）
+
+**全局视觉一致性靠一份共享约定，而不是每个视图各自拍脑袋。** 共享入口是 `Sources/TableLite/App/DesignTokens.swift`：
+
+- **间距刻度**：只用 4 / 6 / 8 / 10 / 12 / 16 / 20 七档（`AppSpacing`）；圆角只用 4 / 6 / 8 三档（`AppRadius`）。新视图不允许出现刻度外的魔法数。
+- **背景层级**：工具栏与横条 `.bar`；侧栏 / 字段栏 `controlBackgroundColor`；内容区（编辑器、网格、结构页）`textBackgroundColor`；活动选中块用 `Color.primary.opacity(0.08)`。
+- **按钮只有三档**（新代码只允许从这三档里选）：
+  1. 主操作（如「执行」「应用」「保存」）→ `.borderedProminent`；
+  2. 窗口工具栏里的按钮 → 交给系统 toolbar 样式（见下）；
+  3. 其余一切次级操作（横条里的「打开 / 另存为 / 重置 / 筛选 / 列 / 导出 / 统计」等）→ `SubtleButtonStyle`（文字按钮，悬停出淡底，禁用变淡），不再使用系统默认的灰底 pill。
+- **窗口工具栏与系统标题栏合一**（`.toolbar` + `.windowToolbarStyle(.unified)`）：工作区不再自绘一条 `.bar` 工具栏。工具栏内容的表格仍以 `specs/02-workspace.md` §2 为准。
+- **标签栏**：活动标签 = 圆角底色块 + 顶边 2pt 连接色（无颜色连接用系统强调色）；非活动标签无分隔线、悬停出淡底。
+- 连接表单的错误提示时机：字段被编辑过或首次尝试「测试连接 / 保存」后才显示内联红字（`specs/01-connections.md` §2）。
+
+做这些约定的原因是 UI 走查时发现按钮样式、圆角、间距、背景色在各视图里发散；统一后新代码只能在这几档里选。

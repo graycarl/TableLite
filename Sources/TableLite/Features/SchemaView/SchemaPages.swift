@@ -11,27 +11,30 @@ struct SchemaPageTabBar: View {
     let title: (SchemaStructurePage) -> String
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
             ForEach(pages) { page in
                 Button {
                     selection = page
                 } label: {
-                    VStack(spacing: 4) {
-                        Text(title(page))
-                            .font(.callout)
-                            .foregroundStyle(page == selection ? Color.primary : Color.secondary)
-                        Rectangle()
-                            .fill(page == selection ? Color.accentColor : Color.clear)
-                            .frame(height: 2)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.top, 7)
+                    // 下划线用 overlay：不把按钮撑成柔性宽度，页签保持自然宽度左对齐。
+                    Text(title(page))
+                        .font(.callout)
+                        .foregroundStyle(page == selection ? Color.primary : Color.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 7)
+                        .padding(.bottom, 6)
+                        .overlay(alignment: .bottom) {
+                            Rectangle()
+                                .fill(page == selection ? Color.accentColor : Color.clear)
+                                .frame(height: 2)
+                        }
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(page == selection ? .isSelected : [])
             }
             Spacer()
         }
+        .padding(.leading, AppSpacing.xxs)
         .background(.bar)
     }
 }
@@ -187,6 +190,7 @@ struct SchemaForeignKeysPage: View {
                 .foregroundStyle(Color.accentColor)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
         .help("打开 \(foreignKey.referencedDisplayName)")

@@ -11,6 +11,10 @@ struct ConnectionFormView: View {
     @Bindable var viewModel: ConnectionListViewModel
 
     @State private var isPrivateKeyPickerPresented = false
+    /// 校验红字的揭示时机（`specs/01-connections.md` §2）：
+    /// 用户编辑过表单（或点过「测试连接」/「保存」）之后才列出来，
+    /// 避免新建连接时一打开就满屏报错。
+    @State private var validationRevealed = false
 
     private let labelWidth: CGFloat = 76
 
@@ -52,6 +56,7 @@ struct ConnectionFormView: View {
             footer
         }
         .frame(width: 680, height: 720)
+        .onChange(of: form) { _, _ in validationRevealed = true }
         .sheet(isPresented: $viewModel.isTestPresented) {
             ConnectionTestView(
                 sshEnabled: form.sshEnabled,
@@ -150,6 +155,7 @@ struct ConnectionFormView: View {
                         form.clearStoredPasswordRequested = true
                         form.password = ""
                     }
+                    .buttonStyle(.subtle)
                     .controlSize(.small)
                     if form.clearStoredPasswordRequested {
                         Text("保存时清除")
@@ -357,27 +363,19 @@ struct ConnectionFormView: View {
     // MARK: - 底部按钮
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if !issues.isEmpty {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(issues) { issue in
-                        Text("· \(issue.message)")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                }
+        HStack {
+            Button("测试连接") {
+                validationRevealed = true
+                viewModel.testCurrentForm()
             }
-            HStack {
-                Button("测试连接") { viewModel.testCurrentForm() }
-                Spacer()
-                Button("取消") { viewModel.cancelForm() }
-                    .keyboardShortcut(.cancelAction)
-                Button("保存") {
-                    Task { await viewModel.saveCurrentForm() }
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(!issues.isEmpty)
+            Spacer()
+            Button("取消") { viewModel.cancelForm() }
+                .keyboardShortcut(.cancelAction)
+            Button("保存") {
+                Task { await viewModel.saveCurrentForm() }
             }
+            .keyboardShortcut(.defaultAction)
+            .disabled(!issues.isEmpty)
         }
         .padding(16)
     }
@@ -391,7 +389,7 @@ struct ConnectionFormView: View {
 
     @ViewBuilder
     private func errorLine(_ field: ConnectionFormIssue.Field) -> some View {
-        if let message = error(field) {
+        if validationRevealed, let message = error(field) {
             Text(message)
                 .font(.caption)
                 .foregroundStyle(.red)
@@ -420,6 +418,6 @@ private struct FormCard<Content: View>: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gray.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.l))
     }
 }

@@ -1,10 +1,13 @@
 import SwiftUI
 
-/// 顶部工具栏（`specs/02-workspace.md` §2）。
+/// 工作区窗口工具栏（`specs/02-workspace.md` §2）。
+///
+/// 与系统标题栏合一（`docs/tech-designs/06-ui-layer.md` §10）：挂在 `WorkspaceView` 的
+/// `.toolbar` 上，按钮样式由系统 toolbar 统一处理，不再自绘一条 `.bar` 横条。
 ///
 /// 从左到右：连接切换器 → 标签前进/后退 → `+ 新建查询` / `+ 打开表…` →
 /// 变更操作组 → 右侧字段栏开关。
-struct WorkspaceToolbar: View {
+struct WorkspaceToolbar: ToolbarContent {
 
     let session: ConnectionSession
     var onNavigate: (Bool) -> Void
@@ -13,38 +16,82 @@ struct WorkspaceToolbar: View {
     var onToggleInspector: () -> Void
     var onShowConnections: () -> Void
 
-    @Environment(AppEnvironment.self) private var environment
-    @Environment(PendingChangesCoordinator.self) private var pendingChanges
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            ConnectionSwitcher(session: session, onShowConnections: onShowConnections)
+        }
+
+        ToolbarItem {
+            WorkspaceNavigationButtons(session: session, onNavigate: onNavigate)
+        }
+
+        ToolbarItem(placement: .principal) {
+            HStack(spacing: AppSpacing.s) {
+                Button {
+                    onNewQuery()
+                } label: {
+                    Label("新建查询", systemImage: "plus")
+                }
+
+                Button {
+                    onOpenTable()
+                } label: {
+                    Label("打开表…", systemImage: "magnifyingglass")
+                }
+                .disabled(session.objects.isEmpty)
+            }
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            WorkspaceChangeButtons(session: session, onToggleInspector: onToggleInspector)
+        }
+    }
+}
+
+/// 标签前进 / 后退（`⌘[` / `⌘]`）。
+private struct WorkspaceNavigationButtons: View {
+
+    let session: ConnectionSession
+    var onNavigate: (Bool) -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
-            ConnectionSwitcher(session: session, onShowConnections: onShowConnections)
-
-            Divider().frame(height: 18)
-
-            navButton(systemImage: "chevron.backward", help: "上一个标签") { onNavigate(true) }
-                .disabled(session.tabs.isEmpty)
-            navButton(systemImage: "chevron.forward", help: "下一个标签") { onNavigate(false) }
-                .disabled(session.tabs.isEmpty)
-
-            Spacer(minLength: 8)
+        HStack(spacing: 2) {
+            Button {
+                onNavigate(true)
+            } label: {
+                Image(systemName: "chevron.backward")
+            }
+            .help("上一个标签")
+            .disabled(session.tabs.isEmpty)
 
             Button {
-                onNewQuery()
+                onNavigate(false)
             } label: {
-                Label("新建查询", systemImage: "plus")
+                Image(systemName: "chevron.forward")
             }
+            .help("下一个标签")
+            .disabled(session.tabs.isEmpty)
+        }
+    }
+}
 
-            Button {
-                onOpenTable()
-            } label: {
-                Label("打开表…", systemImage: "magnifyingglass")
-            }
-            .disabled(session.objects.isEmpty)
+/// 变更操作组（`specs/02-workspace.md` §2）+ 右侧字段栏开关。
+///
+/// 变更操作组：放弃 / 预览(N) / 提交(N)。条数为 0 时整体禁用；只读连接上「提交」始终禁用并说明原因。
+private struct WorkspaceChangeButtons: View {
 
-            Spacer(minLength: 8)
+    let session: ConnectionSession
+    var onToggleInspector: () -> Void
 
-            changeButtons
+    var body: some View {
+        HStack(spacing: AppSpacing.xs) {
+            Button("放弃") { activeTableViewModel?.requestDiscard() }
+                .disabled(!changeButtonsEnabled)
+            Button("预览(\(pendingCount))") { activeTableViewModel?.presentPreview() }
+                .disabled(!changeButtonsEnabled)
+            Button("提交(\(pendingCount))") { activeTableViewModel?.requestSubmit() }
+                .disabled(!changeButtonsEnabled || session.isReadOnly)
+                .help(submitHint)
 
             Divider().frame(height: 18)
 
@@ -56,9 +103,6 @@ struct WorkspaceToolbar: View {
             .help("显示 / 隐藏右侧字段栏")
             .disabled(!isTableDataTab)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.bar)
     }
 
     private var isTableDataTab: Bool {
@@ -69,32 +113,17 @@ struct WorkspaceToolbar: View {
         session.activeTab?.content as? TableDataViewModel
     }
 
-    /// 变更操作组（`specs/02-workspace.md` §2）：放弃 / 预览(N) / 提交(N)。
-    /// 条数为 0 时整体禁用；只读连接上「提交」始终禁用并说明原因。
-    private var changeButtons: some View {
-        let count = activeTableViewModel?.pendingCount ?? 0
-        let enabled = isTableDataTab && count > 0
-        return HStack(spacing: 6) {
-            Button("放弃") { activeTableViewModel?.requestDiscard() }
-                .disabled(!enabled)
-            Button("预览(\(count))") { activeTableViewModel?.presentPreview() }
-                .disabled(!enabled)
-            Button("提交(\(count))") { activeTableViewModel?.requestSubmit() }
-                .disabled(!enabled || session.isReadOnly)
-                .help(submitHint)
-        }
+    private var pendingCount: Int {
+        activeTableViewModel?.pendingCount ?? 0
+    }
+
+    private var changeButtonsEnabled: Bool {
+        isTableDataTab && pendingCount > 0
     }
 
     private var submitHint: String {
         if session.isReadOnly { return "该连接处于只读模式，无法提交修改" }
-        return (activeTableViewModel?.pendingCount ?? 0) == 0 ? "暂无未提交的修改" : "提交修改（⌘↩）"
-    }
-
-    private func navButton(systemImage: String, help: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-        }
-        .help(help)
+        return pendingCount == 0 ? "暂无未提交的修改" : "提交修改（⌘↩）"
     }
 }
 
@@ -153,6 +182,7 @@ struct ConnectionSwitcher: View {
             }
         }
         .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
         .fixedSize()
         .help(connectionHelp)
     }

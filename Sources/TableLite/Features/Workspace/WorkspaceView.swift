@@ -39,15 +39,6 @@ struct WorkspaceView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            WorkspaceToolbar(
-                session: session,
-                onNavigate: { previous in navigate(previous: previous) },
-                onNewQuery: newQuery,
-                onOpenTable: { showOpenTable = true },
-                onToggleInspector: { environment.preferences.showInspector.toggle() },
-                onShowConnections: { showConnectionList = true }
-            )
-
             Rectangle()
                 .fill(session.connection.color.swiftUIColor)
                 .frame(height: 2)
@@ -83,6 +74,17 @@ struct WorkspaceView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 860, minHeight: 560)
+        .toolbar {
+            // 与系统标题栏合一的窗口工具栏（`06-ui-layer.md` §10）。
+            WorkspaceToolbar(
+                session: session,
+                onNavigate: { previous in navigate(previous: previous) },
+                onNewQuery: newQuery,
+                onOpenTable: { showOpenTable = true },
+                onToggleInspector: { environment.preferences.showInspector.toggle() },
+                onShowConnections: { showConnectionList = true }
+            )
+        }
         .overlay(alignment: .top) {
             toastOverlay
         }
