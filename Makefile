@@ -65,7 +65,7 @@ db-shell: ## 进手工测试库的 mysql 客户端
 dist: ## 构建 Release 并打包成可分发的 zip
 	@./scripts/package-dist.sh
 
-dist-install: dist ## 构建 Release 并安装到 ~/Applications（可用 INSTALL_DIR 覆盖）
+install: dist ## 构建 Release 并安装到 ~/Applications（可用 INSTALL_DIR 覆盖）
 	@echo "==> 安装到 $(INSTALL_DIR)/TableLite.app"
 	@mkdir -p "$(INSTALL_DIR)"
 	@rm -rf "$(INSTALL_DIR)/TableLite.app"
