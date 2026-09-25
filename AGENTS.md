@@ -74,6 +74,12 @@ make test
 make smoke
 ```
 
+**构建产物位置**：`make build` 用 `-derivedDataPath .build`，产物在
+`.build/Build/Products/<Debug|Release>/TableLite.app`（`make run` 开的也是它）。
+**不要**去 `~/Library/Developer/Xcode/DerivedData/` 下找 `TableLite.app` 来运行——
+那是 Xcode 界面构建留下的旧产物，与当前代码不同步。手工测试用的 MySQL 用
+`make db` 起（Docker，127.0.0.1:13307，root/tablelite，库 tablelite_dev）。
+
 ## 代码约定
 
 - Swift 6 严格并发（`SWIFT_STRICT_CONCURRENCY = complete`）。不允许 `@unchecked Sendable`，除非是包装 C 指针且写清理由。
