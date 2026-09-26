@@ -40,11 +40,22 @@ HOST=127.0.0.1
 USER=root
 PASSWORD=tablelite
 
-mysql_exec() { docker exec -i -e MYSQL_PWD="$PASSWORD" "$CONTAINER_NAME" mysql -uroot "$@"; }
+# mysql CLI 按运行环境的 locale 自动挑字符集，容器里没有 UTF-8 locale（LC_CTYPE=POSIX），
+# 会退化成 latin1（MySQL 的 latin1 就是 cp1252），把种子文件里的 UTF-8 字节按 cp1252 转成
+# utf8mb4 存下去 —— 中文变成「å¼ ä¸‰」这种乱码且不可逆。必须显式指定 utf8mb4。
+mysql_exec() { docker exec -i -e MYSQL_PWD="$PASSWORD" "$CONTAINER_NAME" mysql --default-character-set=utf8mb4 -uroot "$@"; }
 
 seed() {
   printf "${DIM}灌入示例数据（%s）…${RESET}\n" "$DATABASE"
   mysql_exec < "$SEED_FILE"
+  # 字符集回归自查：中文必须原样落库，糊了就当场报错，别等连上 App 才发现
+  local name
+  name="$(mysql_exec -N -B -e "SELECT name FROM $DATABASE.users WHERE id = 1")"
+  if [[ "$name" != "张三" ]]; then
+    printf "${RED}种子数据字符集异常：users.id=1 的 name 期望「张三」，实得「%s」。${RESET}\n" "$name" >&2
+    printf "${DIM}检查 seed 用的 mysql 客户端字符集是否为 utf8mb4。${RESET}\n" >&2
+    exit 1
+  fi
   printf "${GREEN}示例数据就绪。${RESET}\n"
 }
 
@@ -83,7 +94,7 @@ case "$cmd" in
     print_connection
     ;;
   shell)
-    exec docker exec -it -e MYSQL_PWD="$PASSWORD" "$CONTAINER_NAME" mysql -uroot "$DATABASE"
+    exec docker exec -it -e MYSQL_PWD="$PASSWORD" "$CONTAINER_NAME" mysql --default-character-set=utf8mb4 -uroot "$DATABASE"
     ;;
   logs)
     compose logs -f mysql
