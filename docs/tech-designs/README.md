@@ -20,7 +20,7 @@
 | [12-build-and-deps.md](12-build-and-deps.md) | 技术选型、Homebrew 依赖、静态链接、版本控制、Phase 0 |
 | [13-open-questions.md](13-open-questions.md) | 已知限制、刻意简化、待定事项 |
 | [14-row-inspector.md](14-row-inspector.md) | 右侧字段栏：技术选型、提交路径、大字段按需加载与暂存联动 |
-| [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI |
+| [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI、性能排查方法 |
 
 ## 与需求文档的对应
 
@@ -60,6 +60,7 @@
 | 大数据列 | 默认只取前 4 KB，点开时再取完整值；截断值绝不写回 | [07](07-data-grid.md) §3.1、[08](08-pending-changes.md) §9 |
 | 元数据来源 | `information_schema` + TTL 缓存；行数用估算，不自动 `COUNT(*)` | [11](11-schema-and-import-export.md) §1、[07](07-data-grid.md) §3.4 |
 | 表数据加载 | 不分页：固定 `LIMIT N` 从头取前 N 行，条数可切换；精确计数只在用户点「精确统计」时执行 | [07](07-data-grid.md) §7 |
+| 网格滚动性能 | 单元格子视图惰性创建（尤其 `NSButton`，单个约 1 ms）；热路径不碰派生 `gridRows`、不线性查列；行视图复用 | [07](07-data-grid.md) §10.1 |
 | 连接信息与进度 | **窗口底部不做常驻状态栏**：连接信息（版本 / 字符集 / 只读 / 隧道端口）在工具栏连接切换器的悬停详情；查询 / 提交 / 导出进度留在各自视图；不可编辑原因挂网格底部条 | [05](05-session-management.md) §10、[13](13-open-questions.md) S39 |
 | 导出方式 | 只支持 CSV；流式写出、临时文件原子替换 | [11](11-schema-and-import-export.md) §3、[13](13-open-questions.md) S9 |
 | 口令存储 | 密码 / Passphrase 只进单独的 `credentials.json`（`0600`，明文），禁止写进 `connections.json` / `UserDefaults` | [02](02-persistence.md) §2、§3 |
@@ -76,6 +77,7 @@
 | 设计系统 | 间距 / 圆角 / 按钮三档 / 背景层级统一收敛在 `DesignTokens`；窗口工具栏与系统标题栏合一；网格不画网格线 | [06](06-ui-layer.md) §10、[07](07-data-grid.md) §4 |
 | 外观 | 亮色 / 暗色 / 跟随系统三选一，默认跟随系统；全局生效，走 `preferredColorScheme`，自定义色一律用动态语义色 | [06](06-ui-layer.md) §9、[13](13-open-questions.md) S40 |
 | 可测试性 | 手写协议 + `AppEnvironment` 注入（`Clock` / `CredentialStore` / `FileSystemLocator`），不引入 DI 框架 | [15](15-testing.md) §3 |
+| 性能排查 | 隔离夹具（假后端 + 真 AppKit + 程序化滚动）+ 扫参数看曲线 + `sample` + 微基准；毫秒基准不进 CI | [15](15-testing.md) §6 |
 | 分发 | `make run` 日常验证、`make dist` 出 Release zip；产物不依赖目标机 Homebrew（老认证插件除外，见 L41） | [12](12-build-and-deps.md) §4.1 |
 | App 图标 | 脚本矢量生成、不引入外部素材；尺寸对齐苹果图标网格；小尺寸参数化简化 | [12](12-build-and-deps.md) §7 |
 

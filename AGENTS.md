@@ -62,6 +62,7 @@
 3. **每个连接的所有 libmysqlclient 调用必须在同一条串行队列上**，连接句柄不是线程安全的。见 `docs/tech-designs/01-architecture.md` §3。
 4. **大数据列的两阶段加载是安全保证**：网格里对超长列取的是 `LEFT(col, N)`，如果用户只改了别的列，绝不能把这个截断值写回数据库。见 `docs/tech-designs/08-pending-changes.md` §9。
 5. **脚本里 `$VAR` 后面紧跟中文 / 全角字符时必须写 `${VAR}`**：macOS 自带的 `/bin/bash` 是 3.2，会把紧跟变量的多字节字符吞进变量名（`"… $DEPLOYMENT_TARGET，…"` 被解析成名为 `DEPLOYMENT_TARGET，` 的变量），配 `set -u` 直接报 `unbound variable`。中文输出多的脚本尤其容易犯。
+6. **不要在网格单元格 / 列表行里 eagerly 创建用不到的 AppKit 控件**（尤其 `NSButton`）：macOS 26/27 上单个复选框 Button 的构造成本约 **1 ms**（约 `NSTextField` 的 35 倍），且会把 SwiftUI 的 `AttributeGraph` 拖进 Auto Layout；列一多，滚动开销就随可见单元格数线性放大。控件一律惰性创建，热路径不碰派生属性与线性查列。见 `docs/tech-designs/07-data-grid.md` §10.1。
 
 ## 命令
 

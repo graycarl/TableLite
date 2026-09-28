@@ -168,8 +168,12 @@ public struct CellDisplay: Sendable, Equatable {
 public enum CellDisplayFormatter {
 
     /// 单行化：把换行折叠成空格，避免单行控件里出现断裂。
+    ///
+    /// 绝大多数单元格不含换行，先做一次 `contains` 判断，
+    /// 避免每个可见单元格都白白分配三个中间字符串（滚动热路径）。
     static func singleLine(_ text: String) -> String {
-        text
+        guard text.contains("\n") || text.contains("\r") else { return text }
+        return text
             .replacingOccurrences(of: "\r\n", with: " ")
             .replacingOccurrences(of: "\r", with: " ")
             .replacingOccurrences(of: "\n", with: " ")
