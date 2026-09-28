@@ -64,7 +64,7 @@ Homebrew 的 bottle 按构建时的系统构建，`minos` 会写进二进制本�
 
 **决策：`MACOSX_DEPLOYMENT_TARGET` 取「链接进 App 的静态库中最大的 `minos`」（= 依赖下限），不声称支持更低版本。**
 
-- 取值方式：由 `make deps` 读 5 个 `.a` 的 `minos` 后取最大值（`scripts/gen-local-xcconfig.sh`），写进 `Configs/Local.xcconfig` 的 `TABLELITE_DEPLOYMENT_TARGET`；`project.yml` 用 `$(TABLELITE_DEPLOYMENT_TARGET:default=26.0)` 引用 —— 与 §3.4 的签名身份同一手法（target 级设置会盖住工程级 xcconfig，所以必须走变量间接），`default=` 是 `Local.xcconfig` 缺失时的兜底。当前值 **26.0**（`libmysqlclient` / `libssl` / `libcrypto` / `libz` 都是 26.0，`libzstd` 15.0）。
+- 取值方式：由 `make deps` 读 5 个 `.a` 的 `minos` 后取最大值（`scripts/gen-local-xcconfig.sh`），写进 `Configs/Local.xcconfig` 的 `TABLELITE_DEPLOYMENT_TARGET`；`project.yml` 用 `$(TABLELITE_DEPLOYMENT_TARGET:default=…)` 引用 —— 与 §3.4 的签名身份同一手法（target 级设置会盖住工程级 xcconfig，所以必须走变量间接），`default=` 是 `Local.xcconfig` 缺失时的兜底（与 `scripts/gen-local-xcconfig.sh` 的 `FALLBACK_DEPLOYMENT_TARGET` 保持一致）。**本机实际取值随 bottle 走，看 `Configs/Local.xcconfig`；文档里不写死数字** —— 换机器 / `brew reinstall` 后它就会变。
 - 为什么不写死一个数字：写死就得在升级 macOS / `brew reinstall` 后人工同步，忘了的代价是产物在本机直接起不来（见下）。跟着依赖走就没有需要同步的地方。
 - 为什么不取「构建机系统版本」：那会平白抬高下限，而 bottle 的 `minos` 与构建机系统版本本来就不总相同（`libzstd` 就低很多）。
 - 理由：自用单机工具。在低于依赖 `minos` 的系统上运行是 Apple 不支持的组合 —— 行为未定义。把声明写成实际能做到的最低值。

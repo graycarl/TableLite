@@ -59,6 +59,15 @@ version_gt() {
     [[ "$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n | tail -1)" == "$1" ]]
 }
 
+# 截到 major.minor，缺 minor 时补 0。`.` 分段的比较必须两边段数一致，
+# 否则 "27" 与 "27.0" 会被判成前者小（而不是相等）。
+major_minor() {
+  local major="${1%%.*}" minor="${1#*.}"
+  [[ "$minor" == "$1" ]] && minor=0          # 没有点，说明只有 major
+  minor="${minor%%.*}"
+  printf '%s.%s' "$major" "$minor"
+}
+
 DEPLOYMENT_TARGET=""
 for lib in "${STATIC_LIBS[@]}"; do
   [[ -f "$lib" ]] || continue
@@ -75,9 +84,14 @@ if [[ -z "$DEPLOYMENT_TARGET" ]]; then
   echo "警告：读不出依赖静态库的 minos，部署目标回退到 $FALLBACK_DEPLOYMENT_TARGET" >&2
   echo "      （先跑 make deps 看依赖是否齐全）" >&2
   DEPLOYMENT_TARGET="$FALLBACK_DEPLOYMENT_TARGET"
-elif version_gt "$DEPLOYMENT_TARGET" "${MACOS_VERSION%.*}"; then
+# 只比 major.minor：minos 只写到两位，sw_vers 给的是 major.minor.patch。
+# 早先写的是 ${MACOS_VERSION%.*}，在 "27.0" 这种只有两个点时会把 minor 也砍掉（→ "27"），
+# 于是本机与依赖同版本也误报「跑不起来」。
+elif version_gt "$(major_minor "$DEPLOYMENT_TARGET")" "$(major_minor "$MACOS_VERSION")"; then
   # 把声明调小是没用的：库要求的 minos 不会跟着变小。
-  echo "警告：依赖静态库要求 macOS $DEPLOYMENT_TARGET，本机是 macOS $MACOS_VERSION ——" >&2
+  # 变量一律加花括号：macOS 自带 bash 3.2 会把紧跟变量的多字节字符吞进变量名
+  # （`$DEPLOYMENT_TARGET，` 会被解析成名为 `DEPLOYMENT_TARGET，` 的变量），配 set -u 直接报错。
+  echo "警告：依赖静态库要求 macOS ${DEPLOYMENT_TARGET}，本机是 macOS ${MACOS_VERSION} ——" >&2
   echo "      构建出的 App 在本机跑不起来（会被 LaunchServices 拒开）。" >&2
   echo "      处理：brew reinstall mysql-client openssl@3 zstd zlib-ng-compat 装回与本机匹配的 bottle，" >&2
   echo "      或者升级 macOS 后重跑 make deps。" >&2
