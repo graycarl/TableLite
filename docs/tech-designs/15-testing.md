@@ -59,3 +59,38 @@
   改用 brew 起 mysqld 会让 CI 的数据库和本地不是同一个东西，容易红且难排查。
   需要真库的验证以本地 `make smoke` 为准（L14）。
 - `xcode-27` 目前是 preview 镜像，官方提示可能有排队问题。若 CI 变得很吵，先去掉这个 workflow。
+
+## 6. 性能排查方法（决策记录）
+
+**触发**：用户报告卡顿，或 `07-data-grid.md` §10 的性能预算不达标时按本节做；**不引入常驻性能测试**（原因见下）。
+
+**隔离夹具**：用既有测试替身（`SessionTestSupport.makeHarness()` + `FakeMySQLSession` +
+`FakeTableDataMetadataProvider`）灌合成数据，配**真实** `NSTableView` / `NSScrollView` / `NSWindow`，
+程序化改 `clipView.bounds.origin` 模拟滚动。不依赖 Docker / 真库，秒级迭代。
+骨架即本次用的 `measureScroll(coordinator:tableView:frames:)`：900×600 视口、120 帧、
+`rowHeight` 取协调器的值；每帧后 `layoutSubtreeIfNeeded()` + `displayIfNeeded()`。
+
+**度量三件套（缺一不可）**：
+
+1. **扫参数看曲线**：固定其它变量，只改嫌疑参数（如列数 3 / 10 / 20 / 40），换算成
+   「每帧」和「每可见单元格」成本。增长曲线是定位根因的第一信号；
+   「per-cell 成本本身也随参数增长」直接指向单元格级的 O(n) 操作。
+2. **`sample` 抓现场**：`sample <TestHost pid> 10`，看热点在 AppKit 的哪一层。
+   本次由此发现 `NSButton.intrinsicContentSize` → SwiftUI `AttributeGraph`、`_setDefaultKeyViewLoop`，
+   靠读代码几乎不可能猜到。
+3. **微基准钉成本**：把候选原语单独循环 N 次计时（本次：`NSTextField` 30µs vs `NSButton` **1014µs**），
+   把「疑似」变「铁证」。
+
+**读数约定**：
+
+- 报数字必须带夹具条件（行数 / 视口 / 帧数 / 步长 / 机器）。绝对毫秒受夹具影响，**结论看相对缩放**。
+- 区分「新建单元格」与「复用 / 重配单元格」：步长大时放大前者，步长小才接近真实复用；
+  两者对应完全不同的修复。
+- 夹具强制 `layoutSubtreeIfNeeded + displayIfNeeded` 会高估真实滚动成本，只用它做 A/B 对比，
+  不用它下「是否 60 fps」的结论。
+
+**进 CI 的方式**：毫秒断言会随机器和负载抖，**不进 CI**；要留回归就断言非抖指标
+（操作次数 / 分配次数 / 集合大小），或标成手动 benchmark。
+
+**产出**：探查代码用完即删，不提交；结论（数字 + 决策）回填 `07-data-grid.md` §10.1。
+
