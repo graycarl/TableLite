@@ -111,8 +111,9 @@ TABLELITE_DEPLOYMENT_TARGET = $DEPLOYMENT_TARGET
 EOF
 
 # 本机自签名签名身份（由 scripts/dev/codesign-identity.sh 建于登录钥匙串）。
-# 装上就用它签名，让 Keychain 的「始终允许」授权跨构建有效；没装就不写，
+# 装上就用它签名，让代码身份（designated requirement）跨构建稳定；没装就不写，
 # project.yml 的 $(TABLELITE_CODESIGN_IDENTITY:default=-) 落到 ad-hoc 签名。
+# 注意：它不能让登录钥匙串的授权跨构建有效（凭据已移出钥匙串）。
 # 见 docs/tech-designs/12-build-and-deps.md §3.4。
 CODESIGN_IDENTITY="${TABLELITE_CODESIGN_IDENTITY:-}"
 if [[ -z "$CODESIGN_IDENTITY" ]] && security find-identity -v -p codesigning 2>/dev/null \

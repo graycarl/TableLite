@@ -42,7 +42,7 @@
 | S28 | LIKE 转义的 `ESCAPE` 子句按 `sql_mode` 适配 | `09-filtering.md` §1.4 的固定 `ESCAPE '\\'` 在 `NO_BACKSLASH_ESCAPES` 下非法；实现为默认 `ESCAPE '\\'`、该模式下 `ESCAPE '\'`。见 `Core/SQL/FilterSQLBuilder.swift` |
 | S29 | 预览 SQL 与正式下发共用同一条生成路径 | 字面量转义走「连接转义器」（`mysql_real_escape_string` 语义）注入，纯函数转义只作兜底，避免 Preview 与实际提交不一致。见 `03-mysql-layer.md` §4.2、`Core/SQL/SQLValueLiteral.swift` |
 | S30 | 语句分类从严 | `VALUES` / `TABLE` 语句归为 query 但不放进只读白名单（`specs/09-readonly-mode.md` §4 未列即不放行） |
-| S31 | 删除连接先清 Keychain，失败则不删 JSON | `02-persistence.md` §3 只要求「连带删除」未定顺序；选择不留无人认领的密码，代价是 Keychain 异常时需重试删除。见 `Core/Store/ConnectionStore.swift` |
+| S31 | 删除连接先清凭据，失败则不删 JSON | `02-persistence.md` §3 只要求「连带删除」未定顺序；选择不留无人认领的密码，代价是凭据文件异常时需重试删除。见 `Core/Store/ConnectionStore.swift` |
 | S32 | SSH `BatchMode` 只用于 config/agent 认证 | `BatchMode=yes` 会禁用 `SSH_ASKPASS`，密码/私钥口令认证不能加。见 `Core/SSH/SSHCommand.swift` |
 | S33 | 退出 App 不弹查询脚本保存确认 | 草稿已防抖落盘、标签还原时可恢复；仅「关闭标签」弹保存确认。避免退出流程串联多个 sheet 死循环 |
 | S34 | CSV 导入空字段默认视为 `NULL` | 与导出默认「空串表示 NULL」形成往返；改默认只动 `ImportOptions.emptyFieldIsNull` 一处 |
@@ -52,6 +52,7 @@
 | S39 | 窗口底部不做常驻状态栏 | 连接信息（当前库、服务器版本、字符集、只读标记、SSH 隧道端口）只在工具栏连接切换器的悬停详情里；查询 / 提交 / 导出进度留在各自视图；不可编辑原因改挂网格底部条上方的提示条；表结构概况收进结构标签底部；瞬时消息走轻提示；未提交改动只由标签橙点与 `提交(N)` 角标体现。取代 2026-09-23 那条「仍留在状态栏」的写法。见 `specs/02-workspace.md` §7、`05-session-management.md` §10 |
 | S40 | 外观只做亮色 / 暗色 / 跟随系统三选一 | 默认跟随系统，全局生效（不按连接记忆）；不做语法配色自定义、不做主题包。见 `06-ui-layer.md` §9、`specs/11-preferences.md` §6 |
 | S41 | 产物只出 arm64 单架构 | `project.yml` 固定 `ARCHS = arm64`，不产 Intel / 通用二进制。Homebrew 的 `.a` 只有 arm64，Release 的 `ARCHS` 默认是 `arm64 x86_64`，x86_64 切片必然链接失败（Debug 靠 `ONLY_ACTIVE_ARCH = YES` 躲过；装了 Rosetta 的机器上 `xcodebuild` 会把两个架构都编一遍）。自用工具不需要 Intel 产物。见 `12-build-and-deps.md` §3.1 |
+| S42 | 凭据明文写在 `0600` 文件里，不加密 | 本机唯一能可靠保管密钥的地方就是钥匙串，而钥匙串的 XARA partition 绑 cdhash、自签名证书救不了（见 L44）；密钥无处可放，所以安全级别同 `~/.my.cnf`：只靠文件权限 + FileVault。不引入加密，也不把凭据目录放进会被同步 / 备份到别处的位置。见 `02-persistence.md` §3 |
 
 ## 2. 已知限制
 
@@ -99,7 +100,8 @@
 | L41 | 外部认证插件仍依赖构建机上的 `mysql-client` 安装 | `libmysqlclient` 只内建 `caching_sha2_password` / `sha256_password`；`mysql_native_password` 等在 `lib/plugin/*.so` 里，是运行期 `dlopen` 的外部文件（且默认路径指向版本化 Cellar 路径）。用这类账号连老服务器时，静态链接的产物依旧需要那个 `.so` 及其 Homebrew 依赖 | 目标场景是 MySQL 8.0+（`15-testing.md` §1），默认认证就是 `caching_sha2_password`，影响面小；真要覆盖老服务器，得把插件一起内嵌（需自建 libmysqlclient） |
 | L42 | 导出进行中只有导出面板显示进度 | 面板在导出期间一直开着（关闭即取消），所以不再另做全局进度提示 | 若要改成「面板可关、后台继续跑」的任务队列（T8），得重新决定进度放哪 |
 | L43 | 只读连接下每张表的数据视图都会挂一条不可编辑提示条 | 比原来的全局状态栏多占约 26pt；而只读本身已经有锁图标、颜色带、标题栏三重信号 | 若觉得吵，可只对表级原因（无主键 / 视图）显示，全局原因（只读连接）保留在工具栏与标题栏。见 `specs/04-data-editing.md` §2 |
-| L44 | 本机自签名证书是机器本地状态，不在仓库里 | 换机 / 删证书 / 重建证书后 DR 变了，Keychain 会再弹一次授权（每个条目一次） | `make signing` 重建证书，点一次「始终允许」即可；没装证书的机器退回 ad-hoc（每次重新构建都弹）。见 `12-build-and-deps.md` §3.4 |
+| L44 | 本机自签名证书是机器本地状态，不在仓库里 | 换机 / 删证书 / 重建证书后代码身份（DR）变了，按代码身份授权的系统机制（TCC 之类）会再问一次 | `make signing` 重建证书。**它不能让登录钥匙串的「始终允许」跨构建有效**（XARA partition 绑 cdhash），所以凭据已移出钥匙串。见 `12-build-and-deps.md` §3.4 |
+| L45 | 旧的钥匙串条目不再使用，不自动迁移也不自动清理 | 从旧版本升上来的机器里 `com.graycarl.tablelite.*` 的条目会留在钥匙串里，App 不再读写它们；要重新存密码得在连接表单 / 凭据弹窗里再输一次 | 想清掉就去「钥匙串访问」删掉这三类条目；L44/S42 已说明为何不回去用它。见 `02-persistence.md` §3 |
 
 ## 3. 待定事项
 
@@ -114,7 +116,7 @@
 | T9 | 二进制 / 图片单元格是否支持直接编辑（例如替换图片文件） | 需求不明确 | 使用后按需 |
 | T10 | 是否引入第三方 Swift Package（当前为零依赖） | 引入必须先在本文档登记理由 | 任何时候 |
 | T12 | `ProcessRunner` / `PortAllocator` 要不要抽成协议、接口长什么样 | 抽早了只会猜错接口；隧道那套可控测试环境（sshd）也还没定 | P10 做 SSH 隧道时，见 `15-testing.md` §3 |
-| T13 | 是否改用 Apple Development 证书 + data protection keychain（彻底没有 Keychain ACL 与授权弹窗） | 需要 Apple ID / team / provisioning profile；换来的是不再依赖 ACL。实测 ad-hoc 签名 + 手写 `keychain-access-groups` entitlement 会被 AMFI `Killed: 9`，所以这条路绕不开真签名 | 本机自签名不够用时（频繁换机、要把构建搬到多台机器上），见 `12-build-and-deps.md` §3.4 |
+| T13 | 是否改用 Apple Development 证书 + data protection keychain | 需要 Apple ID / team / provisioning profile；换来的是钥匙串零授权弹窗。实测：自签名证书的 partition 只能是 `cdhash:`，改一行代码就多一次授权；手写 `keychain-access-groups` entitlement + 自签名 / ad-hoc 会被 AMFI `Killed: 9`，所以这条路绕不开真签名 | 已不用钥匙串（凭据存本机文件，见 S42/L45），故搁置；若将来要重新用钥匙串、或要把构建搬到多台机器上，再开。见 `12-build-and-deps.md` §3.4 |
 
 ## 4. 变更记录
 
@@ -156,5 +158,6 @@
 | 2026-09-24 | **支持外观主题三选一**（S40）：偏好设置 §6 「界面」新增「外观」（亮色 / 暗色 / 跟随系统，默认跟随系统，分段控件），切换立即生效、系统外观变化实时跟随；网格 / 编辑器 / 快速查看等 AppKit 桥接控件一律用动态语义色，不写死亮色值。S13 改写为「界面只有中文／不做语法配色与快捷键自定义」，删除 T6（配色自定义待定），`specs/00-scope.md` §2.2 不再列「浅色 / 深色主题自定义」。见 `specs/11-preferences.md` §6/§8、`specs/00-scope.md` §2.2、`manual/11-preferences.html` 图 11-4、`06-ui-layer.md` §9、`10-query-editor.md` §3 |
 | 2026-09-25 | **开发机构建改用本机自签名证书**（`make signing`），修掉「每次重新构建都要重新授权 Keychain」：ad-hoc 签名的 DR 就是二进制 cdhash，改一行代码就变，Keychain 的「始终允许」随之失效（Debug 的 `TableLite.debug.dylib` 也躲不掉，主二进制壳会跟着变）。签名身份经 `Configs/Local.xcconfig` 注入（`project.yml` 用 `$(TABLELITE_CODESIGN_IDENTITY:default=-)`），没装证书的机器自动退回 ad-hoc。登记 L44、T13。见 `12-build-and-deps.md` §1/§3.4/§4/§4.1、`02-persistence.md` §3 |
 | 2026-09-28 | **部署目标改为「依赖静态库的最小支持系统」**（T11 重定案，原规则「与构建机系统版本一致」作废）：构建机退回 macOS 26.6.2、依赖 bottle 变成 `minos` 26.0 后，写死的 27.0 让产物被 LaunchServices 拒开（实测 `open` 报 -10825，App 完全起不来）。改为 `make deps` 从 5 个 `.a` 的 `minos` 取最大值写进 `Configs/Local.xcconfig`（`TABLELITE_DEPLOYMENT_TARGET`，当前 26.0），`project.yml` 用 `$(TABLELITE_DEPLOYMENT_TARGET:default=26.0)` 引用（与 §3.4 签名同一手法），推导值高于本机系统时打印警告与 `brew reinstall` 处理办法；`make doctor` 增印部署目标；`project.yml` 固定 `ARCHS = arm64`（登记 S41；Release / `make dist` 原来靠「部署目标 = 27.0 排除了 Rosetta 的 x86_64 目的地」蒙对，降级后必须显式单架构）。见 `12-build-and-deps.md` §3.1/§3.3、`README.md` 系统要求 |
+| 2026-09-29 | **凭据移出钥匙串**（原 §3.4 的定案未成立）：实测确认登录钥匙串的「始终允许」有两道门 —— ① ACL 受信任应用（自签名证书能固定）、② XARA partition（只认 `cdhash:` / `teamid:` / `apple:` / `apple-tool:` / `unsigned:` 字面量，自签名没有 TeamID，所以改一行代码 partition 就变）。`req:` 这类值 securityd 不认，`-A`（allow-any-app）、`SecItemAdd` 自带 `SecAccess`、改已有条目的 partition 列表都绕不过（最后一条要钥匙串密码）。改为 `~/Library/Application Support/TableLite/credentials.json`（0600、明文、不加密、旧条目不自动迁移）；登记 S42、L45，改写 S31/L44/T13；`make run` 改为先退出已运行实例（否则磁盘二进制与运行中的进程不一致，securityd 报 `-67034 errSecStaticCodeChanged` 并**静默拒绝**，连弹窗都不给）。见 `02-persistence.md` §3/§3.1、`12-build-and-deps.md` §1/§3.4、`specs/01-connections.md` §1/§2、`specs/10-ssh-tunnel.md` §3.2/§3.3、`manual/01`、`manual/10` |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

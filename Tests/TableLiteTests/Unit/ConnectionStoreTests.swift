@@ -1,7 +1,7 @@
 import XCTest
 @testable import TableLite
 
-/// 连接元数据 JSON：原子写、向前兼容、密码字段剔除、版本备份、连带清理钥匙串。
+/// 连接元数据 JSON：原子写、向前兼容、密码字段剔除、版本备份、连带清理凭据。
 final class ConnectionStoreTests: XCTestCase {
 
     private var directory: URL!

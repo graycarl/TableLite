@@ -7,7 +7,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | [01-architecture.md](01-architecture.md) | 分层与依赖方向、模块划分、并发模型、错误传播、沙箱与签名 |
-| [02-persistence.md](02-persistence.md) | 连接配置、Keychain、查询历史、Console Log、偏好、日志的存储决策与硬约束 |
+| [02-persistence.md](02-persistence.md) | 连接配置、凭据文件、查询历史、Console Log、偏好、日志的存储决策与硬约束 |
 | [03-mysql-layer.md](03-mysql-layer.md) | C shim 边界与 Swift 封装：设计原则、类型映射与字面量生成、取消与超时、保活、错误映射 |
 | [04-ssh-tunnel.md](04-ssh-tunnel.md) | 基于系统 `ssh` 子进程的本地端口转发：方案取舍、命令拼装、认证、生命周期 |
 | [05-session-management.md](05-session-management.md) | 连接会话与多连接管理：作用域、连接流程、空闲回收、重连、标签现场还原 |
@@ -62,14 +62,14 @@
 | 表数据加载 | 不分页：固定 `LIMIT N` 从头取前 N 行，条数可切换；精确计数只在用户点「精确统计」时执行 | [07](07-data-grid.md) §7 |
 | 连接信息与进度 | **窗口底部不做常驻状态栏**：连接信息（版本 / 字符集 / 只读 / 隧道端口）在工具栏连接切换器的悬停详情；查询 / 提交 / 导出进度留在各自视图；不可编辑原因挂网格底部条 | [05](05-session-management.md) §10、[13](13-open-questions.md) S39 |
 | 导出方式 | 只支持 CSV；流式写出、临时文件原子替换 | [11](11-schema-and-import-export.md) §3、[13](13-open-questions.md) S9 |
-| 口令存储 | 密码 / Passphrase 只进 Keychain，禁止写进 JSON / UserDefaults | [02](02-persistence.md) §2、§3 |
+| 口令存储 | 密码 / Passphrase 只进单独的 `credentials.json`（`0600`，明文），禁止写进 `connections.json` / `UserDefaults` | [02](02-persistence.md) §2、§3 |
 | 连接失效处理 | 不自动重连，保留未提交改动，由用户点「重新连接」 | [05](05-session-management.md) §6、[13](13-open-questions.md) L7 |
 | 当前数据库 | 服务器默认库在「切库时」同步（发 `USE`），不在「执行时」同步；失败回滚选择；编辑器拦截手写 `USE` | [05](05-session-management.md) §11、[10](10-query-editor.md) §5.5、[13](13-open-questions.md) S38 |
 | 启动行为 | **每次启动都进连接列表**，不自动连接、不自动进工作区；标签现场按连接记住，连上后才还原 | [05](05-session-management.md) §8、[13](13-open-questions.md) S36 |
 | 只读模式 | 语句级拦截（不是权限控制） | [10](10-query-editor.md) §10、[13](13-open-questions.md) L3 |
 | 工程组织 | XcodeGen，`TableLite.xcodeproj` 不进版本控制 | [12](12-build-and-deps.md) §1 |
 | 第三方依赖 | 零 Swift Package 依赖 | [12](12-build-and-deps.md) §1、[13](13-open-questions.md) T10 |
-| 沙箱与签名 | 不开沙箱；签名用**本机自签名证书**，保证 Keychain 授权跨构建有效（不公证、不做 hardened runtime） | [01](01-architecture.md) §5、[12](12-build-and-deps.md) §1、§3.4 |
+| 沙箱与签名 | 不开沙箱；签名用**本机自签名证书**稳定代码身份（**不能**让登录钥匙串的授权跨构建有效，凭据因此已移出钥匙串）（不公证、不做 hardened runtime） | [01](01-architecture.md) §5、[12](12-build-and-deps.md) §1、§3.4 |
 | 时区 | 客户端零处理：日期时间原样读、原样写，不解析不换算 | [03](03-mysql-layer.md) §4.3 |
 | 存储版本 | 只做向前兼容读取；破坏性变更时备份重建，不写迁移代码 | [02](02-persistence.md) §9 |
 | 界面语言 | 文案硬编码中文，不引入本地化资源 | [06](06-ui-layer.md) §8 |

@@ -79,7 +79,7 @@ public struct SSHAskpassScript: Sendable {
 ///
 /// `specs/10-ssh-tunnel.md` §3.2：私钥有口令时，第一次连接要弹输入框。
 /// 在启动 ssh 前先看一眼文件，可以避免为未加密的私钥多余地弹窗
-/// （密码 / 口令只从用户输入进 Keychain，本类型不碰、缓存、记录任何口令）。
+/// （密码 / 口令只经用户输入写入凭据文件，本类型不碰、缓存、记录任何口令）。
 ///
 /// 纯逻辑，可单元测试。读不到文件时按「未加密」处理，交给 ssh 自己报错。
 public enum SSHPrivateKeyInspector {

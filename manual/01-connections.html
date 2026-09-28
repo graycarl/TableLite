@@ -213,7 +213,7 @@
     <text x="192" y="316">••••••••••</text>
     <rect class="s-field ln2" x="490" y="307" width="17" height="17" rx="4"/>
     <path class="ln2 sw2" d="M494 315.5 l3.5 4.5 l6.5 -8"/>
-    <text x="518" y="316">保存到钥匙串</text>
+    <text x="518" y="316">保存密码</text>
 
     <text x="56" y="350">数据库</text>
     <rect class="s-field ln2" x="180" y="335" width="260" height="30" rx="6"/>
@@ -284,7 +284,7 @@
 
     <circle class="s-field ln2" cx="188" cy="772" r="8"/>
     <text x="206" y="772">使用密码</text>
-    <text class="mut s" x="296" y="772">（密码保存在系统钥匙串里）</text>
+    <text class="mut s" x="296" y="772">（密码保存在本机）</text>
 
     <rect class="s-field ln2" x="56" y="799" width="17" height="17" rx="4"/>
     <text x="84" y="808">使用 ssh config 别名</text>
@@ -320,7 +320,7 @@
 <tr data-hot="1"><td class="num">1</td><td class="wide">基本信息</td>
   <td><b>名称</b>是列表里显示的名字（必填）。<b>颜色</b>会影响主窗口那条颜色带，建议生产库配红色。<b>只读</b>勾上后这个连接不能做任何写操作。</td></tr>
 <tr data-hot="2"><td class="num">2</td><td class="wide">MySQL</td>
-  <td>主机、端口、用户必填。「数据库」可以留空，那样连上以后会自动选中第一个能访问的库。勾了「保存到钥匙串」密码才会持久化，否则只在本次运行期间记住。</td></tr>
+  <td>主机、端口、用户必填。「数据库」可以留空，那样连上以后会自动选中第一个能访问的库。勾了「保存密码」密码才会持久化，否则只在本次运行期间记住。</td></tr>
 <tr data-hot="3"><td class="num">3</td><td class="wide">SSH 隧道</td>
   <td>勾上「通过 SSH 连接」后，数据库会被当成在跳板机的内网里，TableLite 会在本机开一个临时端口把流量转发过去。详细行为见<a href="10-ssh-tunnel.html">第 10 章</a>。</td></tr>
 <tr data-hot="4"><td class="num">4</td><td class="wide">认证方式</td>
@@ -343,7 +343,7 @@
 <tr><td>主机 / 端口</td><td>是</td><td>— / 3306</td><td>端口必须是 1–65535 的整数</td></tr>
 <tr><td>用户</td><td>是</td><td>—</td><td></td></tr>
 <tr><td>密码</td><td>否</td><td>空</td><td>可以空着，首次连接时再输入</td></tr>
-<tr><td>保存到钥匙串</td><td>否</td><td>勾选</td><td>不勾则密码只在本次运行期间有效</td></tr>
+<tr><td>保存密码</td><td>否</td><td>勾选</td><td>不勾则密码只在本次运行期间有效</td></tr>
 <tr><td>数据库</td><td>否</td><td>空</td><td>留空时连上后默认选中第一个可访问的库</td></tr>
 <tr><td>字符集</td><td>否</td><td>utf8mb4</td><td>影响中文与 emoji 的读写</td></tr>
 <tr><td>使用 SSL</td><td>否</td><td>勾选</td><td>服务器使用自签证书时再搭配下一项</td></tr>
@@ -484,14 +484,14 @@
 
 <h2>删除连接</h2>
 
-<p>删除会同时清掉保存在系统钥匙串里的 MySQL 密码和 SSH 凭据，所以需要确认：</p>
+<p>删除会同时清掉保存在本机的 MySQL 密码和 SSH 凭据，所以需要确认：</p>
 
 <figure>
 <svg viewBox="0 0 1000 260" role="img" aria-label="删除连接确认弹窗">
   <title>删除连接确认弹窗</title>
   <rect class="s-window ln2" x="250" y="30" width="500" height="200" rx="12"/>
   <text class="b c" x="500" y="66">确定要删除连接「生产」吗？</text>
-  <text class="c" x="500" y="106">同时会删除保存在系统钥匙串里的密码。</text>
+  <text class="c" x="500" y="106">同时会删除该连接保存的密码。</text>
   <text class="c" x="500" y="130">此操作不可撤销。</text>
   <line class="ln" x1="250" y1="166" x2="750" y2="166"/>
   <rect class="s-field ln2" x="290" y="182" width="90" height="30" rx="6"/>

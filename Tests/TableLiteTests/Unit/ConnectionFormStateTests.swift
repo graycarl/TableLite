@@ -188,7 +188,7 @@ final class ConnectionFormStateTests: XCTestCase {
 
     // MARK: 密码处置
 
-    func testPasswordUpdateDefaultsToKeychain() {
+    func testPasswordUpdateDefaultsToSaved() {
         var form = validForm()
         form.password = "secret"
 
@@ -199,7 +199,7 @@ final class ConnectionFormStateTests: XCTestCase {
     func testPasswordUpdateSessionOnlyWhenCheckboxOff() {
         var form = validForm()
         form.password = "secret"
-        form.savePasswordToKeychain = false
+        form.savePassword = false
 
         XCTAssertEqual(form.passwordUpdate, .sessionOnly("secret"))
         XCTAssertEqual(form.connectionPassword, "secret")
@@ -225,7 +225,7 @@ final class ConnectionFormStateTests: XCTestCase {
 
     func testPasswordUpdateClearsWhenNotSavingAndEmpty() {
         var form = validForm()
-        form.savePasswordToKeychain = false
+        form.savePassword = false
         form.password = ""
 
         XCTAssertEqual(form.passwordUpdate, .clear)
@@ -233,7 +233,7 @@ final class ConnectionFormStateTests: XCTestCase {
 
     // MARK: SSH 密码处置（`specs/10-ssh-tunnel.md` §3.3）
 
-    func testSSHPasswordUpdateSetsKeychainIntent() {
+    func testSSHPasswordUpdateSetsSaveIntent() {
         var form = validForm()
         form.sshPassword = "ssh-secret"
 
@@ -252,7 +252,7 @@ final class ConnectionFormStateTests: XCTestCase {
 
     func testAuthMethodFormNotesMatchManual() {
         XCTAssertEqual(SSHAuthMethod.sshConfigOrAgent.formNote, "（推荐，平时怎么连就怎么连）")
-        XCTAssertEqual(SSHAuthMethod.password.formNote, "（密码保存在系统钥匙串里）")
+        XCTAssertEqual(SSHAuthMethod.password.formNote, "（密码保存在本机）")
         XCTAssertNil(SSHAuthMethod.privateKey.formNote)
     }
 }

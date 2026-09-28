@@ -3,7 +3,7 @@ import Foundation
 /// 连接配置表单的状态与纯逻辑（`specs/01-connections.md` §2、§3「密码处理」）。
 ///
 /// 只负责「表单现在长什么样」以及「怎么把它变成一个 `Connection` / 一次密码写入意图」；
-/// 不碰 Keychain、不碰磁盘、不弹窗，方便单测。
+/// 不碰磁盘、不弹窗，方便单测（凭据读写由调用方负责）。
 ///
 /// 校验的权威仍然是 `Connection.validationIssues()`：本类型把文本字段解析成模型后再问它，
 /// 额外只补一条「私钥文件必须存在」（`specs/01-connections.md` §2「表单校验」）。
@@ -11,16 +11,16 @@ struct ConnectionFormState: Equatable {
 
     // MARK: - 密码写入意图
 
-    /// 保存表单时对钥匙串里 MySQL 密码的处置。
+    /// 保存表单时对已保存的 MySQL 密码的处置。
     ///
     /// 需求见 `specs/01-connections.md` §2「密码处理」。保存时「密码框为空」等价于
-    /// 「删除钥匙串条目」；勾选「保存到钥匙串」才持久化，不勾选只在本次运行期间记住。
+    /// 「删除已保存的密码」；勾选「保存密码」才持久化，不勾选只在本次运行期间记住。
     enum PasswordUpdate: Equatable {
-        /// 写入钥匙串。
+        /// 写入凭据文件。
         case set(String)
-        /// 不写钥匙串，仅在本次运行内使用；同时清掉旧条目。
+        /// 不落盘，仅在本次运行内使用；同时清掉旧条目。
         case sessionOnly(String)
-        /// 删除钥匙串里的条目（密码框为空，或用户点了「清除已保存密码」）。
+        /// 删除已保存的条目（密码框为空，或用户点了「清除已保存密码」）。
         case clear
     }
 
@@ -57,8 +57,8 @@ struct ConnectionFormState: Equatable {
     // MARK: - 密码
 
     var password: String = ""
-    var savePasswordToKeychain: Bool = true
-    /// 钥匙串里当前是否已有保存的密码（决定是否显示「清除已保存密码」）。
+    var savePassword: Bool = true
+    /// 当前是否已有保存的密码（决定是否显示「清除已保存密码」）。
     var hasStoredPassword: Bool = false
     /// 用户点了「清除已保存密码」。
     var clearStoredPasswordRequested: Bool = false
@@ -73,9 +73,9 @@ struct ConnectionFormState: Equatable {
     var sshPrivateKeyPath: String = ""
     var sshUseConfigAlias: Bool = false
     var sshJumpHost: String = ""
-    /// SSH 账号密码（`authMethod == .password`）。只进钥匙串，不落配置文件。
+    /// SSH 账号密码（`authMethod == .password`）。只进凭据文件，不落 `connections.json`。
     var sshPassword: String = ""
-    /// 钥匙串里当前是否已有保存的 SSH 密码（决定编辑时是否回填）。
+    /// 当前是否已有保存的 SSH 密码（决定编辑时是否回填）。
     var hasStoredSSHPassword: Bool = false
 
     // MARK: - 初始化
@@ -90,7 +90,7 @@ struct ConnectionFormState: Equatable {
         keepAliveIntervalText = String(keepAliveInterval)
     }
 
-    /// 编辑已有连接：回填全部字段（密码由调用方从钥匙串取出后另行传入）。
+    /// 编辑已有连接：回填全部字段（密码由调用方从凭据文件取出后另行传入）。
     init(connection: Connection) {
         original = connection
         connectionID = connection.id
@@ -182,15 +182,15 @@ struct ConnectionFormState: Equatable {
 
     // MARK: - 密码
 
-    /// 保存表单时对钥匙串的处置意图。
+    /// 保存表单时对已保存密码的处置意图。
     var passwordUpdate: PasswordUpdate {
         if clearStoredPasswordRequested { return .clear }
         if password.isEmpty { return .clear }
-        if savePasswordToKeychain { return .set(password) }
+        if savePassword { return .set(password) }
         return .sessionOnly(password)
     }
 
-    /// 「测试连接」「保存并连接」时直接使用的密码；`nil` 表示让连接流程去钥匙串取。
+    /// 「测试连接」「保存并连接」时直接使用的密码；`nil` 表示让连接流程去凭据文件取。
     var connectionPassword: String? {
         switch passwordUpdate {
         case .clear:
@@ -202,16 +202,16 @@ struct ConnectionFormState: Equatable {
 
     // MARK: - SSH 密码
 
-    /// 保存表单时对钥匙串里 SSH 密码的处置意图。
+    /// 保存表单时对已保存的 SSH 密码的处置意图。
     ///
-    /// `specs/10-ssh-tunnel.md` §3.3：密码认证的密码保存在系统钥匙串里。
-    /// 密码框为空（或编辑时被清空）等价于删除钥匙串条目。
+    /// `specs/10-ssh-tunnel.md` §3.3：密码认证的密码会被记住。
+    /// 密码框为空（或编辑时被清空）等价于删除已保存的条目。
     var sshPasswordUpdate: PasswordUpdate {
         if sshPassword.isEmpty { return .clear }
         return .set(sshPassword)
     }
 
-    /// 测试 / 保存并连接时直接传给会话的 SSH 密码；`nil` 表示去钥匙串取。
+    /// 测试 / 保存并连接时直接传给会话的 SSH 密码；`nil` 表示去凭据文件取。
     var connectionSSHPassword: String? {
         switch sshPasswordUpdate {
         case .clear:

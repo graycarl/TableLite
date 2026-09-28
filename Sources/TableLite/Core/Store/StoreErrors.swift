@@ -26,7 +26,7 @@ public enum StoreFileError: Error, LocalizedError, Equatable {
 /// 连接元数据读写失败。
 public enum ConnectionStoreError: Error, LocalizedError, Equatable {
     case encodingFailed
-    /// 清除钥匙串凭据失败。此时连接**保留**，用户可以重试删除。
+    /// 清除凭据失败。此时连接**保留**，用户可以重试删除。
     case credentialCleanupFailed(UUID)
 
     public var errorDescription: String? {
@@ -34,23 +34,7 @@ public enum ConnectionStoreError: Error, LocalizedError, Equatable {
         case .encodingFailed:
             return "连接配置写入失败，请检查磁盘空间后重试。"
         case .credentialCleanupFailed:
-            return "清除钥匙串里的密码失败，连接仍然保留，请重试删除。"
-        }
-    }
-}
-
-// MARK: - 凭据
-
-/// 钥匙串操作失败。`OSStatus` 直接来自 Security.framework。
-public enum CredentialStoreError: Error, LocalizedError, Equatable {
-    case keychain(OSStatus)
-    /// 条目存在但内容不是合法的 UTF-8 文本。
-    case malformedValue(CredentialKind)
-
-    public var errorDescription: String? {
-        switch self {
-        case .keychain(let status): return "钥匙串操作失败（OSStatus \(status)）"
-        case .malformedValue(let kind): return "钥匙串里的\(kind.displayName)不是合法的 UTF-8 文本"
+            return "清除保存的密码失败，连接仍然保留，请重试删除。"
         }
     }
 }

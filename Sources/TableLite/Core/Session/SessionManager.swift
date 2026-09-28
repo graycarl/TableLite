@@ -63,7 +63,7 @@ public final class SessionManager {
 
     /// 连接一个连接配置。已有会话时复用；达到上限时抛错。
     ///
-    /// `sshSecrets` 是表单刚输入、尚未写入钥匙串的 SSH 凭据（可选）。
+    /// `sshSecrets` 是表单刚输入、尚未写入凭据文件的 SSH 凭据（可选）。
     @discardableResult
     public func connect(
         _ connection: Connection,

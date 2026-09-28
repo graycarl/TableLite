@@ -51,7 +51,7 @@ public struct HostPort: Sendable, Equatable {
 
 /// 建立隧道时上层传入的一次性 SSH 凭据（内存覆盖，不落盘）。
 ///
-/// 密码 / 口令的正常持久化路径是系统钥匙串（`CredentialKind.sshPassword` /
+/// 密码 / 口令的正常持久化路径是凭据文件（`CredentialKind.sshPassword` /
 /// `sshPassphrase`）；本类型只用于「表单刚输入、还没保存」或「弹窗刚回填」的当前会话。
 public struct SSHSecrets: Sendable, Equatable {
     public var password: String?
@@ -66,7 +66,7 @@ public struct SSHSecrets: Sendable, Equatable {
 /// 会话向 UI 索要 SSH 凭据的请求（`specs/10-ssh-tunnel.md` §3.2 / §3.3）。
 ///
 /// 私钥有口令、或密码认证没有可用密码时，`ConnectionSession` 用它请求弹窗；
-/// UI 弹窗回填口令，勾选「记住」时由 UI 写入钥匙串。**不含任何凭据值**。
+/// UI 弹窗回填口令，勾选「记住」时由 UI 写入凭据文件。**不含任何凭据值**。
 public struct SSHSecretRequest: Sendable, Equatable {
 
     public enum Kind: Sendable, Equatable {

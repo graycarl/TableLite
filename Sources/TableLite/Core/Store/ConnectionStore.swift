@@ -8,7 +8,7 @@ import Foundation
 /// - 写入用「临时文件 + 原子替换」，文件 `0600`；
 /// - 只做向前兼容读取：未知字段忽略、缺失字段取默认值；遇到不认识的版本备份后重建。
 ///
-/// 删除连接时连带清理 Keychain 里的三条凭据（`02-persistence.md` §3）。
+/// 删除连接时连带清理凭据文件里的三条凭据（`02-persistence.md` §3）。
 public actor ConnectionStore {
 
     /// 一次加载的结果：连接列表 + 需要提示给用户的说明（例如丢弃了密码字段）。
@@ -118,9 +118,9 @@ public actor ConnectionStore {
         return list
     }
 
-    /// 删除连接：先清 Keychain 凭据，成功后再写 JSON。
+    /// 删除连接：先清凭据，成功后再写 JSON。
     ///
-    /// 顺序是刻意的：钥匙串清理失败时**不**删 JSON，避免留下无人认领的密码；
+    /// 顺序是刻意的：凭据清理失败时**不**删 JSON，避免留下无人认领的密码；
     /// 用户可以重试删除。
     public func delete(id: UUID) throws {
         var list = try load().connections
@@ -130,7 +130,7 @@ public actor ConnectionStore {
         do {
             try credentials.deleteAll(for: id)
         } catch {
-            StoreLog.error("删除连接「\(connection.name)」的钥匙串凭据失败：\(error)")
+            StoreLog.error("删除连接「\(connection.name)」的凭据失败：\(error)")
             throw ConnectionStoreError.credentialCleanupFailed(id)
         }
 

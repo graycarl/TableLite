@@ -18,7 +18,7 @@
 | `Core/MySQL` | 连接与查询，对外唯一入口（actor） |
 | `Core/SSH` | SSH 隧道 |
 | `Core/Model` | 连接、表结构、暂存变更、过滤条件等模型 |
-| `Core/Store` | 连接配置、Keychain、查询历史、偏好 |
+| `Core/Store` | 连接配置、凭据文件、查询历史、偏好 |
 | `Core/SQL` | 词法扫描、语句拆分、字面量生成、SQL 生成（纯函数，可单测） |
 | `Core/Meta` | `information_schema` 查询与缓存 |
 | `Features/*` | 各界面模块 |
@@ -55,7 +55,7 @@
 ## 5. 沙箱与签名
 
 - **不开启 App Sandbox**，理由：需要读 `~/.ssh/config` 与私钥、以用户身份启动 `ssh` 子进程、连接任意 TCP 主机。
-- 签名用本机自签名证书（只为让 Keychain 的「始终允许」授权跨构建有效，见 `12-build-and-deps.md` §3.4）；不公证，关闭 hardened runtime。
+- 签名用本机自签名证书（让代码身份跨构建稳定；**不再与 Keychain 授权相关** —— 凭据已移出钥匙串，见 `12-build-and-deps.md` §3.4、`02-persistence.md` §3）；不公证，关闭 hardened runtime。
 - 仍申请 `com.apple.security.network.client`，便于将来切换。
 
 ## 6. 依赖与外部约束
@@ -64,7 +64,6 @@
 | --- | --- | --- |
 | libmysqlclient | Homebrew `mysql-client` | MySQL 协议 |
 | libsqlite3 | macOS 系统 | 查询历史 / Console Log |
-| Security.framework | 系统 | Keychain |
 | AppKit / SwiftUI | 系统 | UI |
 | /usr/bin/ssh | 系统 | SSH 隧道 |
 

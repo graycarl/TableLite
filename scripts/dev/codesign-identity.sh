@@ -2,9 +2,13 @@
 # 生成本机自签名 code signing 证书，导入登录钥匙串，让构建用它签名。
 #
 # 为什么需要它：ad-hoc 签名（CODE_SIGN_IDENTITY = -）下 App 的「代码身份」就是二进制哈希，
-# 改一行代码重新构建就变，Keychain 里「始终允许」记住的授权随之失效 —— 每个密码条目都要
-# 重新授权一次。换成自签名证书后代码身份变成 `identifier … and certificate leaf …`，
-# 与代码内容无关。决策与接线见 docs/tech-designs/12-build-and-deps.md §3.4。
+# 改一行代码重新构建就变。换成自签名证书后代码身份变成 `identifier … and certificate leaf …`，
+# 与代码内容无关，按代码身份授权的系统机制（TCC 之类）才认得出是同一个 App。
+#
+# 注意：它**不能**让登录钥匙串的「始终允许」跨构建有效 —— 钥匙串还有第二道 XARA partition，
+# 只认 cdhash / teamid，自签名证书没有 TeamID，救不了。凭据因此已移出钥匙串
+# （存 credentials.json）。见 docs/tech-designs/12-build-and-deps.md §3.4、
+# docs/tech-designs/02-persistence.md §3.1。
 #
 # 幂等：证书已存在就直接退出。证书是**机器本地状态**，不进仓库，也不含任何秘密。
 #
@@ -35,7 +39,7 @@ command -v openssl >/dev/null 2>&1 || die "找不到 openssl。修复：brew ins
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# ---- 1. 生成自签名证书与私钥（已有就跳过 —— 换证书就意味着 Keychain 要重新授权一次）----
+# ---- 1. 生成自签名证书与私钥（已有就跳过 —— 换证书就意味着代码身份变了，要重新确认）----
 if security find-certificate -c "$IDENTITY" "$KEYCHAIN" >/dev/null 2>&1; then
   ok "证书已在钥匙串里，跳过生成"
   security find-certificate -c "$IDENTITY" -p "$KEYCHAIN" > "$WORK/cert.pem" 2>/dev/null || true
@@ -129,5 +133,5 @@ if [[ $sign_status -ne 0 ]]; then
 fi
 
 printf "\n${GREEN}完成。${RESET}接着：\n"
-printf "  1. make run —— 第一次会弹一次 Keychain 授权（旧条目记的是旧的 ad-hoc 身份），点「始终允许」\n"
-printf "  2. 之后再怎么改代码重新构建，都不会再弹\n\n"
+printf "  1. make run —— 本机自签名只影响代码身份；密码不再走钥匙串（改存 credentials.json）\n"
+printf "  2. 旧的钥匙串条目不会再被读取，想清掉就去「钥匙串访问」里删\n\n"

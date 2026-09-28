@@ -143,7 +143,7 @@ struct ConnectionFormView: View {
                 fieldLabel("密码")
                 SecureField("（可留空）", text: $form.password)
                     .frame(width: 240)
-                Toggle("保存到钥匙串", isOn: $form.savePasswordToKeychain)
+                Toggle("保存密码", isOn: $form.savePassword)
                     .toggleStyle(.checkbox)
                 Spacer()
             }

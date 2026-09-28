@@ -32,7 +32,7 @@ public enum ConnectionColor: String, Sendable, Codable, CaseIterable, Hashable {
 
 // MARK: - MySQL 配置
 
-/// 连接 MySQL 所需的配置。**不含密码**：密码只进 Keychain。
+/// 连接 MySQL 所需的配置。**不含密码**：密码只进凭据文件。
 ///
 /// 字段与默认值见 `specs/01-connections.md` §2。
 public struct MySQLConfig: Sendable, Codable, Equatable, Hashable {
@@ -115,12 +115,12 @@ public enum SSHAuthMethod: String, Sendable, Codable, CaseIterable, Hashable {
         switch self {
         case .sshConfigOrAgent: return "（推荐，平时怎么连就怎么连）"
         case .privateKey: return nil
-        case .password: return "（密码保存在系统钥匙串里）"
+        case .password: return "（密码保存在本机）"
         }
     }
 }
 
-/// SSH 隧道配置。**不含密码 / passphrase**：只进 Keychain。
+/// SSH 隧道配置。**不含密码 / passphrase**：只进凭据文件。
 ///
 /// 字段见 `specs/01-connections.md` §2 与 `specs/10-ssh-tunnel.md` §2。
 public struct SSHConfig: Sendable, Codable, Equatable, Hashable {
@@ -168,7 +168,7 @@ public struct Connection: Sendable, Codable, Equatable, Hashable, Identifiable {
     public var id: UUID
     public var name: String
     public var color: ConnectionColor
-    /// 只读标记与密码一起持久化（不进 Keychain）。
+    /// 只读标记与密码一起持久化（不进凭据文件）。
     public var isReadOnly: Bool
     public var mysql: MySQLConfig
     public var ssh: SSHConfig

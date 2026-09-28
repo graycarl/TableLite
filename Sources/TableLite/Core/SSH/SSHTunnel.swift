@@ -18,7 +18,7 @@ public struct SSHTunnelEndpoint: Sendable, Equatable {
 
 // MARK: - 口令
 
-/// 上层从 Keychain 取出的 SSH 口令。本层只接收字符串，不碰 Keychain。
+/// 上层从凭据文件取出的 SSH 口令。本层只接收字符串，不碰凭据存储。
 public enum SSHSecret: Sendable, Equatable {
     /// SSH 账号密码（`authMethod == .password`）。
     case password(String)
@@ -43,7 +43,7 @@ public struct SSHTunnelConfiguration: Sendable, Equatable {
     /// MySQL 远端端口。
     public var remotePort: Int
 
-    /// 密码认证的密码，或私钥认证的口令。由上层从 Keychain 取。
+    /// 密码认证的密码，或私钥认证的口令。由上层从凭据文件取。
     public var secret: SSHSecret?
 
     public init(ssh: SSHConfig, remoteHost: String, remotePort: Int, secret: SSHSecret? = nil) {

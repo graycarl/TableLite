@@ -190,7 +190,7 @@ final class ConnectionListViewModel {
         }
 
         apply(update, connectionID: connection.id, kind: .mysqlPassword)
-        // SSH 密码只存钥匙串（`specs/10-ssh-tunnel.md` §3.3）。
+        // SSH 密码只存凭据文件（`specs/10-ssh-tunnel.md` §3.3）。
         apply(sshUpdate, connectionID: connection.id, kind: .sshPassword)
 
         isFormPresented = false
@@ -216,7 +216,7 @@ final class ConnectionListViewModel {
 
     // MARK: - 增删改
 
-    /// 复制为新连接（`specs/01-connections.md` §1 右键菜单）。连同钥匙串凭据一起复制。
+    /// 复制为新连接（`specs/01-connections.md` §1 右键菜单）。连同已保存的凭据一起复制。
     func duplicate(_ connection: Connection) async {
         let copy = connection.duplicated(now: environment.clock.now)
         do {
@@ -260,7 +260,7 @@ final class ConnectionListViewModel {
         await delete(connection)
     }
 
-    /// 删除连接（先经 `pendingDeletion` 弹确认），钥匙串由 `ConnectionStore.delete(id:)` 连带清理。
+    /// 删除连接（先经 `pendingDeletion` 弹确认），凭据由 `ConnectionStore.delete(id:)` 连带清理。
     func delete(_ connection: Connection) async {
         pendingDeletion = nil
         do {
@@ -283,7 +283,7 @@ final class ConnectionListViewModel {
 
     /// 连接一个连接配置。
     ///
-    /// `password` 为 nil 时从钥匙串取；取不到则弹出密码输入框（不直接连）。
+    /// `password` 为 nil 时从凭据文件取；取不到则弹出密码输入框（不直接连）。
     func connect(_ connection: Connection, password: String? = nil, sshPassword: String? = nil) async {
         var resolved = password
         if resolved == nil {
@@ -334,7 +334,7 @@ final class ConnectionListViewModel {
         }
     }
 
-    /// 弹窗提交：勾选「记住」时写入钥匙串（口令 / 密码绝不落明文到配置文件）。
+    /// 弹窗提交：勾选「记住」时写入凭据文件（口令 / 密码绝不写进 `connections.json`）。
     func submitSSHSecretPrompt(_ value: String, remember: Bool) {
         guard let prompt = sshSecretPrompt else { return }
         sshSecretPrompt = nil
@@ -470,7 +470,7 @@ final class ConnectionListViewModel {
                 try environment.credentials.deletePassword(for: connectionID, kind: kind)
             }
         } catch {
-            errorMessage = Self.describe(error, fallback: "保存密码到钥匙串失败。")
+            errorMessage = Self.describe(error, fallback: "保存密码失败。")
         }
     }
 

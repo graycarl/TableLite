@@ -19,7 +19,7 @@ gen: deps ## 用 XcodeGen 生成 Xcode 工程
 	@echo "==> xcodegen generate"
 	@xcodegen generate
 
-signing: ## 建/导入本机自签名证书，让 Keychain 授权跨构建有效（新机器一次性；见 docs/tech-designs/12 §3.4）
+signing: ## 建/导入本机自签名证书，稳定代码身份（新机器一次性；见 docs/tech-designs/12 §3.4）
 	@./scripts/dev/codesign-identity.sh
 	@./scripts/gen-local-xcconfig.sh
 
@@ -33,7 +33,19 @@ build: gen ## 构建 .app
 		-quiet \
 		build
 
-run: build ## 构建并启动
+run: build ## 构建并启动（先退出已在运行的实例）
+	@# 重新构建后还在跑的旧实例，磁盘二进制与运行中的进程不一致：securityd 会报
+	@# -67034 errSecStaticCodeChanged 并静默拒绝凭据访问（连授权弹窗都不给）。
+	@# 见 docs/tech-designs/12-build-and-deps.md §3.4。
+	@if pgrep -xq TableLite; then \
+		echo "==> 退出正在运行的 TableLite"; \
+		osascript -e 'tell application id "com.graycarl.tablelite" to quit' >/dev/null 2>&1 || true; \
+		for _ in $$(seq 1 40); do pgrep -xq TableLite || break; sleep 0.25; done; \
+		if pgrep -xq TableLite; then \
+			echo "错误：TableLite 还在运行（可能停在未提交改动的确认框上，或首次需允许终端控制它），请手动退出后重跑。" >&2; \
+			exit 1; \
+		fi; \
+	fi
 	@open "$(BUILD_DIR)/Build/Products/$(CONFIG)/TableLite.app"
 
 test: gen ## 跑单元测试

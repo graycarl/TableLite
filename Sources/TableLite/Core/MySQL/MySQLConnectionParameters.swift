@@ -2,7 +2,7 @@ import Foundation
 
 /// 建立一条 MySQL 连接所需的**自包含**参数。
 ///
-/// 它不依赖 `Connection` 模型，也不持有 Keychain：密码由调用方按需取出后传入
+/// 它不依赖 `Connection` 模型，也不持有凭据：密码由调用方按需取出后传入
 /// （见 `docs/tech-designs/05-session-management.md` §1）。
 ///
 /// 从 `MySQLConfig` 映射见 `init(config:password:)`，是纯函数，可单测。
@@ -61,7 +61,7 @@ public struct MySQLConnectionParameters: Sendable, Equatable, Hashable {
         self.keepAliveInterval = keepAliveInterval
     }
 
-    /// 从连接模型映射。`password` 由调用方从 Keychain 取出。
+    /// 从连接模型映射。`password` 由调用方从凭据文件取出。
     ///
     /// 端口与 socket 做归一化（非法端口回退 3306，空白 socket 视为 nil），与连接表单校验
     /// 的取值保持一致，避免把未校验的值直接交给 C 层。

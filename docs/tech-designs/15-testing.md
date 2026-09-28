@@ -22,7 +22,7 @@
 
 - 单元测试只测纯逻辑：语句拆分、词法扫描、字面量生成、CSV 编解码、SSH 参数拼装、
   暂存区合并规则、过滤器 SQL 生成 —— 也就是 `AGENTS.md` 要求写成纯函数的那些。
-- 集成测试测必须打真库的东西：`MySQLSession`、`MetaRepository`、SQLite 仓库、Keychain 替身。
+- 集成测试测必须打真库的东西：`MySQLSession`、`MetaRepository`、SQLite 仓库。
 - 命名 `<被测类型>Tests`，一个被测类型一个文件。
 - **不做 UI 自动化测试**：验收清单就是 `manual/` 的 14 页，人工过一遍（S22）。
 - **不设覆盖率门槛**：覆盖率不驱动这个项目的决策。
@@ -35,7 +35,7 @@
 | 协议 | 不抽就测不了什么 |
 | --- | --- |
 | `Clock` | 空闲回收 5 分钟、元数据 TTL、草稿防抖 1s、查询超时、SSH 就绪轮询 |
-| `CredentialStore` | Keychain 在单测与 CI 里不可用，必须有内存实现 |
+| `CredentialStore` | 读写落盘，UI 与会话层不该直接碰文件系统；单测用内存实现 |
 | `FileSystemLocator` | `Application Support` 路径、临时文件 + 原子替换、测试要指到临时目录 |
 
 - 每个协议两份实现：`Live…`（真实）与 `InMemory…`（测试）。

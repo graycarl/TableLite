@@ -1,7 +1,7 @@
 import XCTest
 @testable import TableLite
 
-/// 凭据存储替身的行为。真实的 Keychain 实现见 `Integration/KeychainCredentialStoreTests.swift`。
+/// 凭据存储替身的行为。落盘实现见 `FileCredentialStoreTests.swift`。
 final class CredentialStoreTests: XCTestCase {
 
     func testSetGetHasDelete() throws {
@@ -63,9 +63,8 @@ final class CredentialStoreTests: XCTestCase {
         XCTAssertNil(try store.password(for: id, kind: .mysqlPassword))
     }
 
-    func testServiceNamesAreDistinct() {
-        let names = CredentialKind.allCases.map(\.service)
-        XCTAssertEqual(Set(names).count, CredentialKind.allCases.count)
-        XCTAssertTrue(names.allSatisfy { $0.hasPrefix("com.graycarl.tablelite.") })
+    func testKindRawValuesAreDistinctJSONKeys() {
+        let keys = CredentialKind.allCases.map(\.rawValue)
+        XCTAssertEqual(Set(keys).count, CredentialKind.allCases.count)
     }
 }

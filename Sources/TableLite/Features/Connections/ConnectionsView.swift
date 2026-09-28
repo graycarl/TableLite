@@ -91,7 +91,7 @@ private struct ConnectionListContent: View {
                 Task { await viewModel.delete(connection) }
             }
         } message: { _ in
-            Text("同时会删除保存在系统钥匙串里的密码。\n此操作不可撤销。")
+            Text("同时会删除该连接保存的密码。\n此操作不可撤销。")
         }
         .confirmationDialog(
             "有未提交的修改",
@@ -389,7 +389,7 @@ private struct ConnectionPasswordPromptView: View {
             SecureField("MySQL 密码", text: $password)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { onSubmit(password, remember) }
-            Toggle("记住密码（保存到钥匙串）", isOn: $remember)
+            Toggle("记住密码", isOn: $remember)
                 .toggleStyle(.checkbox)
             HStack {
                 Spacer()
@@ -409,7 +409,7 @@ private struct ConnectionPasswordPromptView: View {
 /// 需要 SSH 密码或私钥口令时的输入框（`specs/10-ssh-tunnel.md` §3.2 / §3.3）。
 ///
 /// 由 `ConnectionSession` 的连接流程通过 `sshSecretRequester` 弹出；勾选「记住」时
-/// 由 ViewModel 写入系统钥匙串。界面只展示「需要」，不回显任何已保存的凭据。
+/// 由 ViewModel 写入凭据文件。界面只展示「需要」，不回显任何已保存的凭据。
 private struct SSHSecretPromptView: View {
 
     let request: SSHSecretRequest
@@ -431,7 +431,7 @@ private struct SSHSecretPromptView: View {
             SecureField(isPassphrase ? "私钥口令" : "SSH 密码", text: $secret)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { onSubmit(secret, remember) }
-            Toggle(isPassphrase ? "记住口令（保存到钥匙串）" : "记住密码（保存到钥匙串）", isOn: $remember)
+            Toggle(isPassphrase ? "记住口令" : "记住密码", isOn: $remember)
                 .toggleStyle(.checkbox)
             HStack {
                 Spacer()

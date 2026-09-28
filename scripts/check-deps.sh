@@ -90,13 +90,14 @@ if [[ -n "${MYSQL_PREFIX:-}" ]]; then
 fi
 
 # ---- 代码签名 ----
-# 没装自签名证书也能构建（退回 ad-hoc），但那样每次重新构建后 Keychain 都会重新要授权。
+# 没装自签名证书也能构建（退回 ad-hoc），但代码身份会随每次构建变化，
+# 系统按代码身份记的授权（TCC 之类）就会反复追问。
 # 决策见 docs/tech-designs/12-build-and-deps.md §3.4。
 printf "\n== 代码签名 ==\n"
 if security find-identity -v -p codesigning 2>/dev/null | grep -q '"TableLite Local Dev"'; then
-  ok "本机自签名证书 TableLite Local Dev（Keychain 授权可跨构建保持）"
+  ok "本机自签名证书 TableLite Local Dev（代码身份跨构建稳定）"
 else
-  note "没有本机自签名证书，本次构建用 ad-hoc 签名：每次重新构建后 Keychain 都要重新授权（执行：make signing）"
+  note "没有本机自签名证书，本次构建用 ad-hoc 签名：代码身份每次构建都变（执行：make signing）"
 fi
 
 printf "\n"

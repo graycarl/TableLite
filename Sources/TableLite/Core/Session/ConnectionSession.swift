@@ -804,7 +804,7 @@ public final class ConnectionSession: Identifiable {
         }
     }
 
-    /// 解析本次连接要用的 SSH 凭据：先查内存 / 钥匙串，都没有再按需向 UI 索要。
+    /// 解析本次连接要用的 SSH 凭据：先查内存 / 凭据文件，都没有再按需向 UI 索要。
     ///
     /// - 密码认证缺密码、或加密私钥缺口令时，调 `sshSecretRequester` 弹窗；
     /// - 未加密的私钥不弹窗（`SSHPrivateKeyInspector` 预先判断）；

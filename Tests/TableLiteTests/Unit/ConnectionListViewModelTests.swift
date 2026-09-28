@@ -306,7 +306,7 @@ final class ConnectionListViewModelTests: XCTestCase {
 
     // MARK: SSH 密码 / 口令（`specs/10-ssh-tunnel.md` §3.2 / §3.3）
 
-    func testSaveCurrentFormStoresSSHPasswordInKeychain() async throws {
+    func testSaveCurrentFormStoresSSHPassword() async throws {
         let viewModel = makeViewModel()
         await viewModel.load()
         viewModel.beginCreate()

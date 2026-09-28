@@ -19,7 +19,7 @@
 
 - 认证方式三选一：密码 / 私钥 / 交给 ssh 自己（config、agent、默认 key）。
 - `host` 可以是 `~/.ssh/config` 里的别名；`jumpHost` 非空时透传 `-J`。
-- 密码与 passphrase 不进配置文件，按需从 Keychain 取。
+- 密码与 passphrase 不进 `connections.json`，按需从凭据文件取（`02-persistence.md` §3）。
 
 ## 3. 命令拼装
 

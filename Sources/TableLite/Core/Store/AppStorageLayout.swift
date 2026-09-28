@@ -30,6 +30,11 @@ public struct AppStorageLayout: Sendable, Equatable {
         rootDirectory.appendingPathComponent("connections.json")
     }
 
+    /// 凭据：数据库密码 / SSH 密码 / SSH 私钥口令（`02-persistence.md` §3，`0600`，明文）。
+    public var credentialsFile: URL {
+        rootDirectory.appendingPathComponent("credentials.json")
+    }
+
     /// 查询历史 SQLite 库（`02-persistence.md` §4）。
     public var historyDatabase: URL {
         rootDirectory.appendingPathComponent("history.sqlite3")

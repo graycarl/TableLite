@@ -5,7 +5,7 @@
 ## 1. 模型
 
 - `Connection`：id / 名称 / 颜色 / 只读标记 / MySQL 配置 / SSH 配置 / 时间戳。
-- **密码与 passphrase 不在 `Connection` 里**，按需从 Keychain 取（`02-persistence.md` §3）。
+- **密码与 passphrase 不在 `Connection` 里**，按需从凭据文件取（`02-persistence.md` §3）。
 - 序列化格式见 `02-persistence.md` §2。
 
 ## 2. 会话与全局管理

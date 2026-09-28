@@ -72,12 +72,12 @@ public final class AppEnvironment {
         }
     }
 
-    /// 真实运行环境（`Application Support/TableLite` + Keychain + UserDefaults）。
+    /// 真实运行环境（`Application Support/TableLite` + 凭据文件 + UserDefaults）。
     public static func live() throws -> AppEnvironment {
         let layout = try AppStorageLayout.live()
         let clock = SystemClock()
         let preferences = Preferences()
-        let credentials = KeychainCredentialStore()
+        let credentials = FileCredentialStore(layout: layout)
         let connections = ConnectionStore(layout: layout, credentials: credentials)
         let consoleLog = ConsoleLogStore(
             capacity: preferences.consoleLogCapacity,

@@ -13,7 +13,7 @@
 | 历史 / 日志存储 | 系统 `libsqlite3` | 零额外依赖 |
 | 第三方 Swift Package | **零依赖** | 减少维护面；引入必须先在 `13-open-questions.md` 记录理由（T10） |
 
-应用形态：自用工具，**不公证、不开沙箱**，最低 macOS 版本由链接进来的 Homebrew 静态库决定（见 §3.3）。理由：需要读取 `~/.ssh/config` 与私钥、以用户身份启动 `ssh` 子进程、连接任意 TCP 主机。签名走**本机自签名**（见 §3.4）—— 不是为了过 Gatekeeper，而是为了让 Keychain 的「始终允许」授权在重新构建后仍然有效。
+应用形态：自用工具，**不公证、不开沙箱**，最低 macOS 版本由链接进来的 Homebrew 静态库决定（见 §3.3）。理由：需要读取 `~/.ssh/config` 与私钥、以用户身份启动 `ssh` 子进程、连接任意 TCP 主机。签名走**本机自签名**（见 §3.4）—— 不是为了过 Gatekeeper，而是为了让代码身份（designated requirement）在重新构建后保持稳定。**注意：这不足以让登录钥匙串的「始终允许」跨构建有效**（两道门里只有第一道能被证书固定），所以凭据已改存文件，见 `02-persistence.md` §3。
 
 ## 2. Homebrew 依赖
 
@@ -75,14 +75,14 @@ Homebrew 的 bottle 按构建时的系统构建，`minos` 会写进二进制本�
 - 若将来确实要支持更低系统，需在旧 SDK 上自建 dylib，或改用 MySQL 官方 tarball 的库 —— 届时重开此决策，并重新评估 `03-mysql-layer.md` 锁定的「Homebrew `mysql-client`」方案。
 - 历史：T11 原定案（2026-09-21）是「与构建机系统版本保持一致（当时 27.0），不声称支持更低」，并要求升级后人工同步。构建机退回 macOS 26.6.2、依赖 bottle 变成 `minos` 26.0 之后这条规则失效（写死的 27.0 让产物在本机无法启动），故重定案。
 
-### 3.4 代码签名：本机自签名（决策记录，2026-09-25）
+### 3.4 代码签名：本机自签名（决策记录，2026-09-25；2026-09-29 修正动机）
 
 **问题**：ad-hoc 签名（`CODE_SIGN_IDENTITY = -`）下 App 的「代码身份」就是二进制的哈希 —— `codesign -dvvv` 显示
-`designated => cdhash H"…"`。改一行代码重新构建，哈希就变，Keychain 里「始终允许」记住的授权随之失效，
-每个条目（MySQL 密码 / SSH 密码 / SSH 私钥口令）都要重新授权一次。Debug 构建把代码放进
-`TableLite.debug.dylib` 也救不了：41 KB 的主二进制壳会跟着一起变（实测 `bd44a621…` → `78af6315…`）。
+`designated => cdhash H"…"`。改一行代码重新构建，哈希就变。Debug 构建把代码放进 `TableLite.debug.dylib`
+也救不了：41 KB 的主二进制壳会跟着一起变（实测 `bd44a621…` → `78af6315…`）。
 
 **决策：开发机用一张本机自签名的 code signing 证书签名；构建机上没有该证书时自动退回 ad-hoc。**
+让 App 的代码身份（DR）只跟 bundle id 与证书绑定，不跟代码内容绑定。
 
 - 一次性生成：`make signing`（`scripts/dev/codesign-identity.sh`）在登录钥匙串里建出 `TableLite Local Dev`
   证书并导入私钥，再把签名身份写进 `Configs/Local.xcconfig`（该文件不进版本控制）。脚本幂等，
@@ -91,17 +91,32 @@ Homebrew 的 bottle 按构建时的系统构建，`minos` 会写进二进制本�
   不需要 sudo）：不加的话 `find-identity` 报 `CSSMERR_TP_NOT_TRUSTED`，codesign 直接说 `no identity found`。
   脚本会自己补上；要撤销就在钥匙串访问里删掉该证书的代码签名信任。
 - 签出来的 DR 是 `identifier "com.graycarl.tablelite" and certificate leaf = H"…"`：只跟 bundle id 与证书绑定，
-  **与代码内容无关**，所以重构建、Debug / Release 互换都命中同一批 Keychain 授权。
+  **与代码内容无关**，所以重构建、Debug / Release 互换都命中同一个身份。对按代码身份授权的系统机制
+  （TCC 之类）有效。
 - 接线必须走变量间接：`project.yml` 里写 `CODE_SIGN_IDENTITY: $(TABLELITE_CODESIGN_IDENTITY:default=-)`，
   由 `scripts/gen-local-xcconfig.sh` 在发现该身份时把变量写进 `Configs/Local.xcconfig`。
   **不能**直接把身份写进 `Configs/Local.xcconfig` —— target 级设置会盖住工程级 xcconfig（实测）。
-- 边界：
-  - 证书是**机器本地状态**，不进仓库；换机 / 证书丢失后重新 `make signing`，Keychain 会重新授权一次（DR 变了）。
-  - `spctl` 依旧 reject（自签名过不了 Gatekeeper），实际影响与 ad-hoc 时期相同：本机构建产物没有 quarantine
-    属性，`open` 照常启动。**不公证**这条没变（`specs/00-scope.md` 的 D3）。
-  - 只解决 Keychain 重复授权；「不开沙箱」「不做 hardened runtime」这两条也没变（§1、`01-architecture.md` §5）。
-  - 想彻底没有 ACL 与授权弹窗（data protection keychain）必须先有真 Apple 签名 + provisioning profile：
-    实测 ad-hoc 签名 + 手写 `keychain-access-groups` entitlement 的进程会被 AMFI `Killed: 9`。见 `13-open-questions.md` T13。
+
+**边界（2026-09-29 实测修正）**：
+
+- **它不能让登录钥匙串的「始终允许」跨构建有效。** 钥匙串有两道门：① ACL 受信任应用（加密 ACL 里的
+  `CodeSignatureAclSubject`）能被这张证书固定；② **XARA partition**（`___PARTITION___` ACL 条目）是一串
+  字面量，securityd 只做字符串包含判断，而自签名证书没有 TeamID（`TeamIdentifier=not set`），App 的
+  partition 只能是 `cdhash:<二进制哈希>` —— 改一行代码就变，所以每次重新构建仍会弹一次授权。
+  客户端 partition 只有 `unsigned:` / `apple:` / `apple-tool:` / `teamid:<TEAM>` / `cdhash:<H>` 五种，
+  `req:` 这类写法不存在；`-A`（allow-any-app）、创建时自带 `SecAccess`、改已有条目的 partition 列表
+  都绕不过（最后一条要登录钥匙串密码）。结论：要么真 Apple 签名（`teamid:`），要么 data protection
+  keychain。详见 `02-persistence.md` §3.1、`13-open-questions.md` T13 / S42。
+- 因为上面这条，**凭据已改存本机文件**（`02-persistence.md` §3），钥匙串不再参与；旧条目不自动迁移、
+  不自动清理。
+- 证书是**机器本地状态**，不进仓库；换机 / 证书丢失后重新 `make signing`。
+- `spctl` 依旧 reject（自签名过不了 Gatekeeper），实际影响与 ad-hoc 时期相同：本机构建产物没有 quarantine
+  属性，`open` 照常启动。**不公证**这条没变（`specs/00-scope.md` 的 D3）；「不开沙箱」「不做 hardened runtime」
+  也没变（§1、`01-architecture.md` §5）。
+- 想在**真要用钥匙串**时零弹窗（data protection keychain）必须先有真 Apple 签名 + provisioning profile：
+  实测 ad-hoc / 自签名 + 手写 `keychain-access-groups` entitlement 的进程会被 AMFI `Killed: 9`。见 `13-open-questions.md` T13。
+- 历史：2026-09-25 的原定案声称「靠自签名证书让 Keychain 授权跨构建有效」——该效果未成立（只稳住了
+  ①，没稳住 ②）。2026-09-29 查明原因并把凭据移出钥匙串，自签名证书保留，但动机改为「稳定代码身份」。
 
 ## 4. 构建入口
 
