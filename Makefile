@@ -91,6 +91,15 @@ doctor: deps ## 打印依赖与链接情况，排查构建问题
 		otool -L "$$bin" | tail -n +2 | awk '{print $$1}' | grep '^/opt/homebrew/' || echo "  (无 Homebrew 引用)"; \
 	fi
 	@echo
+	@echo "== 部署目标（推导值见 12-build-and-deps.md §3.3）=="
+	@grep -h '^TABLELITE_DEPLOYMENT_TARGET' Configs/Local.xcconfig 2>/dev/null \
+		| sed 's/^/  /' || echo "  (Configs/Local.xcconfig 里没有，用 project.yml 的 default=)"
+	@dir="$(BUILD_DIR)/Build/Products/$(CONFIG)/TableLite.app/Contents"; \
+	if [[ -f "$$dir/Info.plist" ]]; then \
+		printf "  产物声明最低 macOS %s\n" "$$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$$dir/Info.plist")"; \
+	else echo "  (还没构建，先 make build)"; fi
+	@echo "  本机 macOS $$(sw_vers -productVersion)"
+	@echo
 	@echo "== 外部认证插件（连老服务器时才用到，见 13-open-questions.md L41）=="
 	@ls "$$(brew --prefix mysql-client)/lib/plugin" 2>/dev/null || true
 

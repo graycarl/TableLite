@@ -46,8 +46,8 @@
 | --- | --- | --- |
 | 数据库访问 | libmysqlclient（Homebrew `mysql-client`）+ 薄 C shim | [12](12-build-and-deps.md) §1 |
 | 支持的数据库 | 只支持 MySQL 8.0+，不支持 MariaDB | [15](15-testing.md) §1 |
-| 依赖链接方式 | **全静态链接**：`mysql-client` / `openssl@3` / `zstd` / `zlib-ng-compat` 的 `.a` 直接链进二进制；不设 rpath，不把 dylib 内嵌进 `.app` | [12](12-build-and-deps.md) §3.1 |
-| 部署目标 | 与构建机系统版本一致（当前 27.0），不声称支持更低 macOS —— 依赖 bottle 的 `minos` 无法降低 | [12](12-build-and-deps.md) §3.3 |
+| 依赖链接方式 | **全静态链接**：`mysql-client` / `openssl@3` / `zstd` / `zlib-ng-compat` 的 `.a` 直接链进二进制；不设 rpath，不把 dylib 内嵌进 `.app`；产物只出 arm64 单架构（`.a` 没有 x86_64） | [12](12-build-and-deps.md) §3.1 |
+| 部署目标 | 取链接进来的静态库中最大的 `minos`（= 依赖下限，当前 26.0）；由 `make deps` 推导并注入，不声称支持更低 macOS | [12](12-build-and-deps.md) §3.3 |
 | 写入方式 | **不用 prepared statement**，生成 SQL 字面量下发 | [03](03-mysql-layer.md) §1 |
 | 字符串 / 二进制转义 | 字符串走 `mysql_real_escape_string`；二进制走 `0x…` 十六进制字面量 | [03](03-mysql-layer.md) §4.2 |
 | 并发模型 | 每个连接一条专用串行队列，所有 libmysqlclient 调用都在其上；`MySQLSession` 是 actor | [01](01-architecture.md) §3 |

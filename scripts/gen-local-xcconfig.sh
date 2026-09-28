@@ -26,6 +26,63 @@ fi
 : "${ZSTD_PREFIX:=$(brew --prefix)/opt/zstd}"
 : "${ZLIB_NG_PREFIX:=$(brew --prefix)/opt/zlib-ng-compat}"
 
+# ---- 部署目标：由依赖静态库的 minos 推导 ----
+# 链接进 App 的每个 .a / dylib 都带自己的 minos，产物无法声称支持比它更低的系统，
+# 取最大值即为下限。推导结果写进 Local.xcconfig 的 TABLELITE_DEPLOYMENT_TARGET，
+# project.yml 用 $(TABLELITE_DEPLOYMENT_TARGET:default=…) 引用。
+# 决策与理由见 docs/tech-designs/12-build-and-deps.md §3.3。
+STATIC_LIBS=(
+  "$MYSQL_CLIENT_PREFIX/lib/libmysqlclient.a"
+  "$OPENSSL_PREFIX/lib/libssl.a"
+  "$OPENSSL_PREFIX/lib/libcrypto.a"
+  "$ZSTD_PREFIX/lib/libzstd.a"
+  "$ZLIB_NG_PREFIX/lib/libz.a"
+)
+
+# .a 缺失或读不出 minos 时的兜底值。写在这里而不是放任 project.yml 落回
+# default=，是为了让回退跟其他机器相关配置一样看得见（下方会打印警告）。
+FALLBACK_DEPLOYMENT_TARGET=26.0
+
+# 打印单个静态库里出现的全部 minos（含 LC_VERSION_MIN_MACOSX 这种旧写法）
+minos_of() {
+  otool -l "$1" 2>/dev/null | awk '
+    /cmd LC_BUILD_VERSION/      { f = 1; next }
+    /cmd LC_VERSION_MIN_MACOSX/ { g = 1; next }
+    f && /minos/                { print $2; f = 0 }
+    g && /version/              { print $2; g = 0 }
+  '
+}
+
+# 版本号比较：$1 > $2（按点分段数值比较，macOS 的 sort 没有 -V）
+version_gt() {
+  [[ "$1" != "$2" ]] && \
+    [[ "$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n | tail -1)" == "$1" ]]
+}
+
+DEPLOYMENT_TARGET=""
+for lib in "${STATIC_LIBS[@]}"; do
+  [[ -f "$lib" ]] || continue
+  while read -r version; do
+    [[ -n "$version" ]] || continue
+    DEPLOYMENT_TARGET="$(printf '%s\n%s\n' "${DEPLOYMENT_TARGET:-0}" "$version" \
+      | sort -t. -k1,1n -k2,2n | tail -1)"
+  done < <(minos_of "$lib")
+done
+
+MACOS_VERSION="$(sw_vers -productVersion)"
+
+if [[ -z "$DEPLOYMENT_TARGET" ]]; then
+  echo "警告：读不出依赖静态库的 minos，部署目标回退到 $FALLBACK_DEPLOYMENT_TARGET" >&2
+  echo "      （先跑 make deps 看依赖是否齐全）" >&2
+  DEPLOYMENT_TARGET="$FALLBACK_DEPLOYMENT_TARGET"
+elif version_gt "$DEPLOYMENT_TARGET" "${MACOS_VERSION%.*}"; then
+  # 把声明调小是没用的：库要求的 minos 不会跟着变小。
+  echo "警告：依赖静态库要求 macOS $DEPLOYMENT_TARGET，本机是 macOS $MACOS_VERSION ——" >&2
+  echo "      构建出的 App 在本机跑不起来（会被 LaunchServices 拒开）。" >&2
+  echo "      处理：brew reinstall mysql-client openssl@3 zstd zlib-ng-compat 装回与本机匹配的 bottle，" >&2
+  echo "      或者升级 macOS 后重跑 make deps。" >&2
+fi
+
 TMP="$(mktemp)"
 cat > "$TMP" <<EOF
 // 由 scripts/gen-local-xcconfig.sh 生成，请勿手工修改，也不要提交到版本控制。
@@ -35,6 +92,8 @@ MYSQL_CLIENT_PREFIX = $MYSQL_CLIENT_PREFIX
 OPENSSL_PREFIX = $OPENSSL_PREFIX
 ZSTD_PREFIX = $ZSTD_PREFIX
 ZLIB_NG_PREFIX = $ZLIB_NG_PREFIX
+// 部署目标下限 = 上面这些静态库中最大的 minos（由本脚本推导，不要手工改）：
+TABLELITE_DEPLOYMENT_TARGET = $DEPLOYMENT_TARGET
 EOF
 
 # 本机自签名签名身份（由 scripts/dev/codesign-identity.sh 建于登录钥匙串）。

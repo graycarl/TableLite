@@ -13,7 +13,7 @@
 | 历史 / 日志存储 | 系统 `libsqlite3` | 零额外依赖 |
 | 第三方 Swift Package | **零依赖** | 减少维护面；引入必须先在 `13-open-questions.md` 记录理由（T10） |
 
-应用形态：自用工具，**不公证、不开沙箱**，最低 macOS 版本跟随构建机的 Homebrew（见 §3.3）。理由：需要读取 `~/.ssh/config` 与私钥、以用户身份启动 `ssh` 子进程、连接任意 TCP 主机。签名走**本机自签名**（见 §3.4）—— 不是为了过 Gatekeeper，而是为了让 Keychain 的「始终允许」授权在重新构建后仍然有效。
+应用形态：自用工具，**不公证、不开沙箱**，最低 macOS 版本由链接进来的 Homebrew 静态库决定（见 §3.3）。理由：需要读取 `~/.ssh/config` 与私钥、以用户身份启动 `ssh` 子进程、连接任意 TCP 主机。签名走**本机自签名**（见 §3.4）—— 不是为了过 Gatekeeper，而是为了让 Keychain 的「始终允许」授权在重新构建后仍然有效。
 
 ## 2. Homebrew 依赖
 
@@ -45,6 +45,7 @@
   - `mysql_native_password` 等外部认证插件**没有**内建（`nm` 检查确认只内建了 `caching_sha2_password` / `sha256_password`），连老服务器时仍要用 `lib/plugin/*.so`（L41）。
   - `minos` 不会因此降低（§3.3）。
 - 边界：依赖的 keg-only 目录只需在**构建时**存在 —— 这正是这套方案的收益。
+- 边界二：产物**只出 arm64 单架构**（`project.yml` 的 `ARCHS = arm64`）。Homebrew 的 `.a` 只有 arm64，而 Release 的 `ARCHS` 默认是 `arm64 x86_64`，x86_64 切片必然链接失败（Debug 靠 `ONLY_ACTIVE_ARCH = YES` 躲过；装了 Rosetta 的机器上 `xcodebuild` 会把两个架构都编一遍，与部署目标无关）。自用工具不需要 Intel 产物；见 S41。
 - 历史：Phase 0 曾据「依赖全部指向 `/opt/homebrew/opt/<formula>` 稳定符号链接」定案为动态链接；该定案未失效（今天仍成立），只是自包含的价值更高，故改。
 - 回归防护：`scripts/package-dist.sh` 反过来断言产物里**一个** Homebrew 引用都没有，残留即失败。
 
@@ -57,19 +58,22 @@
 | 换 C 依赖来源（MySQL 官方 tarball / 自建） | 只在要降低 `minos`、支持更低 macOS 时才有必要（§3.3） |
 | 舍弃 C 依赖，改纯 Swift 协议实现 | §1 已否（多结果集、认证插件覆盖有缺口） |
 
-### 3.3 部署目标（决策记录，T11 已定案）
+### 3.3 部署目标（决策记录，T11 于 2026-09-28 重定案）
 
-Homebrew 的 bottle 按构建时的系统构建，`minos` 会写进 dylib 本身（实测在 macOS 27 上：`libmysqlclient` / `libssl` = 27.0、`libzstd` = 26.0），无法通过搬运文件降低。
+Homebrew 的 bottle 按构建时的系统构建，`minos` 会写进二进制本身（实测：bottle 在 macOS 27 上装出来是 27.0，在 macOS 26 上装出来是 26.0），无法通过搬运文件降低。**静态链接（§3.1）同样降低不了**：`.a` 里的目标文件本身就带 `minos`，链接产物不会更低。
 
-**决策：`MACOSX_DEPLOYMENT_TARGET` 与构建机系统版本保持一致（当前 27.0），不声称支持更低版本。**
+**决策：`MACOSX_DEPLOYMENT_TARGET` 取「链接进 App 的静态库中最大的 `minos`」（= 依赖下限），不声称支持更低版本。**
 
-- 理由：自用单机工具。在低于依赖 `minos` 的系统上运行是 Apple 不支持的组合 —— 行为未定义（可能加载期 `Symbol not found`，也可能运行到某个调用路径才崩溃）。把声明写成实际能做到的值，比留一个无法验证的承诺要好。
-- 副作用（正面）：`Info.plist` 的 `LSMinimumSystemVersion` 也随之变成 27.0，旧系统会直接拒给启动，而不是进入未定义行为。
+- 取值方式：由 `make deps` 读 5 个 `.a` 的 `minos` 后取最大值（`scripts/gen-local-xcconfig.sh`），写进 `Configs/Local.xcconfig` 的 `TABLELITE_DEPLOYMENT_TARGET`；`project.yml` 用 `$(TABLELITE_DEPLOYMENT_TARGET:default=26.0)` 引用 —— 与 §3.4 的签名身份同一手法（target 级设置会盖住工程级 xcconfig，所以必须走变量间接），`default=` 是 `Local.xcconfig` 缺失时的兜底。当前值 **26.0**（`libmysqlclient` / `libssl` / `libcrypto` / `libz` 都是 26.0，`libzstd` 15.0）。
+- 为什么不写死一个数字：写死就得在升级 macOS / `brew reinstall` 后人工同步，忘了的代价是产物在本机直接起不来（见下）。跟着依赖走就没有需要同步的地方。
+- 为什么不取「构建机系统版本」：那会平白抬高下限，而 bottle 的 `minos` 与构建机系统版本本来就不总相同（`libzstd` 就低很多）。
+- 理由：自用单机工具。在低于依赖 `minos` 的系统上运行是 Apple 不支持的组合 —— 行为未定义。把声明写成实际能做到的最低值。
 - 实测澄清：`minos` **并不阻止 dyld 加载**（在 macOS 27 上 `dlopen` 一个 `minos` = 99.0 的 dylib 成功）。所以这不是「启动即失败」，而是「未定义行为」。
+- 副作用（正面）：`Info.plist` 的 `LSMinimumSystemVersion` 取同一个值，低于它的系统会被 LaunchServices 直接拒开。实测：在 macOS 26.6.2 上 `open` 一个声明 27.0 的产物报 `-10825`，App 完全起不来。
+- 推导值高于本机系统时，`make deps` 打印警告并给出处理办法（`brew reinstall` 装回与本机匹配的 bottle）。**不要靠调小声明来绕过**：库要求的 `minos` 不会因为声明变小而变小。
 - §3.2 的「内嵌 dylib / vendor 预编译产物」**降低不了 `minos`**，与本决策无关。
-- 升级 macOS 后需同步这个值（`make deps` 不会自动改），否则链接警告会重新出现。
 - 若将来确实要支持更低系统，需在旧 SDK 上自建 dylib，或改用 MySQL 官方 tarball 的库 —— 届时重开此决策，并重新评估 `03-mysql-layer.md` 锁定的「Homebrew `mysql-client`」方案。
-- **静态链接（§3.1）降低不了 `minos`**：`.a` 里的目标文件本身就带 `minos 27.0`，链接产物仍是 27.0（实测）。
+- 历史：T11 原定案（2026-09-21）是「与构建机系统版本保持一致（当时 27.0），不声称支持更低」，并要求升级后人工同步。构建机退回 macOS 26.6.2、依赖 bottle 变成 `minos` 26.0 之后这条规则失效（写死的 27.0 让产物在本机无法启动），故重定案。
 
 ### 3.4 代码签名：本机自签名（决策记录，2026-09-25）
 

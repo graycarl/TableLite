@@ -1,9 +1,13 @@
 name: TableLite
 
+# 部署目标不在这里写死：由 make deps 从链接进来的静态库的 minos 推导（= 依赖下限），
+# 经 Configs/Local.xcconfig 的 TABLELITE_DEPLOYMENT_TARGET 注入；
+# default= 是 Local.xcconfig 缺失时的兜底值。
+# 理由见 docs/tech-designs/12-build-and-deps.md §3.3。
 options:
   bundleIdPrefix: com.graycarl
   deploymentTarget:
-    macOS: "27.0"
+    macOS: "$(TABLELITE_DEPLOYMENT_TARGET:default=26.0)"
   createIntermediateGroups: true
   groupSortPosition: top
 
@@ -11,7 +15,12 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
-    MACOSX_DEPLOYMENT_TARGET: "27.0"
+    MACOSX_DEPLOYMENT_TARGET: $(TABLELITE_DEPLOYMENT_TARGET:default=26.0)
+    # 只出 arm64 单架构：Homebrew 的 .a 只有 arm64，而 Release 的 ARCHS 默认是
+    # arm64 x86_64，x86_64 切片必然链接失败（Debug 靠 ONLY_ACTIVE_ARCH 躲过；
+    # 装了 Rosetta 的机器上 xcodebuild 会把两个架构都编一遍）。
+    # 自用工具不需要 Intel 产物。见 docs/tech-designs/12-build-and-deps.md §3.1。
+    ARCHS: arm64
     ENABLE_USER_SCRIPT_SANDBOXING: NO
     DEAD_CODE_STRIPPING: YES
     ALWAYS_SEARCH_USER_PATHS: NO
