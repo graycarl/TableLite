@@ -101,4 +101,27 @@ SwiftUI 的 `Table` 不支持十万行级稳定滚动、冻结列、细粒度列
 | 字段栏编辑到界面更新 | < 16 ms |
 | 1000 行内存 | < 20 MB（不含大字段） |
 
+### 10.1 单元格视图的构造成本（决策记录）
+
+**背景**：`products` 扩到 20 列后，数据浏览页滚动出现明显卡顿。实测（300 行、120 帧滚动）每帧耗时随可见单元格数线性放大：3 列 7.2 ms、10 列 23 ms、20 列 50.8 ms、40 列 122.5 ms。
+
+**根因**（`sample` + 逐项微基准）：
+
+1. **每个单元格都 eagerly 建一个 `NSButton`（三态复选框）**。在 macOS 26/27 上单个 `NSButton` 的构造成本约 **1 ms**（是 `NSTextField` 的 ~35 倍），且 `intrinsicContentSize` 会拖进 SwiftUI 的 `AttributeGraph`（`ViewGraphRootValueUpdater._sizeThatFits`），并让行初始化时的 key view loop 重建（`_setDefaultKeyViewLoop`）异常昂贵。**绝大多数列用不到复选框**，这份成本纯属浪费，且随列数成倍放大。
+2. 热路径按列线性扫描：`viewFor` 每个单元格都 `viewModel.columns.first(where:)`，总成本 O(列数²)。
+3. 每访问一次 `viewModel.gridRows` 就重新拼接一次 `rows + insertionRows`，而 `viewFor` / 行底色 / 选中回写都会访问。
+4. `rowViewForRow` 每次都 new 一个 `NSTableRowView`，没有走复用。
+5. 每配置一个文本单元格都无条件做 3 次 `replacingOccurrences` 单行化、无条件重设 `toolTip`。
+
+**决策**：
+
+- **禁止在单元格 `init` 里创建用不到的控件**。`GridCellView` 的三态复选框只在首次真正需要（偏好开启且是 `tinyint(1)` 列）时惰性创建；纯文本列永远不付出这份成本。
+- 协调器持有两个热路径索引：`columnsByName`（列名 → 元数据字典）与按 `dataRevision` 失效的 `rowsSnapshot` 行序列快照。`viewFor` / `numberOfRows` / 行底色 / 选中回写都读它们，**不得**在单元格级热路径上调用派生属性 `gridRows` 或线性查列。
+- `rowViewForRow` 通过 `makeView(withIdentifier:)` 复用行视图。
+- `singleLine` 先判有无换行再替换；`toolTip` 值没变就不重设。
+
+**效果**（同一基准）：20 列 50.8 ms → 4.6 ms/帧，40 列 122.5 ms → 8.8 ms/帧，回到 60 fps 预算内。
+
+**遗留**：若 `tinyintAsCheckbox` 打开且表里有多个 `tinyint(1)` 列，这些列的复选框仍要付 ~1 ms/个；后续可考虑用 SF Symbol 图片（`NSImageView`，约 20 µs）替代 `NSButton`（只读三态本就无交互）。
+
 **不做撤销 / 重做**（`13-open-questions.md` S5）。

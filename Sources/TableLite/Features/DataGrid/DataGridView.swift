@@ -92,6 +92,23 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     private var lastColumnSignature = ""
     private var didEstimateWidths = false
     private var isApplyingSelection = false
+    /// 列名 → 列元数据。`viewFor` 是热路径，避免每个单元格都线性扫 `columns`。
+    private var columnsByName: [String: ColumnInfo] = [:]
+    /// 行序列快照的缓存（`rows + insertionRows`）与它对应的修订号。
+    private var cachedRows: [GridRow] = []
+    private var cachedRowsRevision = Int.min
+
+    /// 当前加载的行序列快照。
+    ///
+    /// `viewModel.gridRows` 每次访问都会重新拼接数组，热路径不能反复调用；
+    /// 用修订号做失效判断，数据没变时只是整型比较 + 数组引用计数，没有拷贝。
+    private var rowsSnapshot: [GridRow] {
+        if cachedRowsRevision != viewModel.dataRevision {
+            cachedRowsRevision = viewModel.dataRevision
+            cachedRows = viewModel.gridRows
+        }
+        return cachedRows
+    }
     /// 当前焦点列（网格自己维护；键盘 ← → 与点击都会更新）。
     private var focusedColumnName: String?
     private var contextRow: Int = -1
@@ -144,6 +161,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
 
         if lastDataRevision != viewModel.dataRevision {
             lastDataRevision = viewModel.dataRevision
+            refreshColumnIndex()
             tableView.reloadData()
             applyEstimatedWidthsIfNeeded()
         }
@@ -153,8 +171,14 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
 
     func reloadAll() {
         lastDataRevision = viewModel.dataRevision
+        refreshColumnIndex()
         tableView?.reloadData()
         applyEstimatedWidthsIfNeeded()
+    }
+
+    /// 重建「列名 → 列元数据」索引；列清单或数据修订变化时调用。
+    private func refreshColumnIndex() {
+        columnsByName = Dictionary(viewModel.columns.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     private func columnSignature() -> String {
@@ -171,6 +195,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
 
     func rebuildColumns() {
         guard let tableView else { return }
+        refreshColumnIndex()
         for column in tableView.tableColumns {
             tableView.removeTableColumn(column)
         }
@@ -240,15 +265,15 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
 
     /// 首次拿到数据后按内容估算列宽（上限 400pt），用户拖过的列不覆盖。
     private func applyEstimatedWidthsIfNeeded() {
-        guard !didEstimateWidths, !viewModel.gridRows.isEmpty, let tableView else { return }
+        guard !didEstimateWidths, !rowsSnapshot.isEmpty, let tableView else { return }
         didEstimateWidths = true
         let context = viewModel.cellDisplayContext
         for tableColumn in tableView.tableColumns where tableColumn.identifier != Self.rowNumberIdentifier {
             let name = tableColumn.identifier.rawValue
             guard viewModel.columnWidths[name] == nil,
-                  let column = viewModel.visibleColumns.first(where: { $0.name == name }) else { continue }
+                  let column = columnsByName[name] else { continue }
             var sample = column.name.count
-            for row in viewModel.gridRows.prefix(50) {
+            for row in rowsSnapshot.prefix(50) {
                 guard let cell = row.cells[name] else { continue }
                 let display = CellDisplayFormatter.display(
                     value: cell.displayValue,
@@ -268,12 +293,12 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     // MARK: 数据源
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        viewModel.gridRows.count
+        rowsSnapshot.count
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard let tableColumn, row >= 0, row < viewModel.gridRows.count else { return nil }
-        let gridRow = viewModel.gridRows[row]
+        guard let tableColumn, row >= 0, row < rowsSnapshot.count else { return nil }
+        let gridRow = rowsSnapshot[row]
         let isSelected = tableView.selectedRowIndexes.contains(row)
 
         if tableColumn.identifier == Self.rowNumberIdentifier {
@@ -283,7 +308,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
             return cell
         }
 
-        guard let column = viewModel.columns.first(where: { $0.name == tableColumn.identifier.rawValue }),
+        guard let column = columnsByName[tableColumn.identifier.rawValue],
               let cellModel = gridRow.cells[column.name] else {
             return nil
         }
@@ -309,17 +334,21 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-        let rowView = NSTableRowView()
-        if let color = rowBackgroundColor(for: row) {
-            rowView.backgroundColor = color
-        }
+        let identifier = NSUserInterfaceItemIdentifier("GridRowView")
+        let rowView = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableRowView
+            ?? {
+                let made = NSTableRowView()
+                made.identifier = identifier
+                return made
+            }()
+        rowView.backgroundColor = rowBackgroundColor(for: row) ?? .clear
         return rowView
     }
 
     /// 新增 / 修改 / 删除行的整行底色（`specs/03-data-browsing.md` §4、`specs/04-data-editing.md` §3）。
     private func rowBackgroundColor(for row: Int) -> NSColor? {
-        guard row >= 0, row < viewModel.gridRows.count else { return nil }
-        switch viewModel.gridRows[row].changeKind {
+        guard row >= 0, row < rowsSnapshot.count else { return nil }
+        switch rowsSnapshot[row].changeKind {
         case .insertion: return NSColor.systemGreen.withDynamicAlpha(0.12)
         case .update: return NSColor.systemYellow.withDynamicAlpha(0.10)
         case .deletion: return NSColor.systemRed.withDynamicAlpha(0.10)
@@ -425,12 +454,12 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     private func pushSelection() {
         guard let tableView else { return }
         let ids = tableView.selectedRowIndexes.compactMap { index -> String? in
-            guard index >= 0, index < viewModel.gridRows.count else { return nil }
-            return viewModel.gridRows[index].id
+            guard index >= 0, index < rowsSnapshot.count else { return nil }
+            return rowsSnapshot[index].id
         }
         let focusedIndex = tableView.selectedRow
-        let focusedID = (focusedIndex >= 0 && focusedIndex < viewModel.gridRows.count)
-            ? viewModel.gridRows[focusedIndex].id
+        let focusedID = (focusedIndex >= 0 && focusedIndex < rowsSnapshot.count)
+            ? rowsSnapshot[focusedIndex].id
             : ids.first
         let column = focusedColumnName
         // 焦点列若被隐藏，回落到第一列。
@@ -443,7 +472,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     private func applySelectionFromViewModel() {
         guard let tableView else { return }
         let targetIDs = viewModel.selectedRowIDs
-        let indexes = IndexSet(viewModel.gridRows.enumerated().compactMap { index, row in
+        let indexes = IndexSet(rowsSnapshot.enumerated().compactMap { index, row in
             targetIDs.contains(row.id) ? index : nil
         })
         if tableView.selectedRowIndexes != indexes {
@@ -452,7 +481,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
             isApplyingSelection = false
         }
         if let focusedRowID = viewModel.focusedRowID,
-           let index = viewModel.gridRows.firstIndex(where: { $0.id == focusedRowID }) {
+           let index = rowsSnapshot.firstIndex(where: { $0.id == focusedRowID }) {
             focusedColumnName = viewModel.focusedColumn ?? focusedColumnName
             if tableView.selectedRow != index {
                 isApplyingSelection = true
@@ -470,14 +499,14 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     /// 点击点是否落在外键行的 `↗` 上。
     func isForeignKeyArrowHit(row: Int, column: Int, point: NSPoint) -> Bool {
         guard let tableView,
-              row >= 0, row < viewModel.gridRows.count,
+              row >= 0, row < rowsSnapshot.count,
               column > 0, column < tableView.tableColumns.count else { return false }
         let name = tableView.tableColumns[column].identifier.rawValue
         guard viewModel.foreignKeyColumns.contains(name),
-              let cell = viewModel.gridRows[row].cells[name],
+              let cell = rowsSnapshot[row].cells[name],
               !cell.displayValue.isNull else { return false }
         // 布尔列显示为复选框时单元格不画 `↗`，命中区也一并取消，保持视觉与可点区一致。
-        if let columnInfo = viewModel.columns.first(where: { $0.name == name }),
+        if let columnInfo = columnsByName[name],
            columnInfo.isBooleanTinyInt, preferences.tinyintAsCheckbox {
             return false
         }
@@ -488,9 +517,9 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     /// 从网格“行 + 列”发起外键跳转（`↗`）。
     func openForeignKey(row: Int, column: Int) {
         guard let tableView,
-              row >= 0, row < viewModel.gridRows.count,
+              row >= 0, row < rowsSnapshot.count,
               column > 0, column < tableView.tableColumns.count else { return }
-        let rowID = viewModel.gridRows[row].id
+        let rowID = rowsSnapshot[row].id
         let columnName = tableView.tableColumns[column].identifier.rawValue
         Task { [weak self] in
             await self?.viewModel.openForeignKey(rowID: rowID, column: columnName)
@@ -977,7 +1006,7 @@ final class GridHeaderView: NSTableHeaderView {
 final class GridCellView: NSTableCellView {
 
     private let valueLabel = NSTextField(labelWithString: "")
-    private let checkboxButton = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private var checkboxButton: NSButton?
     /// 已修改单元格左上角的小三角（`docs/tech-designs/07-data-grid.md` §4）。
     private let editMarker = NSImageView()
     /// 外键列尾部固定的 `↗`（`specs/03-data-browsing.md` §10）。
@@ -1027,17 +1056,7 @@ final class GridCellView: NSTableCellView {
             foreignKeyWidthConstraint,
         ])
 
-        checkboxButton.translatesAutoresizingMaskIntoConstraints = false
-        checkboxButton.isEnabled = false
-        checkboxButton.allowsMixedState = true
-        checkboxButton.controlSize = .small
-        checkboxButton.title = ""
-        addSubview(checkboxButton)
-        NSLayoutConstraint.activate([
-            checkboxButton.centerXAnchor.constraint(equalTo: centerXAnchor),
-            checkboxButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
-        checkboxButton.isHidden = true
+        checkboxButton?.isHidden = true
 
         editMarker.image = NSImage(
             systemSymbolName: "arrowtriangle.up.left.fill",
@@ -1062,22 +1081,23 @@ final class GridCellView: NSTableCellView {
         isEdited: Bool = false,
         isForeignKey: Bool = false
     ) {
-        toolTip = display.tooltip
+        if toolTip != display.tooltip { toolTip = display.tooltip }
         applyEditingBackground(changeKind: changeKind, isEdited: isEdited)
 
         if let state = display.checkbox {
             valueLabel.isHidden = true
-            checkboxButton.isHidden = false
+            let button = checkboxButton ?? makeCheckbox()
+            button.isHidden = false
             setForeignKeyArrow(false, font: font)
             switch state {
-            case .off: checkboxButton.state = .off
-            case .on: checkboxButton.state = .on
-            case .mixed: checkboxButton.state = .mixed
+            case .off: button.state = .off
+            case .on: button.state = .on
+            case .mixed: button.state = .mixed
             }
             return
         }
 
-        checkboxButton.isHidden = true
+        checkboxButton?.isHidden = true
         valueLabel.isHidden = false
         valueLabel.alignment = alignment(for: display.alignment)
 
@@ -1102,6 +1122,26 @@ final class GridCellView: NSTableCellView {
             valueLabel.font = font
         }
         _ = isSelected
+    }
+
+    /// 惰性创建复选框：纯文本列永远不需要它。
+    /// 关键在于**不要**在每个单元格 init 时就 new 一个 NSButton —— 它会让每次
+    /// Auto Layout 都进 `NSButton.intrinsicContentSize`（实测会拖进 SwiftUI 的
+    /// AttributeGraph），开销随可见单元格数线性放大。
+    private func makeCheckbox() -> NSButton {
+        let button = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.isEnabled = false
+        button.allowsMixedState = true
+        button.controlSize = .small
+        button.title = ""
+        addSubview(button)
+        NSLayoutConstraint.activate([
+            button.centerXAnchor.constraint(equalTo: centerXAnchor),
+            button.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+        checkboxButton = button
+        return button
     }
 
     /// 显示 / 隐藏尾部的 `↗`；隐藏时宽度归 0，不占值文本的空间。
