@@ -79,6 +79,14 @@ final class CellDisplayTests: XCTestCase {
         XCTAssertEqual(display.alignment, .leading)
     }
 
+    /// `singleLine` 快速路径：不含换行的常见文本原样通过，含换行时折叠为空格。
+    func testSingleLineFoldsNewlines() {
+        XCTAssertEqual(CellDisplayFormatter.singleLine("hello world"), "hello world")
+        XCTAssertEqual(CellDisplayFormatter.singleLine("a\nb"), "a b")
+        XCTAssertEqual(CellDisplayFormatter.singleLine("a\r\nb"), "a b")
+        XCTAssertEqual(CellDisplayFormatter.singleLine("a\rb"), "a b")
+    }
+
     func testTruncatedTextGetsEllipsisAndTooltip() {
         let column = TestSupport.column("content", type: .blob, dataType: "text")
         let display = CellDisplayFormatter.display(

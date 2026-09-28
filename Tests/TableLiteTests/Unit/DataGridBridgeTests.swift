@@ -20,9 +20,7 @@ final class DataGridBridgeTests: XCTestCase {
         harness = nil
     }
 
-    private func makeCoordinator(
-        onQuickLook: @escaping (QuickLookContent) -> Void = { _ in }
-    ) async throws -> (DataGridCoordinator, DataGridTableView) {
+    private func makeViewModel(rows: [[String]] = [["1", "张三"], ["2", "李四"]]) async throws -> TableDataViewModel {
         harness.preferences.lazyLargeColumns = false
         let session = try await harness.manager.connect(SessionTestSupport.connection(), password: nil)
         let tab = session.openTableData(database: "app_dev", table: "users")
@@ -32,11 +30,14 @@ final class DataGridBridgeTests: XCTestCase {
         ]
         let metadata = TableDataMetadata(
             columns: columns,
-            tableInfo: TableInfo(database: "app_dev", name: "users", rowCountEstimate: 2),
+            tableInfo: TableInfo(database: "app_dev", name: "users", rowCountEstimate: Int64(rows.count)),
             isView: false,
             primaryKeyColumns: ["id"]
         )
-        let provider = FakeTableDataMetadataProvider(metadata: metadata, rowCount: RowCountEstimate(approximate: 2))
+        let provider = FakeTableDataMetadataProvider(
+            metadata: metadata,
+            rowCount: RowCountEstimate(approximate: Int64(rows.count))
+        )
         let viewModel = TableDataViewModel(
             session: session,
             tab: tab,
@@ -45,13 +46,16 @@ final class DataGridBridgeTests: XCTestCase {
             clock: harness.clock
         )
         await harness.mysql.setResponses([
-            ("FROM `app_dev`.`users`", .single(
-                columns: ["id", "name"],
-                rows: [["1", "张三"], ["2", "李四"]]
-            )),
+            ("FROM `app_dev`.`users`", .single(columns: ["id", "name"], rows: rows)),
         ])
         await viewModel.start()
+        return viewModel
+    }
 
+    private func makeCoordinator(
+        onQuickLook: @escaping (QuickLookContent) -> Void = { _ in }
+    ) async throws -> (DataGridCoordinator, DataGridTableView) {
+        let viewModel = try await makeViewModel()
         let coordinator = DataGridCoordinator(viewModel: viewModel, preferences: harness.preferences, onQuickLook: onQuickLook)
         let tableView = DataGridTableView()
         coordinator.tableView = tableView
@@ -90,6 +94,39 @@ final class DataGridBridgeTests: XCTestCase {
         // 第一项是标题，其后每列一项。
         XCTAssertEqual(menu.items.count, 3)
         XCTAssertEqual(menu.items[1].state, .on)
+    }
+
+    // MARK: 行快照缓存（`07-data-grid.md` §10 滚动性能）
+
+    /// 缓存失效：`bumpRevision()` 后必须看到新行（否则滚动会拿旧数据）。
+    func testRowSnapshotRefreshesWhenRevisionChanges() async throws {
+        let (coordinator, tableView) = try await makeCoordinator()
+        XCTAssertEqual(coordinator.numberOfRows(in: tableView), 2)
+
+        coordinator.viewModel.beginInsert()
+
+        XCTAssertEqual(coordinator.numberOfRows(in: tableView), 3)
+        XCTAssertEqual(coordinator.viewModel.gridRows.count, 3)
+    }
+
+    /// 缓存键必须带实例身份：不同 ViewModel 的 `dataRevision` 都从 0 起，
+    /// 只按修订号作键会在切表时串到上一张表的数据。
+    func testRowSnapshotIsKeyedByViewModelInstance() async throws {
+        let (coordinator, tableView) = try await makeCoordinator()
+        XCTAssertEqual(coordinator.numberOfRows(in: tableView), 2)
+
+        // 另一个实例、行数不同；把修订号对齐，逼出「同修订号、异实例」这一场景。
+        let other = try await makeViewModel(rows: [["9", "王五"]])
+        while other.dataRevision < coordinator.viewModel.dataRevision {
+            other.bumpRevision()
+        }
+        while coordinator.viewModel.dataRevision < other.dataRevision {
+            coordinator.viewModel.bumpRevision()
+        }
+        XCTAssertEqual(other.dataRevision, coordinator.viewModel.dataRevision)
+
+        coordinator.viewModel = other
+        XCTAssertEqual(coordinator.numberOfRows(in: tableView), 1)
     }
 
     // MARK: 键盘 / 中键（`specs/02-workspace.md` §9）

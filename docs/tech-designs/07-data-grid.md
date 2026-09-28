@@ -102,3 +102,16 @@ SwiftUI 的 `Table` 不支持十万行级稳定滚动、冻结列、细粒度列
 | 1000 行内存 | < 20 MB（不含大字段） |
 
 **不做撤销 / 重做**（`13-open-questions.md` S5）。
+
+## 11. 滚动路径的缓存与失效（决策记录）
+
+`NSTableView` 每个可见单元格都会走一次「取行 → 格式化 → 配置视图」，列越多越显著（20 列时同一行就是 20 次）。滚动路径上**禁止** O(行数) 或重复的昂贵计算；实现见 `DataGridCoordinator`：
+
+- **行快照缓存**：`gridRows`（`rows + insertionRows`）是计算属性，每次访问都拷贝整个数组。协调器按「ViewModel 实例 + `dataRevision`」缓存一份，所有行访问走它。
+  - 缓存键**必须带实例身份**：`dataRevision` 每个新 ViewModel 都从 0 起，切表换实例时只按修订号作键会串到上一张表的数据。
+- **列查找表**：`[列名: 列信息]` 在重建列时构造一次，单元格不线性扫描列清单。
+- **格式化快速路径**：`CellDisplayFormatter.singleLine` 不含换行时直接复用原字符串；NULL 的斜体字体按源字体缓存。
+
+**硬约束（失效不变式）**：任何对**已加载行的原地变更**（`fullValue` / `draftValue` / `changeKind` / `insertionRows`）都必须在末尾 `bumpRevision()`。这条不变式同时是 `reloadData` 与上述缓存的失效依据，违反它会让表格显示旧数据。
+
+更深一层的单元格显示（`CellDisplay`）缓存**刻意不做**：内存代价约等于一份数据副本（1000 行 × 20 列 ≈ 3–4 MB，5000 行时逼近 §10 的预算），留作滚动仍不达标时的兜底，见 `13-open-questions.md` T14。

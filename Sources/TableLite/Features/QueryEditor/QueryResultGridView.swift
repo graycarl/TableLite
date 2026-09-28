@@ -219,7 +219,7 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
             context: displayContext
         )
         let cell = cellView(tableView, identifier: tableColumn.identifier)
-        cell.configure(display: display, font: cellFont, isSelected: tableView.selectedRowIndexes.contains(row))
+        cell.configure(display: display, font: cellFont)
         return cell
     }
 

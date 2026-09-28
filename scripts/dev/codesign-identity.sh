@@ -89,7 +89,7 @@ else
     ok "已标记为受信任的代码签名证书（user 域信任设置）"
     printf "      ${DIM}撤销：钥匙串访问 → 找到「%s」→ 双击 → 信任 → 删除代码签名信任${RESET}\n" "$IDENTITY"
   else
-    die "信任设置没生效。手动路径：钥匙串访问 → 找到「$IDENTITY」→ 双击 → 信任 → 「代码签名」选「始终信任」。"
+    die "信任设置没生效。手动路径：钥匙串访问 → 找到「${IDENTITY}」→ 双击 → 信任 → 「代码签名」选「始终信任」。"
   fi
 fi
 
@@ -117,7 +117,7 @@ else
     printf "\r  ${GREEN}✓${RESET} 密钥可用，签名正常\n"
   else
     printf "\n"
-    warn "试签失败（codesign 退出码 $sign_status）"
+    warn "试签失败（codesign 退出码 ${sign_status}）"
   fi
 fi
 set -e

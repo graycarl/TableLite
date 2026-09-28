@@ -115,6 +115,7 @@
 | T10 | 是否引入第三方 Swift Package（当前为零依赖） | 引入必须先在本文档登记理由 | 任何时候 |
 | T12 | `ProcessRunner` / `PortAllocator` 要不要抽成协议、接口长什么样 | 抽早了只会猜错接口；隧道那套可控测试环境（sshd）也还没定 | P10 做 SSH 隧道时，见 `15-testing.md` §3 |
 | T13 | 是否改用 Apple Development 证书 + data protection keychain（彻底没有 Keychain ACL 与授权弹窗） | 需要 Apple ID / team / provisioning profile；换来的是不再依赖 ACL。实测 ad-hoc 签名 + 手写 `keychain-access-groups` entitlement 会被 AMFI `Killed: 9`，所以这条路绕不开真签名 | 本机自签名不够用时（频繁换机、要把构建搬到多台机器上），见 `12-build-and-deps.md` §3.4 |
+| T14 | 是否为每个单元格缓存格式化结果（`CellDisplay`） | 用内存换 CPU：内存代价约等于一份数据副本（1000 行 × 20 列 ≈ 3–4 MB；5000 行时逼近 `07` §10 的预算），建议配「行数 × 列数」阈值回退 | 若行快照 + 列查找表 + 格式化快速路径后滚动仍不达标（见 `07-data-grid.md` §11） |
 
 ## 4. 变更记录
 
@@ -156,5 +157,7 @@
 | 2026-09-24 | **支持外观主题三选一**（S40）：偏好设置 §6 「界面」新增「外观」（亮色 / 暗色 / 跟随系统，默认跟随系统，分段控件），切换立即生效、系统外观变化实时跟随；网格 / 编辑器 / 快速查看等 AppKit 桥接控件一律用动态语义色，不写死亮色值。S13 改写为「界面只有中文／不做语法配色与快捷键自定义」，删除 T6（配色自定义待定），`specs/00-scope.md` §2.2 不再列「浅色 / 深色主题自定义」。见 `specs/11-preferences.md` §6/§8、`specs/00-scope.md` §2.2、`manual/11-preferences.html` 图 11-4、`06-ui-layer.md` §9、`10-query-editor.md` §3 |
 | 2026-09-25 | **开发机构建改用本机自签名证书**（`make signing`），修掉「每次重新构建都要重新授权 Keychain」：ad-hoc 签名的 DR 就是二进制 cdhash，改一行代码就变，Keychain 的「始终允许」随之失效（Debug 的 `TableLite.debug.dylib` 也躲不掉，主二进制壳会跟着变）。签名身份经 `Configs/Local.xcconfig` 注入（`project.yml` 用 `$(TABLELITE_CODESIGN_IDENTITY:default=-)`），没装证书的机器自动退回 ad-hoc。登记 L44、T13。见 `12-build-and-deps.md` §1/§3.4/§4/§4.1、`02-persistence.md` §3 |
 | 2026-09-28 | **部署目标改为「依赖静态库的最小支持系统」**（T11 重定案，原规则「与构建机系统版本一致」作废）：构建机退回 macOS 26.6.2、依赖 bottle 变成 `minos` 26.0 后，写死的 27.0 让产物被 LaunchServices 拒开（实测 `open` 报 -10825，App 完全起不来）。改为 `make deps` 从 5 个 `.a` 的 `minos` 取最大值写进 `Configs/Local.xcconfig`（`TABLELITE_DEPLOYMENT_TARGET`，当前 26.0），`project.yml` 用 `$(TABLELITE_DEPLOYMENT_TARGET:default=26.0)` 引用（与 §3.4 签名同一手法），推导值高于本机系统时打印警告与 `brew reinstall` 处理办法；`make doctor` 增印部署目标；`project.yml` 固定 `ARCHS = arm64`（登记 S41；Release / `make dist` 原来靠「部署目标 = 27.0 排除了 Rosetta 的 x86_64 目的地」蒙对，降级后必须显式单架构）。见 `12-build-and-deps.md` §3.1/§3.3、`README.md` 系统要求 |
+| 2026-09-29 | **网格滚动性能**（细节打磨）：`DataGridCoordinator` 行快照按「ViewModel 实例 + `dataRevision`」缓存（消除滚动路径上每格一次 O(行数) 数组拷贝）；新增 `[列名: 列信息]` 查找表；`singleLine` 加无换行快速路径（注意 `\r\n` 是单个 `Character`，得按 Unicode 标量检测）；NULL 斜体字体缓存；删掉 `viewFor` 里无用的选区查询。登记 T14（单元格显示缓存作为兜底）。见 `07-data-grid.md` §11、`06-ui-layer.md` §4 |
+| 2026-09-29 | **修 `make deps` 两个脚本 bug**（`5e4a5c6` 引入，与网格性能同批发现）：① 变量引用紧跟中文标点 / 全角括号时，macOS 自带 bash 3.2 会把多字节字符并进变量名（`gen-local-xcconfig.sh` 的 `$DEPLOYMENT_TARGET，`，以及 `dev/codesign-identity.sh` 的 `$IDENTITY」` / `$sign_status）`），统一改用 `${…}`；② 部署目标警告误报——本机版本先被 `${MACOS_VERSION%.*}` 截断成主版本（`27`）再与推导值（`27.0`）比较，同主版本也判成「更高」，改为比较完整版本，恢复 `12-build-and-deps.md` §3.3 「推导值高于本机系统时才开始警告」的原意；§3.3 里的「当前值 26.0」在本机（macOS 27）已过时 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

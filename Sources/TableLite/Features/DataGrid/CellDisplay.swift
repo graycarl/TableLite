@@ -168,8 +168,14 @@ public struct CellDisplay: Sendable, Equatable {
 public enum CellDisplayFormatter {
 
     /// 单行化：把换行折叠成空格，避免单行控件里出现断裂。
+    ///
+    /// 快速路径：绝大多数单元格文本不含换行，直接复用原字符串，
+    /// 省下三次全串扫描与新分配（滚动路径上每格都会走到这里）。
+    /// 注意 `\r\n` 在 Swift 里是单个 `Character`，不能按字符比较，必须按 Unicode 标量检测。
     static func singleLine(_ text: String) -> String {
-        text
+        let hasLineBreak = text.unicodeScalars.contains { $0 == "\r" || $0 == "\n" }
+        guard hasLineBreak else { return text }
+        return text
             .replacingOccurrences(of: "\r\n", with: " ")
             .replacingOccurrences(of: "\r", with: " ")
             .replacingOccurrences(of: "\n", with: " ")
