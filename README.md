@@ -2,7 +2,7 @@
 
 macOS 原生的 MySQL 客户端。功能和交互参考 [TablePlus](https://tableplus.com/)，但只保留高频功能。
 
-自用工具：不签名、不公证、不开沙箱。最低 macOS 版本跟随构建机的 Homebrew（当前 macOS 27，见 [`docs/tech-designs/12-build-and-deps.md`](docs/tech-designs/12-build-and-deps.md) §3.3）。
+自用工具：不签名、不公证、不开沙箱。最低 macOS 版本由链接进来的 Homebrew 静态库决定（当前 macOS 26.0，见 [`docs/tech-designs/12-build-and-deps.md`](docs/tech-designs/12-build-and-deps.md) §3.3）。
 
 只支持 MySQL 8.0+（不含 MariaDB）。
 
@@ -59,7 +59,8 @@ open manual/index.html
 
 | 项 | 要求 |
 | --- | --- |
-| macOS | 跟随构建机系统版本（当前 macOS 27），不声称支持更低版本 |
+| macOS | 依赖下限：链接进来的 Homebrew 静态库中最大的 `minos`（当前 26.0），不声称支持更低版本。`make deps` 自动推导，推导值高于本机系统时会警告 |
+| 架构 | 只出 arm64（Apple Silicon）单架构，不支持 Intel Mac；见 [`docs/tech-designs/13-open-questions.md`](docs/tech-designs/13-open-questions.md) S41 |
 | Xcode | 含命令行工具，需先 `sudo xcodebuild -license accept` 与 `xcodebuild -runFirstLaunch` |
 | Homebrew | 构建期需要 `mysql-client`、`openssl@3`、`zstd`、`zlib-ng-compat`、`xcodegen` |
 | 运行期 | 产物不依赖目标机器的 Homebrew（`make dist` 的 zip 解开即可运行）。唯一例外是用 `mysql_native_password` 等外部认证插件连老服务器时，见 [`13-open-questions.md`](docs/tech-designs/13-open-questions.md) L41 |

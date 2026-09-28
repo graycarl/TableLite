@@ -51,6 +51,7 @@
 | S37 | App 图标不为小尺寸单独出美术稿 | 16 / 32 / 64 px 由同一套绘制参数按尺寸切换：减少行列、加粗网格线、去掉数据条。只保证轮廓与高亮行可辨，不做像素级手工调整。见 `12-build-and-deps.md` §7 |
 | S39 | 窗口底部不做常驻状态栏 | 连接信息（当前库、服务器版本、字符集、只读标记、SSH 隧道端口）只在工具栏连接切换器的悬停详情里；查询 / 提交 / 导出进度留在各自视图；不可编辑原因改挂网格底部条上方的提示条；表结构概况收进结构标签底部；瞬时消息走轻提示；未提交改动只由标签橙点与 `提交(N)` 角标体现。取代 2026-09-23 那条「仍留在状态栏」的写法。见 `specs/02-workspace.md` §7、`05-session-management.md` §10 |
 | S40 | 外观只做亮色 / 暗色 / 跟随系统三选一 | 默认跟随系统，全局生效（不按连接记忆）；不做语法配色自定义、不做主题包。见 `06-ui-layer.md` §9、`specs/11-preferences.md` §6 |
+| S41 | 产物只出 arm64 单架构 | `project.yml` 固定 `ARCHS = arm64`，不产 Intel / 通用二进制。Homebrew 的 `.a` 只有 arm64，Release 的 `ARCHS` 默认是 `arm64 x86_64`，x86_64 切片必然链接失败（Debug 靠 `ONLY_ACTIVE_ARCH = YES` 躲过；装了 Rosetta 的机器上 `xcodebuild` 会把两个架构都编一遍）。自用工具不需要 Intel 产物。见 `12-build-and-deps.md` §3.1 |
 
 ## 2. 已知限制
 
@@ -154,5 +155,6 @@
 | 2026-09-24 | **去掉窗口底部状态栏**（S39）：连接信息（版本 / 字符集 / 只读 / SSH 隧道端口）改到工具栏连接切换器的悬停详情；查询 / 提交 / 导出进度留在各自视图；不可编辑原因改挂网格底部条上方的提示条；表结构概况收进结构标签底部；进入只读提示改走轻提示；未提交改动只由标签橙点与 `提交(N)` 角标体现。登记 L42（导出进度只在面板里）与 L43（只读连接下每张表都挂一条提示条）。见 `specs/02-workspace.md` §1/§2/§7、`specs/12-feedback.md` §1/§2/§3/§7、`specs/03-data-browsing.md` §11/§12、`specs/04-data-editing.md` §2/§10/§12、`specs/06-query-editor.md` §3、`specs/07-schema-view.md` §5、`specs/08-import-export.md` §1、`specs/09-readonly-mode.md` §3/§5、`specs/10-ssh-tunnel.md` §4、`manual/02`、`manual/index`、`05-session-management.md` §10 |
 | 2026-09-24 | **支持外观主题三选一**（S40）：偏好设置 §6 「界面」新增「外观」（亮色 / 暗色 / 跟随系统，默认跟随系统，分段控件），切换立即生效、系统外观变化实时跟随；网格 / 编辑器 / 快速查看等 AppKit 桥接控件一律用动态语义色，不写死亮色值。S13 改写为「界面只有中文／不做语法配色与快捷键自定义」，删除 T6（配色自定义待定），`specs/00-scope.md` §2.2 不再列「浅色 / 深色主题自定义」。见 `specs/11-preferences.md` §6/§8、`specs/00-scope.md` §2.2、`manual/11-preferences.html` 图 11-4、`06-ui-layer.md` §9、`10-query-editor.md` §3 |
 | 2026-09-25 | **开发机构建改用本机自签名证书**（`make signing`），修掉「每次重新构建都要重新授权 Keychain」：ad-hoc 签名的 DR 就是二进制 cdhash，改一行代码就变，Keychain 的「始终允许」随之失效（Debug 的 `TableLite.debug.dylib` 也躲不掉，主二进制壳会跟着变）。签名身份经 `Configs/Local.xcconfig` 注入（`project.yml` 用 `$(TABLELITE_CODESIGN_IDENTITY:default=-)`），没装证书的机器自动退回 ad-hoc。登记 L44、T13。见 `12-build-and-deps.md` §1/§3.4/§4/§4.1、`02-persistence.md` §3 |
+| 2026-09-28 | **部署目标改为「依赖静态库的最小支持系统」**（T11 重定案，原规则「与构建机系统版本一致」作废）：构建机退回 macOS 26.6.2、依赖 bottle 变成 `minos` 26.0 后，写死的 27.0 让产物被 LaunchServices 拒开（实测 `open` 报 -10825，App 完全起不来）。改为 `make deps` 从 5 个 `.a` 的 `minos` 取最大值写进 `Configs/Local.xcconfig`（`TABLELITE_DEPLOYMENT_TARGET`，当前 26.0），`project.yml` 用 `$(TABLELITE_DEPLOYMENT_TARGET:default=26.0)` 引用（与 §3.4 签名同一手法），推导值高于本机系统时打印警告与 `brew reinstall` 处理办法；`make doctor` 增印部署目标；`project.yml` 固定 `ARCHS = arm64`（登记 S41；Release / `make dist` 原来靠「部署目标 = 27.0 排除了 Rosetta 的 x86_64 目的地」蒙对，降级后必须显式单架构）。见 `12-build-and-deps.md` §3.1/§3.3、`README.md` 系统要求 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。
