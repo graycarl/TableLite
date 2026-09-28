@@ -10,13 +10,12 @@ final class TableDataEditingTests: XCTestCase {
 
     private var harness: SessionTestHarness!
 
-    override func setUp() async throws {
+    override func setUpWithError() throws {
         harness = SessionTestSupport.makeHarness()
         harness.preferences.lazyLargeColumns = false
-        await harness.mysql.setResponses(SessionTestSupport.successfulResponses())
     }
 
-    override func tearDown() async throws {
+    override func tearDownWithError() throws {
         harness?.clean()
         harness = nil
     }

@@ -53,6 +53,7 @@
 | S40 | 外观只做亮色 / 暗色 / 跟随系统三选一 | 默认跟随系统，全局生效（不按连接记忆）；不做语法配色自定义、不做主题包。见 `06-ui-layer.md` §9、`specs/11-preferences.md` §6 |
 | S41 | 产物只出 arm64 单架构 | `project.yml` 固定 `ARCHS = arm64`，不产 Intel / 通用二进制。Homebrew 的 `.a` 只有 arm64，Release 的 `ARCHS` 默认是 `arm64 x86_64`，x86_64 切片必然链接失败（Debug 靠 `ONLY_ACTIVE_ARCH = YES` 躲过；装了 Rosetta 的机器上 `xcodebuild` 会把两个架构都编一遍）。自用工具不需要 Intel 产物。见 `12-build-and-deps.md` §3.1 |
 | S42 | 凭据明文写在 `0600` 文件里，不加密 | 本机唯一能可靠保管密钥的地方就是钥匙串，而钥匙串的 XARA partition 绑 cdhash、自签名证书救不了（见 L44）；密钥无处可放，所以安全级别同 `~/.my.cnf`：只靠文件权限 + FileVault。不引入加密，也不把凭据目录放进会被同步 / 备份到别处的位置。见 `02-persistence.md` §3 |
+| S43 | 构建不每次重推 Homebrew 依赖与部署目标 | `make gen` 按输入指纹跳过 `check-deps.sh` / `gen-local-xcconfig.sh`（省 ~7s）。代价：`brew upgrade` 之后不会再自动重算 `Configs/Local.xcconfig` 里的路径与 `TABLELITE_DEPLOYMENT_TARGET`，需要手动跑一次 `make deps`（`make clean` 后也一样会重跑）。见 `12-build-and-deps.md` §4.2 |
 
 ## 2. 已知限制
 
@@ -159,5 +160,7 @@
 | 2026-09-25 | **开发机构建改用本机自签名证书**（`make signing`），修掉「每次重新构建都要重新授权 Keychain」：ad-hoc 签名的 DR 就是二进制 cdhash，改一行代码就变，Keychain 的「始终允许」随之失效（Debug 的 `TableLite.debug.dylib` 也躲不掉，主二进制壳会跟着变）。签名身份经 `Configs/Local.xcconfig` 注入（`project.yml` 用 `$(TABLELITE_CODESIGN_IDENTITY:default=-)`），没装证书的机器自动退回 ad-hoc。登记 L44、T13。见 `12-build-and-deps.md` §1/§3.4/§4/§4.1、`02-persistence.md` §3 |
 | 2026-09-28 | **部署目标改为「依赖静态库的最小支持系统」**（T11 重定案，原规则「与构建机系统版本一致」作废）：构建机退回 macOS 26.6.2、依赖 bottle 变成 `minos` 26.0 后，写死的 27.0 让产物被 LaunchServices 拒开（实测 `open` 报 -10825，App 完全起不来）。改为 `make deps` 从 5 个 `.a` 的 `minos` 取最大值写进 `Configs/Local.xcconfig`（`TABLELITE_DEPLOYMENT_TARGET`，当前 26.0），`project.yml` 用 `$(TABLELITE_DEPLOYMENT_TARGET:default=26.0)` 引用（与 §3.4 签名同一手法），推导值高于本机系统时打印警告与 `brew reinstall` 处理办法；`make doctor` 增印部署目标；`project.yml` 固定 `ARCHS = arm64`（登记 S41；Release / `make dist` 原来靠「部署目标 = 27.0 排除了 Rosetta 的 x86_64 目的地」蒙对，降级后必须显式单架构）。见 `12-build-and-deps.md` §3.1/§3.3、`README.md` 系统要求 |
 | 2026-09-29 | **凭据移出钥匙串**（原 §3.4 的定案未成立）：实测确认登录钥匙串的「始终允许」有两道门 —— ① ACL 受信任应用（自签名证书能固定）、② XARA partition（只认 `cdhash:` / `teamid:` / `apple:` / `apple-tool:` / `unsigned:` 字面量，自签名没有 TeamID，所以改一行代码 partition 就变）。`req:` 这类值 securityd 不认，`-A`（allow-any-app）、`SecItemAdd` 自带 `SecAccess`、改已有条目的 partition 列表都绕不过（最后一条要钥匙串密码）。改为 `~/Library/Application Support/TableLite/credentials.json`（0600、明文、不加密、旧条目不自动迁移）；登记 S42、L45，改写 S31/L44/T13；`make run` 改为先退出已运行实例（否则磁盘二进制与运行中的进程不一致，securityd 报 `-67034 errSecStaticCodeChanged` 并**静默拒绝**，连弹窗都不给）。见 `02-persistence.md` §3/§3.1、`12-build-and-deps.md` §1/§3.4、`specs/01-connections.md` §1/§2、`specs/10-ssh-tunnel.md` §3.2/§3.3、`manual/01`、`manual/10` |
+
+| 2026-09-29 | **拆掉 `make test` 的两处固定开销**（实测端到端 39s → 10s）：① 8 个 `@MainActor` suite 的 `async setUp()/tearDown()` 改为同步 `setUpWithError()/tearDownWithError()` —— `@MainActor` 类上的 async 覆盖会让 XCTest 给每个用例多算 ~100ms（空用例也一样），`FakeMySQLSession` 因此支持在 `init` 里预置应答、`makeHarness()` 默认预置 `successfulResponses()`；② `make gen` 改为按输入指纹跳过依赖解析与 `xcodegen`（登记 S43），`make test` 默认开测试并行（`PARALLEL=0` 关闭）。见 `15-testing.md` §7、`12-build-and-deps.md` §4.2 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

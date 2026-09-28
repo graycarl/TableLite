@@ -38,7 +38,7 @@ enum SessionTestSupport {
         let preferences = Preferences(store: InMemoryKeyValueStore())
         let credentials = InMemoryCredentialStore()
         let connections = ConnectionStore(layout: made.layout, credentials: credentials)
-        let mysql = FakeMySQLSession()
+        let mysql = FakeMySQLSession(responses: successfulResponses())
         let tunnel = FakeSSHTunnel(
             configuration: SSHTunnelConfiguration(ssh: SSHConfig(), remoteHost: "127.0.0.1", remotePort: 3306)
         )

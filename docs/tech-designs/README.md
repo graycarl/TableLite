@@ -17,10 +17,10 @@
 | [09-filtering.md](09-filtering.md) | 过滤器到 SQL 的映射决策与交互约束 |
 | [10-query-editor.md](10-query-editor.md) | 编辑器文本视图、语法高亮、语句拆分、执行、只读拦截 |
 | [11-schema-and-import-export.md](11-schema-and-import-export.md) | 元数据读取与缓存、CSV 编解码、流式导出、导入 |
-| [12-build-and-deps.md](12-build-and-deps.md) | 技术选型、Homebrew 依赖、静态链接、版本控制、Phase 0 |
+| [12-build-and-deps.md](12-build-and-deps.md) | 技术选型、Homebrew 依赖、静态链接、版本控制、构建入口开销 |
 | [13-open-questions.md](13-open-questions.md) | 已知限制、刻意简化、待定事项 |
 | [14-row-inspector.md](14-row-inspector.md) | 右侧字段栏：技术选型、提交路径、大字段按需加载与暂存联动 |
-| [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI、性能排查方法 |
+| [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI、性能排查方法、测试 suite 运行成本 |
 
 ## 与需求文档的对应
 
@@ -78,6 +78,8 @@
 | 外观 | 亮色 / 暗色 / 跟随系统三选一，默认跟随系统；全局生效，走 `preferredColorScheme`，自定义色一律用动态语义色 | [06](06-ui-layer.md) §9、[13](13-open-questions.md) S40 |
 | 可测试性 | 手写协议 + `AppEnvironment` 注入（`Clock` / `CredentialStore` / `FileSystemLocator`），不引入 DI 框架 | [15](15-testing.md) §3 |
 | 性能排查 | 隔离夹具（假后端 + 真 AppKit + 程序化滚动）+ 扫参数看曲线 + `sample` + 微基准；毫秒基准不进 CI | [15](15-testing.md) §6 |
+| 测试 suite 并发结构 | `setUp` / `tearDown` 必须同步（`setUpWithError` / `tearDownWithError`）；`@MainActor` 类上写 `async` 覆盖会让 XCTest 每个用例多花 ~100ms | [15](15-testing.md) §7 |
+| 构建入口加速 | `make gen` 按输入指纹跳过依赖解析与 `xcodegen`；`make test` 默认测试并行（`PARALLEL=0` 关闭） | [12](12-build-and-deps.md) §4.2、[13](13-open-questions.md) S43 |
 | 分发 | `make run` 日常验证、`make dist` 出 Release zip；产物不依赖目标机 Homebrew（老认证插件除外，见 L41） | [12](12-build-and-deps.md) §4.1 |
 | App 图标 | 脚本矢量生成、不引入外部素材；尺寸对齐苹果图标网格；小尺寸参数化简化 | [12](12-build-and-deps.md) §7 |
 

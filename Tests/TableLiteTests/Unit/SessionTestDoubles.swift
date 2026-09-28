@@ -44,6 +44,10 @@ actor FakeMySQLSession: MySQLSessionProtocol {
     private var failures: [(String, Error)] = []
     private var defaultResult = MySQLQueryResult.empty
 
+    init(responses: [(String, MySQLQueryResult)] = []) {
+        self.responses = responses
+    }
+
     func setConnectError(_ error: Error?) { connectError = error }
     func setPingError(_ error: Error?) { pingError = error }
     func setCancelError(_ error: Error?) { cancelError = error }

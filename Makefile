@@ -5,7 +5,19 @@ BUILD_DIR := $(CURDIR)/.build
 CONFIG ?= Debug
 INSTALL_DIR ?= $(HOME)/Applications
 
-.PHONY: help deps gen build run test smoke dist dist-install clean distclean doctor signing db db-reset db-stop db-shell
+# 单元测试默认并行（4 路）：test session 11.9s → 7.3s。排查顺序相关的失败时用 PARALLEL=0。
+# 见 docs/tech-designs/12-build-and-deps.md §4.2。
+PARALLEL ?= 1
+WORKERS ?= 4
+ifeq ($(PARALLEL),0)
+TEST_PARALLEL_FLAGS :=
+TEST_MODE := 串行
+else
+TEST_PARALLEL_FLAGS := -parallel-testing-enabled YES -parallel-testing-worker-count $(WORKERS)
+TEST_MODE := $(WORKERS) 路并行
+endif
+
+.PHONY: help deps gen gen-force build run test smoke dist dist-install clean distclean doctor signing db db-reset db-stop db-shell
 
 help: ## 显示可用目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -15,9 +27,12 @@ deps: ## 检查 Homebrew 依赖并生成 Configs/Local.xcconfig
 	@./scripts/check-deps.sh
 	@./scripts/gen-local-xcconfig.sh
 
-gen: deps ## 用 XcodeGen 生成 Xcode 工程
-	@echo "==> xcodegen generate"
-	@xcodegen generate
+gen: ## 生成 Xcode 工程（输入未变时跳过；改了 project.yml / 增删文件会自动重跑）
+	@./scripts/gen-project.sh
+
+gen-force: ## 强制重新生成 Xcode 工程（忽略输入指纹）
+	@rm -f "$(BUILD_DIR)/gen-fingerprint"
+	@./scripts/gen-project.sh
 
 signing: ## 建/导入本机自签名证书，稳定代码身份（新机器一次性；见 docs/tech-designs/12 §3.4）
 	@./scripts/dev/codesign-identity.sh
@@ -48,16 +63,28 @@ run: build ## 构建并启动（先退出已在运行的实例）
 	fi
 	@open "$(BUILD_DIR)/Build/Products/$(CONFIG)/TableLite.app"
 
-test: gen ## 跑单元测试
+test: gen ## 跑单元测试（默认 4 路并行；PARALLEL=0 串行，WORKERS=N 调并行度）
 	@./scripts/check-imports.sh
-	@echo "==> xcodebuild test"
-	@xcodebuild \
-		-project "$(PROJECT)" \
-		-scheme "$(SCHEME)" \
-		-configuration Debug \
-		-derivedDataPath "$(BUILD_DIR)" \
-		-quiet \
-		test
+	@echo "==> xcodebuild test（$(TEST_MODE)）"
+	@# 并行模式会让 xcodebuild 逐条打印 `Test case … passed on …`（722 行），还会与进度行互相切碎，
+	@# 没法可靠过滤 —— 所以整个写进日志，成功只报一行，失败把日志原样吐出来。
+	@log="$(BUILD_DIR)/test.log"; \
+	mkdir -p "$(BUILD_DIR)"; \
+	if xcodebuild \
+			-project "$(PROJECT)" \
+			-scheme "$(SCHEME)" \
+			-configuration Debug \
+			-derivedDataPath "$(BUILD_DIR)" \
+			-quiet \
+			$(TEST_PARALLEL_FLAGS) \
+			test > "$$log" 2>&1; then \
+		echo "  ✓ 测试通过（完整输出：$${log}）"; \
+	else \
+		rc=$$?; \
+		echo "  ✗ 测试失败，完整输出：$${log}" >&2; \
+		cat "$$log" >&2; \
+		exit $$rc; \
+	fi
 
 smoke: build ## 访问层端到端冒烟验证（自动起 Docker MySQL）
 	@./scripts/smoke/run.sh

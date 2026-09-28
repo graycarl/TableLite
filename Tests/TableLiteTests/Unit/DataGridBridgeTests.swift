@@ -10,12 +10,11 @@ final class DataGridBridgeTests: XCTestCase {
 
     private var harness: SessionTestHarness!
 
-    override func setUp() async throws {
+    override func setUpWithError() throws {
         harness = SessionTestSupport.makeHarness()
-        await harness.mysql.setResponses(SessionTestSupport.successfulResponses())
     }
 
-    override func tearDown() async throws {
+    override func tearDownWithError() throws {
         harness?.clean()
         harness = nil
     }
@@ -151,12 +150,11 @@ final class DataGridForeignKeyTests: XCTestCase {
 
     private var harness: SessionTestHarness!
 
-    override func setUp() async throws {
+    override func setUpWithError() throws {
         harness = SessionTestSupport.makeHarness()
-        await harness.mysql.setResponses(SessionTestSupport.successfulResponses())
     }
 
-    override func tearDown() async throws {
+    override func tearDownWithError() throws {
         harness?.clean()
         harness = nil
     }

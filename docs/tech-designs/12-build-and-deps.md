@@ -120,7 +120,7 @@ Homebrew 的 bottle 按构建时的系统构建，`minos` 会写进二进制本�
 
 ## 4. 构建入口
 
-Makefile 提供 `deps`（检查依赖 + 生成 `Local.xcconfig`）、`gen`（`xcodegen generate`）、`build`、`run`、`test`、`smoke`、`signing`（建/导入本机自签名证书，见 §3.4）、`clean`。改动 `project.yml` 或新增文件后必须 `make gen`。
+Makefile 提供 `deps`（检查依赖 + 生成 `Local.xcconfig`）、`gen`（生成 Xcode 工程，见 §4.2）、`build`、`run`、`test`、`smoke`、`signing`（建/导入本机自签名证书，见 §3.4）、`clean`。改动 `project.yml` 或新增文件后 `make gen` 会自动重跑（§4.2 的输入指纹），不需要人记住。
 
 手工测试用数据库：`make db` 用 `scripts/dev/docker-compose.yml` 起一个**常驻**容器（镜像同冒烟的 `mysql:8.4`，
 但 compose 文件、容器名、端口均独立：默认 **13307**，冒烟是 13306，两者可同时运行）。
@@ -144,6 +144,27 @@ xcodebuild -runFirstLaunch
 - 打包前断言 `otool -L` 里**没有**任何 `/opt/homebrew` 引用，有一处就失败 —— 这是一道回归门，防的是链接配置被改回动态链接（§3.1）。
 - **产物不依赖目标机器的 Homebrew**，换机解开就能跑。唯一例外是用 `mysql_native_password` 等外部认证插件连老服务器时（L41）。
 - 签名用同一张本机自签名证书（§3.4），**不公证**（`specs/00-scope.md` 的 D3）；构建机上没有这张证书时退回 ad-hoc。
+
+### 4.2 构建命令的固定开销（决策记录，2026-09-29）
+
+`make test` 曾每次固定花 ~7.1s 在依赖解析与工程生成上：`check-deps.sh` 2.1s（全是 `brew` 调用）、
+`gen-local-xcconfig.sh` 4.9s（4 次 `brew --prefix` + `security find-identity` + 5 次 `otool`）——
+而真正干活的 `xcodegen generate` 只要 0.05s。另有一项来自测试本身：`@MainActor` suite 里写 `async` 的
+`setUp` / `tearDown` 会让 XCTest 每个用例多花 ~100ms（见 `15-testing.md` §7）。决策：
+
+- **`make gen` 按输入指纹跳过**：指纹 = `project.yml` 的内容 + `Sources/` 与 `Tests/` 下的文件清单。
+  指纹未变、且 `TableLite.xcodeproj` 与 `Configs/Local.xcconfig` 都在时整段跳过。
+  改已有文件的内容不需要重新生成工程；改 `project.yml` 或增删文件会命中指纹变化自动重跑。
+- **`make deps` 保持原样**（永远真跑），CI 里显式执行（见 `15-testing.md` §5）。
+  代价是 `brew upgrade` 之后不会再自动重推 `Local.xcconfig`，需要手动跑一次 —— 登记在
+  [`13-open-questions.md`](13-open-questions.md) S43。
+- **`make test` 默认开测试并行**：`-parallel-testing-enabled YES -parallel-testing-worker-count 4`。
+  实测 test session 11.9s → 7.3s。`PARALLEL=0` 关闭、`WORKERS=N` 调并行度（排查顺序相关的失败时用）。
+  并行模式会让 xcodebuild 逐条打印 `Test case … passed on …`（722 行），还会与进度行互相切碎，
+  没法可靠过滤 —— 因此 `make test` 把整个输出写进 `.build/test.log`，成功只报一行，失败把日志原样吐出来并保持非零退出码。
+
+三项合计：`make test` 端到端 ~39s → **~10s**（其中：修完 async 覆盖 24s，再跳依赖解析 + 开并行 10s；
+`PARALLEL=0` 时为 15s）。数字受机器与负载影响，结论看相对值（实测机：macOS 27 / Mac Studio 10 核）。
 
 ## 5. 版本控制
 

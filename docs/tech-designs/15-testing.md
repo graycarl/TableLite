@@ -94,3 +94,30 @@
 
 **产出**：探查代码用完即删，不提交；结论（数字 + 决策）回填 `07-data-grid.md` §10.1。
 
+## 7. 测试 suite 的并发结构与运行成本（决策记录，2026-09-29）
+
+**决策：测试 suite 的 `setUp` / `tearDown` 一律写成同步的 `setUpWithError()` / `tearDownWithError()`，
+禁止写成 `async throws` 覆盖。**
+
+- 现象：722 个用例里 536 个 < 5ms（中位 0.8ms），但 126 个 ≥ 100ms，且数值精确聚在 100 / 200 / 300ms
+  整数量级上 —— 这 126 个占了用例总时长的 91%。慢的全是 `async` 用例，集中在同样几个 suite 上。
+- 根因：**类上标 `@MainActor` 且存在 `async` 的 `setUp` / `tearDown` 覆盖**时，XCTest 给每个用例多算约
+  100ms（每多一个 async 覆盖就多一份）。**与被测代码无关：空用例也照样慢。**
+- 隔离对照（每档 20 个空用例，各跑 2 轮取区间）：
+
+  | 结构 | 每用例 |
+  | --- | --- |
+  | `@MainActor` 类，无 async 覆盖 | ~4ms（偶发 100ms） |
+  | `@MainActor` 类 + `async setUp()` | ~100ms |
+  | `@MainActor` 类 + `async setUp()` + `async tearDown()` | ~180–220ms |
+  | `@MainActor` 类 + 同步 `setUpWithError()` / `tearDownWithError()` | ~4ms |
+  | 非 `@MainActor` 类 + 逐方法 `@MainActor` | ~4ms |
+
+- 真实工作量的对照（`SessionTestSupport.makeHarness()` + 真 `connect()`）：121ms/用例 → 5.0ms/用例。
+- 收益（macOS 27 / Mac Studio 10 核）：命中该陷阱的 8 个 suite 收敛后，用例总时长 18.4s → 5.2s，
+  test session 25.7s → 11.9s，`make test` 端到端 39s → 24s。
+- 配套：`FakeMySQLSession` 支持在 `init` 里预置应答，`SessionTestSupport.makeHarness()` 默认预置
+  `successfulResponses()`，因此 `setUp` 里不再需要任何 `await`。
+- 约束：**新增 suite 不得写 `async` 的 `setUp` / `tearDown`。** 需要在 setUp 里做异步准备时，
+  改成构造期注入（替身预置应答 / 直接建好对象）或挪到用例首行。
+
