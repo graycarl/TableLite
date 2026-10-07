@@ -20,7 +20,7 @@
 | [12-build-and-deps.md](12-build-and-deps.md) | 技术选型、Homebrew 依赖、静态链接、版本控制、构建入口开销 |
 | [13-open-questions.md](13-open-questions.md) | 已知限制、刻意简化、待定事项 |
 | [14-row-inspector.md](14-row-inspector.md) | 右侧字段栏：技术选型、提交路径、大字段按需加载与暂存联动 |
-| [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI、性能排查方法、测试 suite 运行成本 |
+| [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI、性能排查方法、应用内滚动基准与 Agent 自测基建、测试 suite 运行成本 |
 
 ## 与需求文档的对应
 

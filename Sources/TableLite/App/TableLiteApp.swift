@@ -25,6 +25,8 @@ struct TableLiteApp: App {
         EditSmokeRunner.scheduleIfRequested()
         FilterSmokeRunner.scheduleIfRequested()
         QuerySmokeRunner.scheduleIfRequested()
+        // 应用内滚动基准（`--bench-scroll`）：不是无头模式，要真实窗口，用 live 环境。
+        BenchScrollRunner.scheduleIfRequested(environment: environment)
     }
 
     var body: some Scene {

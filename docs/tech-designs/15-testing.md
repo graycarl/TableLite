@@ -121,3 +121,45 @@
 - 约束：**新增 suite 不得写 `async` 的 `setUp` / `tearDown`。** 需要在 setUp 里做异步准备时，
   改成构造期注入（替身预置应答 / 直接建好对象）或挪到用例首行。
 
+## 8. 应用内滚动基准与 Agent 自测基建（决策记录，2026-10-08）
+
+**问题**：帧级卡顿（CA commit 背压、WindowServer 交互、UpdateCycle 调度）只在真实 App 进程里出现，
+§6 的隔离夹具测 CPU 成本够用，测不了帧级行为；而让真人滚动再配合采样，一轮验证要几分钟且无法自动化。
+
+**决策：App 内置基准模式 + 三个脚本，让 Agent 一条命令完成「复现 → 测量 → 视觉自查」全链路。**
+
+### 8.1 `--bench-scroll <table>`：应用内滚动基准
+
+启动参数（与 `--filter-smoke` 等同族，但**不是无头模式**——要的就是真实窗口与渲染管线）：
+
+```sh
+MYSQL_PORT=13307 MYSQL_PASSWORD=tablelite MYSQL_DATABASE=tablelite_dev \
+  TableLite.app/Contents/MacOS/TableLite --bench-scroll wide_test
+```
+
+- 行为：正常启动（真实 `AppEnvironment`）→ 自动连目标库（`MYSQL_*` 环境变量，同 §2 冒烟约定）
+  → 打开指定表 → 等数据加载完成 → 把显示条数调大（退出前恢复偏好原值）
+  → `CADisplayLink` 以固定速度驱动 `clipView.scroll(to:)` 往返滚动 → 记录逐帧间隔
+  → 输出一行 JSON（帧数、p50/p90/p99/max、>34ms 帧数、滚动行程）到 stdout 并退出。
+- **度量用帧间隔分布，不用 CPU 采样**：卡顿是帧级突发，主线程 20% 占用也可能 p99 到秒级
+  （2026-10 排查 wide_test 卡顿的实测教训）。
+- 数字只在**同机器、同表、同参数**下做 A/B 对比，不设绝对阈值、不进 CI（同 §6 读数约定）。
+- 入口封装：`make bench`（Debug）/ `make bench CONFIG=Release`。
+
+### 8.2 `scripts/dev/profile-scroll.sh`：一键卡顿录制
+
+`--bench-scroll` 自驱动 + `xctrace record --template "Animation Hitches" --attach` 录制 →
+导出 `hitches-frame-lifetimes` / `hitches` 两张表。**脚本必须清理 `$TMPDIR/instruments*.ktrace`**：
+xctrace 的原始中间文件不会自动删除，一次录制能留 10GB+（2026-10-08 六个残留文件吃掉 69GB 磁盘）。
+
+### 8.3 `scripts/dev/shot.sh`：窗口截图
+
+用 `CGWindowListCopyWindowInfo` 找 TableLite 主窗口 id，`screencapture -l` 抓图。
+Agent 读图即可自查视觉回归（字体、对齐、颜色、角标），不需要人工过目。
+
+### 8.4 边界
+
+- 基建只服务**开发与排查**，不承诺捕获所有卡顿（触控板惯性滚动、多屏刷新率差异仍可能要人工复核）；
+- 基准模式改动用户偏好后必须恢复；连接用完即断开，不写入连接列表与凭据文件；
+- 性能修复的**决策与数字**仍回填 `07-data-grid.md` §10，本文件只定义工具。
+
