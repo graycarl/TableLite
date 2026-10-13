@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TableLite · 界面优化点清单（2026-10-13 截图复盘）</title>
+<style>
+  :root{
+    --bg:#f5f6f8;
+    --card:#ffffff;
+    --ink:#1c2024;
+    --ink-2:#4a5259;
+    --ink-3:#7d868e;
+    --line:#e3e6ea;
+    --line-2:#eef1f4;
+    --accent:#2f6fed;
+    --accent-soft:#eaf1ff;
+    --warn:#d97706;
+    --warn-soft:#fef3c7;
+    --bad:#dc2626;
+    --bad-soft:#fee2e2;
+    --ok:#059669;
+    --ok-soft:#d1fae5;
+    --code:#f2f4f7;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px 90px}
+
+  /* ---------- header ---------- */
+  header{background:linear-gradient(135deg,#111827 0%,#1e3a8a 55%,#312e81 100%);color:#fff;padding:52px 0 46px;margin-bottom:34px}
+  header .wrap{padding-bottom:0}
+  .eyebrow{font-size:12.5px;letter-spacing:.22em;text-transform:uppercase;color:#93c5fd;font-weight:600;margin-bottom:14px}
+  h1{font-size:34px;line-height:1.2;font-weight:700;letter-spacing:-.5px}
+  h1 small{display:block;font-size:15px;font-weight:400;color:#c7d2fe;margin-top:12px;letter-spacing:0}
+  .headline-facts{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .hf{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;font-size:13px;color:#e0e7ff}
+  .hf b{color:#fff}
+
+  /* ---------- generic ---------- */
+  section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:30px 32px;margin-bottom:26px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  h2{font-size:22px;font-weight:700;letter-spacing:-.3px;margin-bottom:6px;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;background:var(--accent);color:#fff;font-size:14px;font-weight:700;flex:none}
+  h3{font-size:16.5px;font-weight:650;margin:0;color:var(--ink)}
+  h4{font-size:12px;font-weight:700;margin:0 0 6px;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
+  p{color:var(--ink-2);margin:6px 0}
+  .lead{color:var(--ink-3);font-size:14px;margin-bottom:6px}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--code);border:1px solid var(--line-2);border-radius:5px;padding:1px 5px;color:#334155}
+  .mono{font-family:var(--mono)}
+  .tag{display:inline-block;font-family:var(--mono);font-size:11.5px;padding:2px 7px;border-radius:6px;background:var(--accent-soft);color:#1d4ed8;border:1px solid #dbe6ff;margin:1.5px 1.5px 1.5px 0;white-space:nowrap}
+  .tag.g{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
+  .tag.o{background:var(--warn-soft);color:#92400e;border-color:#fde68a}
+  .tag.r{background:var(--bad-soft);color:#b91c1c;border-color:#fecaca}
+  .tag.n{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+
+  /* ---------- stats ---------- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:6px}
+  .stat{background:#fafbfc;border:1px solid var(--line);border-radius:12px;padding:16px 16px 14px}
+  .stat .v{font-size:25px;font-weight:700;letter-spacing:-.5px;color:var(--ink)}
+  .stat .v small{font-size:13px;font-weight:500;color:var(--ink-3)}
+  .stat .k{font-size:12.5px;color:var(--ink-3);margin-top:3px}
+
+  /* ---------- callout ---------- */
+  .callout{border-radius:12px;padding:14px 16px;margin-top:16px;font-size:13.5px;line-height:1.6}
+  .callout.warn{background:var(--warn-soft);border:1px solid #fde68a;color:#78350f}
+  .callout.ok{background:var(--ok-soft);border:1px solid #a7f3d0;color:#065f46}
+  .callout.info{background:var(--accent-soft);border:1px solid #dbe6ff;color:#1e3a8a}
+  .callout b{color:inherit}
+
+  /* ---------- annotated screenshot ---------- */
+  .shot{position:relative;margin:20px 0 6px;border:1px solid var(--line);border-radius:12px;overflow:visible;background:#eef0f3}
+  .shot img{display:block;width:100%;height:auto;border-radius:12px}
+  .mk{position:absolute;transform:translate(-50%,-50%);width:23px;height:23px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:var(--mono);color:#fff;border:2px solid #fff;box-shadow:0 1px 4px rgba(16,24,40,.4);cursor:default}
+  .mk.a{background:var(--bad)}
+  .mk.b{background:var(--accent)}
+  .mk.c{background:#94a3b8}
+  .mk.q{background:var(--warn)}
+  /* 越界绘制的行号分隔线：直接压在原图那条线上 */
+  .hl-line{position:absolute;width:3px;background:rgba(220,38,38,.5);border-radius:2px;pointer-events:none}
+
+  /* ---------- legend ---------- */
+  .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px;margin-top:16px}
+  .lg{display:flex;gap:10px;align-items:flex-start;background:#fafbfc;border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+  .lg .n{flex:none;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;font-family:var(--mono);color:#fff}
+  .lg .t{font-size:13px;color:var(--ink-2);line-height:1.45}
+  .lg .t b{color:var(--ink);font-weight:650}
+
+  /* ---------- item ---------- */
+  .item{border:1px solid var(--line);border-radius:13px;padding:18px 20px;margin-top:16px;background:#fff}
+  .item.pri-a{border-left:4px solid var(--bad)}
+  .item.pri-b{border-left:4px solid var(--accent)}
+  .item.pri-c{border-left:4px solid #94a3b8}
+  .ih{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .chip{flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:var(--mono);color:#fff}
+  .pri-a .chip{background:var(--bad)} .pri-b .chip{background:var(--accent)} .pri-c .chip{background:#94a3b8}
+  .ih .where{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:860px){.grid3{grid-template-columns:1fr}}
+  .grid3 p{font-size:13.5px;margin:0}
+  .grid3 code{font-size:12px}
+  .codes{margin-top:12px;padding-top:11px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink-3)}
+  .codes b{color:var(--ink-2);font-weight:650}
+
+  /* ---------- table ---------- */
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  thead th{background:#fafbfc;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);border-bottom:1px solid var(--line)}
+  tbody tr:hover{background:#fafbfc}
+  td.c{text-align:center}
+  .yes{background:var(--warn-soft);color:#92400e;font-weight:700;white-space:nowrap}
+  .no{color:var(--ink-3)}
+  .path{font-family:var(--mono);font-size:11.5px;color:#475569}
+
+  /* ---------- order ---------- */
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:18px}
+  .step{background:#fafbfc;border:1px solid var(--line);border-radius:12px;padding:14px}
+  .step .sn{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+  .step .st{font-weight:650;font-size:14px;margin:4px 0 6px}
+  .step .sd{font-size:12.5px;color:var(--ink-3);line-height:1.5}
+
+  footer{color:var(--ink-3);font-size:12.5px;text-align:center;line-height:1.9;padding-top:8px}
+  footer code{font-size:12px}
+  .toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .toc a{font-size:12.5px;text-decoration:none;color:#1d4ed8;background:var(--accent-soft);border:1px solid #dbe6ff;border-radius:999px;padding:4px 12px}
+  .toc a:hover{background:#dbe6ff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">TableLite · UI Review</div>
+    <h1>界面优化点清单
+      <small>2026-10-13 截图复盘：16 项观察（含后续补充的行号分隔线越界），逐条给了依据、建议与文档波及面。本页<b>没有修改任何 specs / manual / 代码</b>，全部待拍板。</small>
+    </h1>
+    <div class="headline-facts">
+      <span class="hf"><b>16</b> 项观察</span>
+      <span class="hf"><b>6</b> 项建议优先</span>
+      <span class="hf"><b>2</b> 项疑似 bug（状态点 / 行号线）</span>
+      <span class="hf">依据 <b>specs 02 / 06 / 07</b></span>
+      <span class="hf">对照 <b>manual 02 / 06</b></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section>
+  <h2><span class="num">0</span>怎么读这份清单</h2>
+  <p class="lead">截图来源：一次「打开查询标签 → 跑 <code>SELECT * FROM products;</code> → 看结果」的常规操作。窗口里同时暴露了工具栏、侧栏、标签栏、编辑器、结果区、状态栏，适合一次性做体检。</p>
+  <div class="grid3" style="margin-top:14px">
+    <div>
+      <h4>分级口径</h4>
+      <p><b>A 高优先</b>：每次用都会撞到，或信息本身在互相打架；<br>
+         <b>B 细节打磨</b>：不影响正确性，但一张图里能看出别扭；<br>
+         <b>C 可放一放</b>：纯观感 / 低频，改不改都行。</p>
+    </div>
+    <div>
+      <h4>每条给三样东西</h4>
+      <p><b>现象</b>（截图里哪一处）→ <b>依据</b>（specs 条款或代码位置）→ <b>建议</b>（改成什么样）。<br>
+         最后一行是<b>文档波及面</b>：要动 specs 意味着需求/界面表现变化，按 AGENTS 规则 7 需要先拿授权。</p>
+    </div>
+    <div>
+      <h4>这不是 bug 列表</h4>
+      <p>多数项是「设计取舍」而非错误。凡属取舍的，按 AGENTS 规则 3 都应登记到
+         <code>docs/tech-designs/13-open-questions.md</code>，而不是直接改代码。</p>
+    </div>
+  </div>
+  <div class="callout info">
+    <b>流程提醒。</b>按 AGENTS.md 硬性规则 1 / 7，任何一条要走下去都是 <b>specs → manual → tech-designs → 代码</b>，
+    且 <b>specs / manual 只能由你拍板</b>。所以本页只做「报告差异 + 建议」，不动任何文档。
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">1</span>标注总览</h2>
+  <p class="lead">红＝A 高优先，蓝＝B 细节，灰＝C 可放一放，黄＝待确认。同一项出现两处时，两个位置都打同一个编号。</p>
+
+  <div class="shot">
+    <img src="assets/ui-review-2026-10-13.png" alt="TableLite 主窗口截图（2026-10-13）">
+
+    <!-- 1 结果概要重复（结果标签栏右上） -->
+    <div class="mk a" style="left:94.2%;top:56.2%">1</div>
+    <!-- 1' 结果概要重复（底部状态栏） -->
+    <div class="mk a" style="left:43.0%;top:88.9%">1</div>
+    <!-- 2 网格右缘裁列 -->
+    <div class="mk a" style="left:97.3%;top:59.2%">2</div>
+    <!-- 3 草稿已自动保存 -->
+    <div class="mk a" style="left:96.6%;top:90.8%">3</div>
+    <!-- 4 编辑器/结果比例 -->
+    <div class="mk a" style="left:58.9%;top:53.8%">4</div>
+    <!-- 5 新建查询两个入口 -->
+    <div class="mk a" style="left:52.0%;top:6.8%">5</div>
+    <div class="mk a" style="left:60.0%;top:12.4%">5</div>
+    <!-- 6 状态点缺失 -->
+    <div class="mk q" style="left:13.4%;top:6.8%">6</div>
+    <!-- 7 标题/库名重复 -->
+    <div class="mk b" style="left:24.4%;top:6.8%">7</div>
+    <div class="mk b" style="left:10.8%;top:12.4%">7</div>
+    <!-- 8 滚动条压住最后一行 -->
+    <div class="mk b" style="left:47.1%;top:86.1%">8</div>
+    <!-- 9 行号列偏宽 -->
+    <div class="mk b" style="left:23.8%;top:59.2%">9</div>
+    <!-- 10 变更按钮组全灰占位 -->
+    <div class="mk b" style="left:83.3%;top:6.8%">10</div>
+    <!-- 11 两个 users 标签同名 -->
+    <div class="mk b" style="left:35.5%;top:12.4%">11</div>
+    <div class="mk b" style="left:50.9%;top:12.4%">11</div>
+    <!-- 12 空分组占两行 -->
+    <div class="mk b" style="left:10.8%;top:33.4%">12</div>
+    <!-- 13 结果标签栏固定高度 -->
+    <div class="mk c" style="left:25.0%;top:56.2%">13</div>
+    <!-- 14 行号区 -->
+    <div class="mk c" style="left:23.8%;top:19.8%">14</div>
+    <!-- 15 清空孤悬 -->
+    <div class="mk c" style="left:75.6%;top:16.0%">15</div>
+    <!-- 16 行号分隔线越界：标签栏段 + 压在「执行」按钮上 -->
+    <div class="hl-line" style="left:25.85%;top:10.5%;height:42.9%"></div>
+    <div class="mk a" style="left:25.9%;top:11.8%">16</div>
+    <div class="mk a" style="left:25.9%;top:16.3%">16</div>
+  </div>
+
+  <div class="legend">
+    <div class="lg"><span class="n" style="background:var(--bad)">1</span><div class="t"><b>结果概要一屏出现两遍</b><br>结果标签栏右上 + 底部状态栏，只说同一件事</div></div>
+    <div class="lg"><span class="n" style="background:var(--bad)">2</span><div class="t"><b>网格右缘把列硬裁掉</b><br>表头成 <span class="mono">upd</span>、值成 <span class="mono">2026-…</span>，没有任何「还有列」的提示</div></div>
+    <div class="lg"><span class="n" style="background:var(--bad)">3</span><div class="t"><b>「草稿已自动保存」常驻</b><br>自动保存是常态，不需要每次都报</div></div>
+    <div class="lg"><span class="n" style="background:var(--bad)">4</span><div class="t"><b>编辑器 / 结果区默认比例偏浪费</b><br>一行 SQL 占掉近一半高度，结果只剩 11 行</div></div>
+    <div class="lg"><span class="n" style="background:var(--bad)">5</span><div class="t"><b>「新建查询」有两个入口</b><br>标题栏中间一个 <span class="mono">+</span>，标签栏末尾又一个 <span class="mono">+</span></div></div>
+    <div class="lg"><span class="n" style="background:var(--warn)">6</span><div class="t"><b>连接切换器看不到状态点</b><br>代码里应该有绿点，截图里只有 <span class="mono">⌄ demo</span> —— 待确认</div></div>
+    <div class="lg"><span class="n" style="background:var(--accent)">7</span><div class="t"><b>窗口标题与侧栏库名重复</b><br><span class="mono">demo — tablelite_dev</span> / <span class="mono">tablelite_dev ⌄</span> / <span class="mono">demo</span> 三处说同一件事</div></div>
+    <div class="lg"><span class="n" style="background:var(--accent)">8</span><div class="t"><b>水平滚动条压住最后一行</b><br>行 11 的上半截被滚动条吃掉</div></div>
+    <div class="lg"><span class="n" style="background:var(--accent)">9</span><div class="t"><b>「#」行号列偏宽</b><br>约 70pt，还紧挨着数值相同的 <span class="mono">id</span> 列</div></div>
+    <div class="lg"><span class="n" style="background:var(--accent)">10</span><div class="t"><b>变更按钮组全灰占位</b><br><span class="mono">放弃 / 预览(0) / 提交(0)</span> 三个都不可用时仍占一大块标题栏</div></div>
+    <div class="lg"><span class="n" style="background:var(--accent)">11</span><div class="t"><b>两个同名 <span class="mono">users</span> 标签</b><br>标题完全一样，切来切去容易混</div></div>
+    <div class="lg"><span class="n" style="background:var(--accent)">12</span><div class="t"><b>空分组占两行</b><br><span class="mono">视图 (0)</span> + <span class="mono">（空）</span></div></div>
+    <div class="lg" style="border-color:#fecaca;background:#fff7f7"><span class="n" style="background:var(--bad)">16</span><div class="t"><b>行号栏分隔线越出编辑区</b>（本轮补充）<br>从标签栏顶边一路画到编辑区底边，还盖在「执行」按钮上</div></div>
+    <div class="lg"><span class="n" style="background:#94a3b8">13</span><div class="t"><b>结果标签栏固定 32pt</b><br>只有一条结果时，这一行基本是空的</div></div>
+    <div class="lg"><span class="n" style="background:#94a3b8">14</span><div class="t"><b>编辑器行号区</b><br>无分隔、与正文间距偏大</div></div>
+    <div class="lg"><span class="n" style="background:#94a3b8">15</span><div class="t"><b>「清空」孤悬最右</b><br>不可撤销的操作离其它按钮很远</div></div>
+  </div>
+</section>
+
+<!-- ============ A ============ -->
+<section>
+  <h2><span class="num">2</span>A · 建议优先处理（1–5、16）</h2>
+
+  <div class="item pri-a">
+    <div class="ih"><span class="chip">1</span><h3>同一个结果概要在屏幕上出现两遍</h3><span class="where">截图 ① ①′</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>结果标签栏右上写 <span class="mono">共 1 条 · 已执行 1 条语句 · 耗时 54 ms · 返回 200 行</span>，底部状态栏又写 <span class="mono">已执行 1 条语句 · 耗时 54 ms · 返回 200 行</span>，两者只差开头那一段。</p></div>
+      <div><h4>依据</h4><p><code>specs/02-workspace.md</code> §7：底部状态栏已去掉，<b>查询执行进度与结果概要归查询编辑器自己的状态栏</b>；<code>specs/06</code> §1 线框图里结果标签栏亦有概要 —— 两处并存属设计未收敛。代码：<code>QueryResultAreaView.summaryText</code> / <code>QueryEditorView.statusBar</code>。</p></div>
+      <div><h4>建议</h4><p>二选一：标签栏只留 <b>「共 N 条」</b>（多结果时才有意义），执行耗时/行数只留状态栏；或反过来，状态栏只留「正在执行…」这类瞬时进度。另外 <span class="mono">共 1 条</span> 语义含糊（1 个结果集？1 条语句？），建议写成 <b>「1 个结果集」</b>，且仅当 &gt; 1 时显示。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag o">specs/06 §4</span><span class="tag o">manual/06</span><span class="tag n">代码 QueryResultAreaView / QueryEditorView</span></div>
+  </div>
+
+  <div class="item pri-a">
+    <div class="ih"><span class="chip">2</span><h3>网格右缘把列硬裁掉，没有「还有列」的提示</h3><span class="where">截图 ②</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>最右一列表头只剩 <span class="mono">upd</span>（连省略号都没有），单元格是半截 <span class="mono">2026-…</span>；水平滚动条到底之前，用户不知道还有没有列。</p></div>
+      <div><h4>依据</h4><p><code>specs/06</code> §4 要求结果网格支持列显隐 / 导出；表数据网格有底部条（<code>GridStatusBarView</code>：筛选 / 列 / 导出），结果网格只靠右键 —— 能力对等但可发现性不对等。</p></div>
+      <div><h4>建议</h4><p>三步递进：① 表头截断统一带 <span class="mono">…</span>；② 右缘加渐隐或滚动阴影，明确「还有内容」；③ 给结果网格一个轻量工具条（<span class="mono">返回 N 行 · 列 · 导出</span>），与表数据网格对齐。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag o">specs/06 §4</span><span class="tag o">manual/06</span><span class="tag n">代码 QueryResultGridView</span></div>
+  </div>
+
+  <div class="item pri-a">
+    <div class="ih"><span class="chip">3</span><h3>「草稿已自动保存」常驻状态栏，是纯噪音</h3><span class="where">截图 ③</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>状态栏最右长期显示 <span class="mono">草稿已自动保存</span>，每次编辑都亮一次，永久占位。</p></div>
+      <div><h4>依据</h4><p><code>specs/06</code> §2 只说「自动保存为草稿」，没要求告知；<code>specs/12</code> §3 的瞬时消息统一走顶部轻提示。实现见 <code>QueryEditorView.swift</code>（<code>viewModel.hasFile ? "未保存" : "草稿已自动保存"</code>）。</p></div>
+      <div><h4>建议</h4><p>正常路径<b>静默</b>；只在<b>异常</b>时说话：保存失败、或「关联了磁盘文件且未保存」才显示 <span class="mono">未保存</span>。省下的状态栏右端还能放更该常驻的东西（比如当前库 / 只读标记）。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag o">specs/06 §2</span><span class="tag n">manual/06（界面表现）</span><span class="tag n">代码 QueryEditorView</span></div>
+  </div>
+
+  <div class="item pri-a">
+    <div class="ih"><span class="chip">4</span><h3>编辑器 / 结果区默认比例偏浪费</h3><span class="where">截图 ④</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>脚本只有一行，编辑器却占掉近一半高度（大片空白）；结果网格只剩 11 行可见，而结果有 200 行。</p></div>
+      <div><h4>依据</h4><p><code>specs/06</code> §1：分隔条可拖拽、比例被记住 —— 比例本身合规，问题在<b>默认值</b>与<b>首屏不随内容调整</b>。<code>editorHeight(in:)</code> 与 <code>Preferences.editorResultSplitRatio</code>。</p></div>
+      <div><h4>建议</h4><p>① 默认比例下调（例如 0.35）；② 首次执行后若脚本行数少、结果行数多，自动给结果区让位（只自动一次，之后尊重用户拖拽）；③ 双击分隔条 = 恢复默认。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag o">specs/06 §1</span><span class="tag n">manual/06</span><span class="tag n">代码 QueryEditorView / Preferences</span></div>
+  </div>
+
+  <div class="item pri-a">
+    <div class="ih"><span class="chip">5</span><h3>「新建查询」在界面上出现了两次</h3><span class="where">截图 ⑤ ⑤′</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>标题栏正中一个 <span class="mono">+</span>（<code>WorkspaceToolbar</code> 的 principal 区），标签栏末尾又一个 <span class="mono">+</span>（<code>TabBarView</code>）。同一个动作，两个入口，图标一样。</p></div>
+      <div><h4>依据</h4><p><code>specs/02</code> §2 规定工具栏中间为 <span class="mono">+ 新建查询</span> / <span class="mono">+ 打开表…</span>；§6 又允许标签栏有 <span class="mono">+</span>。两条各自成立，合起来就重复了。</p></div>
+      <div><h4>建议</h4><p>只留标签栏那个（贴着标签、符合浏览器式心智），标题栏中间只留<b>「打开表…」</b>搜索；或者反过来保留标题栏、去掉标签栏的 <span class="mono">+</span>。二者留一个，并补 <span class="mono">⌘T</span> 提示。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag o">specs/02 §2 / §6</span><span class="tag o">manual/02</span><span class="tag n">代码 WorkspaceToolbar / TabBarView</span></div>
+  </div>
+
+  <div class="item pri-a">
+    <div class="ih"><span class="chip">16</span><h3>行号栏的竖向分隔线越出编辑区，还盖在工具栏按钮上</h3><span class="where">截图 ⑯ ⑯′ · 本轮补充</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>编辑区左侧行号栏的那条 1px 竖向分隔线并<b>不局限在编辑区</b>：它从标签栏顶边开始，向下贯穿整个编辑器工具栏，一直到编辑区底边才停。最刺眼的是它<b>直接画在「执行」按钮上面</b>——蓝色按钮中间能看见一道竖缝。</p></div>
+      <div><h4>依据</h4><p>像素取样：这条线在 x=638–639，与侧栏边界 x=545 平行；y 从 182（标签栏顶边）连续到 922（编辑区底边）。其中 y=256–303 段取样为 (0,100,230)，而按钮本体是 (0,111,255) —— 说明是<b>叠加绘制</b>，不是排版错位。代码上这条线由 <code>LineNumberRulerView.drawHashMarksAndLabels</code> 按 <code>bounds.minY…bounds.maxY</code> 画出，而越界的 ruler 没有被裁剪。</p></div>
+      <div><h4>建议</h4><p>别再用 <code>NSRulerView</code> 的 <code>bounds</code> 画分隔线：① 改在 scrollView 边缘叠一条 1px 分隔线（或先与 <code>scrollView.bounds</code> / <code>visibleRect</code> 求交再画）；② 顺手让承载视图裁剪越界内容（<code>clipsToBounds</code> / <code>masksToBounds</code>），把这类越界绘制一次性堵住。样式与第 14 条一起定。需实机复核是「bounds 越界」还是「父视图未裁剪」。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag n">代码 SQLTextView / LineNumberRulerView</span><span class="tag n">tech-designs/10 §2</span><span class="tag g">specs / manual 不用改（界面表现不变）</span></div>
+  </div>
+</section>
+
+<!-- ============ B ============ -->
+<section>
+  <h2><span class="num">3</span>B · 细节打磨（6–12）</h2>
+
+  <div class="item pri-b">
+    <div class="ih"><span class="chip">6</span><h3>连接切换器看不到状态点（待确认）</h3><span class="where">截图 ⑥ · 黄标</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>标题栏最左只画出 <span class="mono">⌄ demo</span>，没有绿点 —— 而标签页里明明已经取到数据，说明连接是正常的。</p></div>
+      <div><h4>依据</h4><p><code>specs/02</code> §2 / §7 要求切换器显示<b>连接状态点 + 连接名</b>；代码 <code>ConnectionSwitcher</code> 的 label 里第一个元素就是 <code>SessionStatusDot(state:)</code>。</p></div>
+      <div><h4>建议</h4><p>先确认是<b>渲染被吃掉</b>（例如 toolbar 的 label 样式 / 圆点尺寸过小）还是截图当时状态特殊。若是 bug 就修；若是有意去掉，则要同步 specs/02。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag n">先定位（代码 WorkspaceToolbar / SessionStatusDot）</span><span class="tag o">若确认去掉 → specs/02</span></div>
+  </div>
+
+  <div class="item pri-b">
+    <div class="ih"><span class="chip">7</span><h3>窗口标题、侧栏库名、切换器，三处说同一件事</h3><span class="where">截图 ⑦ ⑦′</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>标题栏 <span class="mono">demo — tablelite_dev</span>，侧栏顶部 <span class="mono">tablelite_dev ⌄</span>，切换器 <span class="mono">demo</span>。库名与连接名各出现两次。</p></div>
+      <div><h4>依据</h4><p>实现见 <code>WorkspaceView.windowTitle</code>（<code>"连接名 — 库名"</code>）；specs 未定义窗口标题。<code>specs/02</code> §4 只说侧栏顶部是<b>库切换器</b>。</p></div>
+      <div><h4>建议</h4><p>标题简化到只剩库名（或干脆不显示），连接身份交给切换器；侧栏库名保留（它是可操作的控件，不是重复展示）。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag n">代码 WorkspaceView</span><span class="tag o">specs/02（新增一条标题规则）</span></div>
+  </div>
+
+  <div class="item pri-b">
+    <div class="ih"><span class="chip">8</span><h3>水平滚动条压住最后一行</h3><span class="where">截图 ⑧</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>行 11 的上半截被 overlay 滚动条盖住，看起来像「这行坏了」。</p></div>
+      <div><h4>依据</h4><p>系统 overlay 滚动条行为；<code>07-data-grid.md</code> 只约束了行高与隔行色，未提底部留白。</p></div>
+      <div><h4>建议</h4><p>给 <code>NSScrollView</code> 设一点 <code>contentInsets.bottom</code>（例如 2–4pt），让滚动条落在留白上而不是行中间；结果网格与表数据网格都要。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag n">代码 QueryResultGridView / DataGridView</span><span class="tag n">tech-designs/07 §4</span></div>
+  </div>
+
+  <div class="item pri-b">
+    <div class="ih"><span class="chip">9</span><h3>「#」行号列偏宽，且紧挨数值相同的 id 列</h3><span class="where">截图 ⑨</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p><span class="mono">#</span> 列宽约 70pt，只放 1–3 位数字；由于查询结果正好带 <span class="mono">id</span>，两列数值完全一样，视觉上像重复列。</p></div>
+      <div><h4>依据</h4><p>行号列是结果网格的定位辅助（<code>QueryResultGridView</code>），specs 未规定宽度。</p></div>
+      <div><h4>建议</h4><p>宽度按行数位数自适应（如 36–48pt）；这个案例里「重复」是数据巧合，不用特殊处理，但窄列能让 <span class="mono">name</span> 等关键列多显示几个字。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag n">代码 QueryResultGridView</span><span class="tag n">tech-designs/07</span></div>
+  </div>
+
+  <div class="item pri-b">
+    <div class="ih"><span class="chip">10</span><h3>变更按钮组：三个都不可用时仍占一大块标题栏</h3><span class="where">截图 ⑩</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p><span class="mono">放弃 · 预览(0) · 提交(0)</span> 整体半透明禁用，但宽度照占；<span class="mono">(0)</span> 本身也没有信息量。</p></div>
+      <div><h4>依据</h4><p><code>specs/02</code> §2：条数为 0 时整体禁用（半透明）—— 现状<b>符合</b> specs，属观感问题。</p></div>
+      <div><h4>建议</h4><p>零变更时只显示一个禁用的 <span class="mono">提交</span>（不带 (0)），有变更时才展开成三件套并带上条数。标题栏右端能省出约 2 个按钮的宽度，留给连接信息或状态点。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag o">specs/02 §2（措辞微调）</span><span class="tag n">manual/02</span><span class="tag n">代码 WorkspaceToolbar</span></div>
+  </div>
+
+  <div class="item pri-b">
+    <div class="ih"><span class="chip">11</span><h3>两个同名 <span class="mono">users</span> 标签无法区分</h3><span class="where">截图 ⑪ ⑪′</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>标签栏里 <span class="mono">users</span> 出现两次，标题一字不差。</p></div>
+      <div><h4>依据</h4><p><code>specs/02</code> §6：打开已存在的同类标签应<b>切到已有标签</b>；只有右键「在新标签打开」（<code>forceNew</code>）才会出现重复。所以这多半是「用户自己开了两个」，不算 bug，但缺区分手段。</p></div>
+      <div><h4>建议</h4><p>重复的同类标签自动加序号后缀（<span class="mono">users</span> / <span class="mono">users · 2</span>），或给第二个标签加一个细微的「副本」标记。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag o">specs/02 §6（补一条规则）</span><span class="tag n">manual/02</span><span class="tag n">代码 Tab / TabBarView</span></div>
+  </div>
+
+  <div class="item pri-b">
+    <div class="ih"><span class="chip">12</span><h3>空分组占两行</h3><span class="where">截图 ⑫</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p><span class="mono">视图 (0)</span> 下面又跟一行 <span class="mono">（空）</span>，两行只说「没有视图」。</p></div>
+      <div><h4>依据</h4><p><code>specs/02</code> §7 <b>明确要求</b>：分组标题显示 <span class="mono">(0)</span>，展开后显示「（空）」。所以这是<b>按需求实现</b>的。</p></div>
+      <div><h4>建议</h4><p>若要压缩，只能在 specs 层面改（例如空分组直接不展开箭头）。改动小、收益也小 —— 列为「可改可不改」，不建议现在动。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag o">specs/02 §7（需授权）</span><span class="tag n">代码 ObjectTreeSidebar</span></div>
+  </div>
+</section>
+
+<!-- ============ C ============ -->
+<section>
+  <h2><span class="num">4</span>C · 可以放一放（13–15）</h2>
+
+  <div class="item pri-c">
+    <div class="ih"><span class="chip">13</span><h3>结果标签栏固定 32pt，只有一条结果时基本是空的</h3><span class="where">截图 ⑬</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>整条 32pt 高，只放了一个 <span class="mono">结果 1</span> 和右侧概要。</p></div>
+      <div><h4>依据</h4><p><code>specs/06</code> §4：多结果时才需要标签切换；单结果时它是纯装饰。</p></div>
+      <div><h4>建议</h4><p>单结果时把这一行压成一条 20pt 细条（只留概要），多结果时恢复标签形态。与第 1 条一起改最省事。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag n">代码 QueryResultAreaView</span></div>
+  </div>
+
+  <div class="item pri-c">
+    <div class="ih"><span class="chip">14</span><h3>编辑器行号区无分隔、与正文间距偏大</h3><span class="where">截图 ⑭</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>行号 <span class="mono">1</span> 与 SQL 正文之间留白偏大，且没有竖向分隔线。</p></div>
+      <div><h4>依据</h4><p><code>specs/06</code> §2 只要求「左侧行号」。</p></div>
+      <div><h4>建议</h4><p>行号右对齐、缩到 32–40pt，并加一条极淡的竖向分隔（或在当前语句高亮块左缘对齐）。长脚本时视线跳跃会明显少。<b>注意</b>：分隔线已经有了，但它越出编辑区（见第 16 条），先修越界再调样式。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag n">代码 SQLTextView</span><span class="tag n">tech-designs/10</span></div>
+  </div>
+
+  <div class="item pri-c">
+    <div class="ih"><span class="chip">15</span><h3>「清空」孤悬最右</h3><span class="where">截图 ⑮</span></div>
+    <div class="grid3">
+      <div><h4>现象</h4><p>编辑器工具栏右侧只有 <span class="mono">清空</span> 一个按钮，离 <span class="mono">打开 / 另存为</span> 很远，而它是<b>不可撤销</b>的动作。</p></div>
+      <div><h4>依据</h4><p><code>specs/06</code> §1 线框图未规定清空的位置。</p></div>
+      <div><h4>建议</h4><p>要么挪到 <span class="mono">另存为</span> 旁边并用次要样式，要么加撤消提示（清空后顶部轻提示 <span class="mono">已清空 · 撤销</span>）。</p></div>
+    </div>
+    <div class="codes"><b>波及：</b><span class="tag o">specs/06 §1</span><span class="tag n">manual/06</span><span class="tag n">代码 QueryEditorView</span></div>
+  </div>
+</section>
+
+<!-- ============ 波及面 ============ -->
+<section>
+  <h2><span class="num">5</span>改动波及面一览</h2>
+  <p class="lead">「要动 specs」＝需求/界面表现有变化，按 AGENTS 规则 7 <b>必须先拿你的授权</b>；只标 <code>manual</code> 的表示需求没变、只是说明书要跟着图示更新。</p>
+  <table>
+    <thead>
+      <tr><th>#</th><th>优化点</th><th class="c">specs</th><th class="c">manual</th><th class="c">tech-designs</th><th>主要代码位置</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="mono">1</td><td>结果概要去重</td><td class="c yes">要</td><td class="c yes">要</td><td class="c no">—</td><td class="path">QueryResultAreaView · QueryEditorView</td></tr>
+      <tr><td class="mono">2</td><td>右缘裁列 / 结果网格工具条</td><td class="c yes">要</td><td class="c yes">要</td><td class="c no">—</td><td class="path">QueryResultGridView</td></tr>
+      <tr><td class="mono">3</td><td>草稿提示静默化</td><td class="c yes">要</td><td class="c yes">要</td><td class="c no">—</td><td class="path">QueryEditorView</td></tr>
+      <tr><td class="mono">4</td><td>默认分割比 / 自适应</td><td class="c yes">要</td><td class="c yes">要</td><td class="c no">—</td><td class="path">QueryEditorView · Preferences</td></tr>
+      <tr><td class="mono">5</td><td>去掉重复的「新建查询」入口</td><td class="c yes">要</td><td class="c yes">要</td><td class="c no">—</td><td class="path">WorkspaceToolbar · TabBarView</td></tr>
+      <tr><td class="mono">6</td><td>连接状态点（待确认）</td><td class="c no">看结论</td><td class="c no">看结论</td><td class="c no">—</td><td class="path">WorkspaceToolbar · SessionStatusDot</td></tr>
+      <tr><td class="mono">7</td><td>窗口标题简化</td><td class="c">可加</td><td class="c no">—</td><td class="c no">—</td><td class="path">WorkspaceView</td></tr>
+      <tr><td class="mono">8</td><td>网格底部留白</td><td class="c no">—</td><td class="c no">—</td><td class="c">07 §4</td><td class="path">QueryResultGridView · DataGridView</td></tr>
+      <tr><td class="mono">9</td><td>行号列宽</td><td class="c no">—</td><td class="c no">—</td><td class="c">07</td><td class="path">QueryResultGridView</td></tr>
+      <tr><td class="mono">10</td><td>变更按钮组收起</td><td class="c">微调</td><td class="c yes">要</td><td class="c no">—</td><td class="path">WorkspaceToolbar</td></tr>
+      <tr><td class="mono">11</td><td>重复标签加序号</td><td class="c">补一条</td><td class="c yes">要</td><td class="c no">—</td><td class="path">Tab · TabBarView</td></tr>
+      <tr><td class="mono">12</td><td>空分组压缩</td><td class="c">需授权</td><td class="c yes">要</td><td class="c no">—</td><td class="path">ObjectTreeSidebar</td></tr>
+      <tr><td class="mono">13</td><td>单结果时压扁标签栏</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="path">QueryResultAreaView</td></tr>
+      <tr><td class="mono">14</td><td>行号区样式</td><td class="c no">—</td><td class="c no">—</td><td class="c">10</td><td class="path">SQLTextView</td></tr>
+      <tr style="background:#fff7f7"><td class="mono">16</td><td>行号分隔线越界绘制（本轮补充）</td><td class="c no">—</td><td class="c no">—</td><td class="c">10 §2</td><td class="path">SQLTextView · LineNumberRulerView</td></tr>
+      <tr><td class="mono">15</td><td>「清空」位置 / 可撤销</td><td class="c">要</td><td class="c yes">要</td><td class="c no">—</td><td class="path">QueryEditorView</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 推进 ============ -->
+<section>
+  <h2><span class="num">6</span>建议的推进顺序</h2>
+  <p class="lead">前两批是「改了就能看见」的；第三批要先确认口径再动手。</p>
+  <div class="steps">
+    <div class="step">
+      <div class="sn">BATCH 1</div>
+      <div class="st">先拿 16 / 1 / 3 / 5</div>
+      <div class="sd">16 是画错的线、1/3/5 是信息重复 —— 都不涉及需求口径，改动小、体感最明显。</div>
+    </div>
+    <div class="step">
+      <div class="sn">BATCH 2</div>
+      <div class="st">再拿 2 / 4 / 8</div>
+      <div class="sd">结果网格的可见性与空间分配（右缘提示、默认比例、底部留白），都是同一条腿上的活。</div>
+    </div>
+    <div class="step">
+      <div class="sn">BATCH 3</div>
+      <div class="st">确认 6，再做 7 / 9–11</div>
+      <div class="sd">先把「状态点到底该不该有」定下来（bug 还是设计），再动标题、列宽、按钮组这些涉及 specs 措辞的项。</div>
+    </div>
+    <div class="step">
+      <div class="sn">BATCH 4</div>
+      <div class="st">12–15 视心情</div>
+      <div class="sd">纯观感项；其中 12 与 specs/02 §7 有明文冲突，必须你点头才能动。</div>
+    </div>
+  </div>
+
+  <div class="callout ok">
+    <b>下一步只需要你回答三件事：</b>①第 5 条保留哪个 <span class="mono">+</span>（标签栏 or 标题栏）；②第 6 条状态点是不是 bug；
+    ③BATCH 1 的三条要不要我按流程出「specs / manual 改动草案」给你过目。
+    全程不会直接改 <code>specs/</code> 与 <code>manual/</code> —— 草案经你同意后，才走 tech-designs → 代码。
+  </div>
+</section>
+
+<footer>
+  复盘对象：<code>截屏2026-10-13 22.07.59.png</code>（本页图已缩至 2000px 存入 <code>dev-log/assets/</code>）<br>
+  对照文档：<code>specs/02-workspace.md</code> · <code>specs/06-query-editor.md</code> · <code>manual/02</code> · <code>manual/06</code> · <code>docs/tech-designs/07-data-grid.md</code> · <code>10-query-editor.md</code><br>
+  本页只报告差异与建议，未修改任何 specs / manual / 代码
+</footer>
+
+</div>
+</body>
+</html>
