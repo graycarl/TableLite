@@ -320,7 +320,7 @@ final class QueryEditorViewModel {
         return results.first { $0.id == selectedResultID } ?? results.first
     }
 
-    /// 结果集标签数量（状态栏「共 N 条」）。
+    /// 查询结果集标签数量（结果标签栏「N 个结果集」用）。
     var resultSetCount: Int {
         results.filter { $0.kind == .resultSet }.count
     }
@@ -379,10 +379,16 @@ final class QueryEditorViewModel {
         draftTask?.cancel()
         let content = text
         let store = drafts
-        draftTask = Task {
+        draftTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled else { return }
-            try? await store.write(content, id: draftID)
+            do {
+                try await store.write(content, id: draftID)
+            } catch {
+                // 写盘失败不能静默（`specs/06-query-editor.md` §2）：走编辑器轻提示，
+                // 文案沿用脚本文件保存失败的那句，不新增措辞。
+                self?.showNotice("保存失败")
+            }
         }
     }
 

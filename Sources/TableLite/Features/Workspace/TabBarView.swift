@@ -42,7 +42,7 @@ struct TabBarView: View {
                         .font(.callout)
                 }
                 .buttonStyle(.subtle)
-                .help("新建查询")
+                .help("新建查询（⌘T）")
             }
             .padding(.horizontal, AppSpacing.xs)
         }

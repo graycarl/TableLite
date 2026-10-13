@@ -117,7 +117,7 @@
   <text class="c s" x="68" y="401">结果 1</text>
   <text class="mut s" x="136" y="401">结果 2</text>
   <text class="mut s" x="212" y="401">错误 ●</text>
-  <text class="fnt s" x="290" y="401">共 2 条 · 耗时 42 ms</text>
+  <text class="fnt s" x="290" y="401">2 个结果集</text>
   <text class="fnt s" x="900" y="401">（结果网格只读）</text>
 
   <!-- 结果网格 -->
@@ -184,9 +184,9 @@
 <tr data-hot="4"><td class="num">4</td><td class="wide">分隔条</td>
   <td>上下拖拽调整编辑器和结果区的比例，比例会被记住。</td></tr>
 <tr data-hot="5"><td class="num">5</td><td class="wide">结果标签</td>
-  <td>每条语句一个标签。类型有<b>结果 N</b>（有返回行）、<b>完成</b>（非查询语句）、<b>错误</b>（失败）、<b>只读拦截</b>（被只读模式挡下）、<b>已拦截</b>（被拦下的 <code>USE</code>）。超过 24 个会折叠。</td></tr>
+  <td>每条语句一个标签。类型有<b>结果 N</b>（有返回行）、<b>完成</b>（非查询语句）、<b>错误</b>（失败）、<b>只读拦截</b>（被只读模式挡下）、<b>已拦截</b>（被拦下的 <code>USE</code>）。超过 24 个会折叠。多个结果集时，标签栏右侧写出「N 个结果集」；只有一个结果集时不写。</td></tr>
 <tr data-hot="6"><td class="num">6</td><td class="wide">状态栏</td>
-  <td>显示执行了几条、总耗时、总返回行数。执行中这里会变成进度，右边出现「停止」。</td></tr>
+  <td>执行统计只在这里显示：执行了几条、总耗时、总返回行数。执行中这里会变成进度（停止按钮在工具栏）。</td></tr>
 </tbody>
 </table>
 
@@ -258,9 +258,10 @@
 <h3>脚本自动保存</h3>
 
 <ul>
-  <li>编辑内容每隔一小段时间自动存成草稿。</li>
+  <li>编辑内容每隔一小段时间自动存成草稿。<b>存成功不会弹任何提示</b>——状态栏平时是干净的。</li>
   <li>重新打开查询标签时，如果偏好里开了「恢复上次的脚本内容」，会恢复上次的编辑内容（连接后还原出来的查询标签也一样）。</li>
   <li>关闭查询标签<b>不提示保存</b>——除非这个标签是从磁盘打开过或另存过的文件，并且又有新改动。</li>
+  <li>改动可能丢的时候，状态栏才提示 <code>未保存</code>：从磁盘打开过或另存过的文件有新改动时提示；没关联磁盘文件的标签，只有在<a href="11-preferences.html">偏好</a>里关掉「自动保存脚本草稿」后才提示（橙色，提醒改动不会被自动保留），开着自动保存时不显示任何东西。</li>
 </ul>
 
 <h2>执行</h2>
@@ -396,6 +397,31 @@
   <li>查询成功但没返回行时显示：<code>查询成功，0 行，耗时 3 ms</code>。</li>
 </ul>
 
+<figure>
+<svg viewBox="0 0 1000 230" role="img" aria-label="单结果与多结果的结果标签栏">
+  <title>结果标签栏的高度与结果集数量</title>
+
+  <text class="mut s" x="20" y="26">只有一个结果</text>
+  <rect class="s-chrome ln" x="20" y="38" width="960" height="24"/>
+  <rect class="s-window lnA" x="20" y="38" width="86" height="24"/>
+  <line class="lnA" x1="20" y1="62" x2="106" y2="62"/>
+  <text class="c s" x="63" y="54">结果 1</text>
+  <text class="fnt s" x="960" y="54" text-anchor="end">不写结果集数量</text>
+  <text class="fnt s" x="20" y="90">只有一个结果时，标签栏压成细条（约 20pt），省下的高度让给结果网格。</text>
+
+  <text class="mut s" x="20" y="140">有多个结果</text>
+  <rect class="s-chrome ln" x="20" y="152" width="960" height="38"/>
+  <rect class="s-window lnA" x="20" y="152" width="86" height="38"/>
+  <line class="lnA" x1="20" y1="190" x2="106" y2="190"/>
+  <text class="c s" x="63" y="176">结果 1</text>
+  <text class="mut s" x="126" y="176">结果 2</text>
+  <text class="mut s" x="202" y="176">结果 3</text>
+  <text class="fnt s" x="960" y="176" text-anchor="end">3 个结果集</text>
+  <text class="fnt s" x="20" y="212">有两个及以上结果时恢复常规高度，标签栏右侧写出本次执行总共有几个结果集。</text>
+</svg>
+<figcaption><b>图 6-5</b>　结果标签栏：单结果压细条，多结果写出「N 个结果集」。</figcaption>
+</figure>
+
 <h2>查询历史</h2>
 
 <p>左侧栏底部的 <b>时钟图标</b> 入口（鼠标悬停显示 <code>查询历史</code>），点开成一个独立标签。</p>
@@ -460,7 +486,7 @@
   <text class="s" x="20" y="410">单击 → 在下方预览完整 SQL　·　双击 → 插入到当前查询标签　·　右键 → 复制 / 在新标签打开 / 删除该条</text>
   <text class="fnt s" x="20" y="430">只记录从 SQL 编辑器执行过的语句。表数据加载、元数据读取这些客户端自动发的查询不会进来（它们在 Console Log 里）。</text>
 </svg>
-<figcaption><b>图 6-5</b>　查询历史。默认保留最近 5000 条。</figcaption>
+<figcaption><b>图 6-6</b>　查询历史。默认保留最近 5000 条。</figcaption>
 </figure>
 
 <table>
@@ -550,7 +576,7 @@
   <rect class="s-field ln2" x="836" y="404" width="144" height="28" rx="6"/>
   <text class="c s" x="908" y="418">↓ 回到底部</text>
 </svg>
-<figcaption><b>图 6-6</b>　Console Log。<code>[data]</code> 是用户发起的，<code>[meta]</code> 是客户端自动发的。</figcaption>
+<figcaption><b>图 6-7</b>　Console Log。<code>[data]</code> 是用户发起的，<code>[meta]</code> 是客户端自动发的。</figcaption>
 </figure>
 
 <table>

@@ -5,13 +5,12 @@ import SwiftUI
 /// 与系统标题栏合一（`docs/tech-designs/06-ui-layer.md` §10）：挂在 `WorkspaceView` 的
 /// `.toolbar` 上，按钮样式由系统 toolbar 统一处理，不再自绘一条 `.bar` 横条。
 ///
-/// 从左到右：连接切换器 → 标签前进/后退 → `+ 新建查询` / `+ 打开表…` →
+/// 从左到右：连接切换器 → 标签前进/后退 → `打开表…` →
 /// 变更操作组 → 右侧字段栏开关。
 struct WorkspaceToolbar: ToolbarContent {
 
     let session: ConnectionSession
     var onNavigate: (Bool) -> Void
-    var onNewQuery: () -> Void
     var onOpenTable: () -> Void
     var onToggleInspector: () -> Void
     var onShowConnections: () -> Void
@@ -26,20 +25,13 @@ struct WorkspaceToolbar: ToolbarContent {
         }
 
         ToolbarItem(placement: .principal) {
-            HStack(spacing: AppSpacing.s) {
-                Button {
-                    onNewQuery()
-                } label: {
-                    Label("新建查询", systemImage: "plus")
-                }
-
-                Button {
-                    onOpenTable()
-                } label: {
-                    Label("打开表…", systemImage: "magnifyingglass")
-                }
-                .disabled(session.objects.isEmpty)
+            Button {
+                onOpenTable()
+            } label: {
+                Label("打开表…", systemImage: "magnifyingglass")
+                    .labelStyle(.titleAndIcon)
             }
+            .disabled(session.objects.isEmpty)
         }
 
         ToolbarItem(placement: .primaryAction) {

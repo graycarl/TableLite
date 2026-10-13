@@ -204,9 +204,13 @@ struct QueryEditorView: View {
                     .foregroundStyle(.orange)
             }
             Spacer()
-            if viewModel.isDirty {
-                Text(viewModel.hasFile ? "未保存" : "草稿已自动保存")
-                    .foregroundStyle(.secondary)
+            if let draft = WorkspaceStatusText.draftStatus(
+                hasFile: viewModel.hasFile,
+                isDirty: viewModel.isDirty,
+                autoSaveEnabled: environment.preferences.autoSaveDraft
+            ) {
+                Text(draft.text)
+                    .foregroundStyle(draft.isWarning ? Color.orange : Color.secondary)
             }
         }
         .font(.callout)

@@ -138,7 +138,7 @@ final class QueryResultTab: Identifiable {
         kind == .failure || kind == .blocked
     }
 
-    /// 「共 N 条 · 耗时 X ms」里的结果集数量（由视图统计）。
+    /// 查询结果集的数量（结果标签栏「N 个结果集」用；由视图统计）。
     var affectedSummary: String {
         var parts = ["影响 \(affectedRows) 行"]
         if lastInsertID != 0 {
