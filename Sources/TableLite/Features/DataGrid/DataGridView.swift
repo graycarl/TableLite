@@ -58,6 +58,14 @@ struct DataGridView: NSViewRepresentable {
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
         scrollView.backgroundColor = .textBackgroundColor
+        // 横向滚动 / 窗口缩放要重算列窗口（见 §10.2 的水平列虚拟化）。
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            coordinator,
+            selector: #selector(DataGridCoordinator.clipViewBoundsDidChange(_:)),
+            name: NSView.boundsDidChangeNotification,
+            object: scrollView.contentView
+        )
 
         coordinator.rebuildColumns()
         coordinator.reloadAll()
@@ -97,6 +105,23 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     /// 行序列快照的缓存（`rows + insertionRows`）与它对应的修订号。
     private var cachedRows: [GridRow] = []
     private var cachedRowsRevision = Int.min
+
+    // MARK: 水平列虚拟化（`07-data-grid.md` §10.2）
+    //
+    // AppKit 的 view-based `NSTableView` 会为「可见行范围 × **全部列**」物化 cell 视图，
+    // 宽表下实测 96% 的常驻单元格在屏幕外。这里只对「与水平可视区相交（含 overscan 一个
+    // 视口宽）」的列物化，其余 `viewFor` 返回 `nil`；水平可视区变化时做一次局部重载把新
+    // 进视野的列补上。
+
+    /// 当前物化的列下标区间；`nil` 表示「还没拿到可视区」或「列窗口为空」，此时全量物化。
+    private var columnWindow: ClosedRange<Int>?
+    /// 列 identifier → 下标；`viewFor` 是热路径，窗口判定必须 O(1)。
+    private var columnIndexByIdentifier: [NSUserInterfaceItemIdentifier: Int] = [:]
+    /// 重算窗口时正在重载自身，避免 `reloadData` 的几何变化再次触发。
+    private var isRefreshingColumnWindow = false
+
+    /// 水平 overscan：可视区左右各多物化一个视口宽的列，横向滚动时不必每滚一点就重载。
+    private static let columnWindowOverscanRatio: CGFloat = 1.0
 
     /// 当前加载的行序列快照。
     ///
@@ -162,6 +187,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         if lastDataRevision != viewModel.dataRevision {
             lastDataRevision = viewModel.dataRevision
             refreshColumnIndex()
+            refreshColumnWindow(reloadIfChanged: false)
             tableView.reloadData()
             applyEstimatedWidthsIfNeeded()
         }
@@ -172,6 +198,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     func reloadAll() {
         lastDataRevision = viewModel.dataRevision
         refreshColumnIndex()
+        refreshColumnWindow(reloadIfChanged: false)
         tableView?.reloadData()
         applyEstimatedWidthsIfNeeded()
     }
@@ -196,6 +223,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     func rebuildColumns() {
         guard let tableView else { return }
         refreshColumnIndex()
+        columnIndexByIdentifier.removeAll(keepingCapacity: true)
         for column in tableView.tableColumns {
             tableView.removeTableColumn(column)
         }
@@ -222,6 +250,12 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
             tableColumn.isEditable = false
             tableView.addTableColumn(tableColumn)
         }
+        columnIndexByIdentifier = Dictionary(
+            tableView.tableColumns.enumerated().map { ($0.element.identifier, $0.offset) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        // 列集合变了，x 映射也变了：重新判定列窗口（不触发重载，调用方随后会 `reloadData`）。
+        refreshColumnWindow(reloadIfChanged: false)
     }
 
     private func headerTitle(for column: ColumnInfo, baseFont: NSFont) -> NSAttributedString {
@@ -288,6 +322,71 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
             tableColumn.width = width
             viewModel.setColumnWidth(name, width: Double(width))
         }
+        // 列宽变了 → x 映射变了，列窗口要重判。
+        refreshColumnWindow()
+    }
+
+    // MARK: 列窗口
+
+    /// 按当前几何算出应当物化的列下标区间；返回 `nil` 表示无法判定（尚未参与布局），
+    /// 此时退回全量物化。
+    private func computeColumnWindow(_ tableView: NSTableView) -> ClosedRange<Int>? {
+        // 还没上屏（`NSViewRepresentable` 刚装配）时几何不可信：返回 nil，等首帧后再重算，
+        // 那时会走「首次拿到窗口 → 整表重建」的分支。
+        guard tableView.window != nil else { return nil }
+        let visible = tableView.visibleRect
+        guard visible.width > 0, visible.height > 0, !tableView.tableColumns.isEmpty else { return nil }
+        let overscan = visible.width * Self.columnWindowOverscanRatio
+        let left = visible.minX - overscan
+        let right = visible.maxX + overscan
+        var lower: Int?
+        var upper: Int?
+        for index in tableView.tableColumns.indices {
+            let frame = tableView.rect(ofColumn: index)
+            if frame.maxX < left { continue }
+            if frame.minX > right { break }
+            if lower == nil { lower = index }
+            upper = index
+        }
+        guard let lower, let upper else { return nil }
+        return lower...upper
+    }
+
+    /// 重算列窗口。窗口变了且 `reloadIfChanged` 为真时，只对「可见行 × 新旧列窗口并集」
+    /// 做局部重载：新进视野的列补上视图，离开视野的列交还给复用队列。
+    private func refreshColumnWindow(reloadIfChanged: Bool = true) {
+        guard let tableView, !isRefreshingColumnWindow else { return }
+        let updated = computeColumnWindow(tableView)
+        guard updated != columnWindow else { return }
+        let previous = columnWindow
+        columnWindow = updated
+        guard reloadIfChanged, let updated else { return }
+
+        isRefreshingColumnWindow = true
+        defer { isRefreshingColumnWindow = false }
+        guard let previous else {
+            // 首次拿到可视区：此前是「无法判定 → 全量物化」，整表重建一次把它们丢掉。
+            tableView.reloadData()
+            return
+        }
+        let rows = tableView.rows(in: tableView.visibleRect)
+        guard rows.length > 0 else { return }
+        let lower = min(previous.lowerBound, updated.lowerBound)
+        let upper = max(previous.upperBound, updated.upperBound)
+        guard lower >= 0, upper < tableView.tableColumns.count else { return }
+        tableView.reloadData(
+            forRowIndexes: IndexSet(integersIn: rows.location..<(rows.location + rows.length)),
+            columnIndexes: IndexSet(integersIn: lower...upper)
+        )
+    }
+
+    @objc func clipViewBoundsDidChange(_ notification: Notification) {
+        refreshColumnWindow()
+    }
+
+    deinit {
+        // 通知中心对观察者是弱引用，这里只是把手尾清理干净。
+        NotificationCenter.default.removeObserver(self)
     }
 
     // MARK: 数据源
@@ -298,6 +397,12 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard let tableColumn, row >= 0, row < rowsSnapshot.count else { return nil }
+        // 水平虚拟化：窗口外的列不物化视图（`07-data-grid.md` §10.2）。
+        if let window = columnWindow,
+           let columnIndex = columnIndexByIdentifier[tableColumn.identifier],
+           !window.contains(columnIndex) {
+            return nil
+        }
         let gridRow = rowsSnapshot[row]
         let isSelected = tableView.selectedRowIndexes.contains(row)
 
@@ -848,6 +953,8 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         for column in tableView.tableColumns where column.identifier != Self.rowNumberIdentifier {
             viewModel.setColumnWidth(column.identifier.rawValue, width: Double(column.width))
         }
+        // 宽度变了 → x 映射变了，列窗口要重判。
+        refreshColumnWindow()
     }
 }
 

@@ -20,7 +20,7 @@
 | [12-build-and-deps.md](12-build-and-deps.md) | 技术选型、Homebrew 依赖、静态链接、版本控制、构建入口开销 |
 | [13-open-questions.md](13-open-questions.md) | 已知限制、刻意简化、待定事项 |
 | [14-row-inspector.md](14-row-inspector.md) | 右侧字段栏：技术选型、提交路径、大字段按需加载与暂存联动 |
-| [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI、性能排查方法、测试 suite 运行成本 |
+| [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI、性能排查方法、应用内滚动基准与 Agent 自测基建、测试 suite 运行成本 |
 
 ## 与需求文档的对应
 
@@ -60,7 +60,7 @@
 | 大数据列 | 默认只取前 4 KB，点开时再取完整值；截断值绝不写回 | [07](07-data-grid.md) §3.1、[08](08-pending-changes.md) §9 |
 | 元数据来源 | `information_schema` + TTL 缓存；行数用估算，不自动 `COUNT(*)` | [11](11-schema-and-import-export.md) §1、[07](07-data-grid.md) §3.4 |
 | 表数据加载 | 不分页：固定 `LIMIT N` 从头取前 N 行，条数可切换；精确计数只在用户点「精确统计」时执行 | [07](07-data-grid.md) §7 |
-| 网格滚动性能 | 单元格子视图惰性创建（尤其 `NSButton`，单个约 1 ms）；热路径不碰派生 `gridRows`、不线性查列；行视图复用 | [07](07-data-grid.md) §10.1 |
+| 网格滚动性能 | 单元格子视图惰性创建（尤其 `NSButton`，单个约 1 ms）；热路径不碰派生 `gridRows`、不线性查列；行视图复用；**超宽表按水平可视区做列虚拟化**（窗口外的列不物化视图，视区变化时局部 `reloadData`），暂存投影对 `rows` **一次赋值**而非逐元素写（每次写都是一次 Observation 通知） | [07](07-data-grid.md) §10.1、§10.2 |
 | 连接信息与进度 | **窗口底部不做常驻状态栏**：连接信息（版本 / 字符集 / 只读 / 隧道端口）在工具栏连接切换器的悬停详情；查询 / 提交 / 导出进度留在各自视图；不可编辑原因挂网格底部条 | [05](05-session-management.md) §10、[13](13-open-questions.md) S39 |
 | 导出方式 | 只支持 CSV；流式写出、临时文件原子替换 | [11](11-schema-and-import-export.md) §3、[13](13-open-questions.md) S9 |
 | 口令存储 | 密码 / Passphrase 只进单独的 `credentials.json`（`0600`，明文），禁止写进 `connections.json` / `UserDefaults` | [02](02-persistence.md) §2、§3 |

@@ -63,6 +63,21 @@ run: build ## 构建并启动（先退出已在运行的实例）
 	fi
 	@open "$(BUILD_DIR)/Build/Products/$(CONFIG)/TableLite.app"
 
+bench: build ## 滚动性能基准（需 dev 库已启动：make db；TL_BENCH_TABLE 换表）
+	@# 同 run：先退出旧实例，避免代码身份漂移。
+	@if pgrep -xq TableLite; then \
+		echo "==> 退出正在运行的 TableLite"; \
+		osascript -e 'tell application id "com.graycarl.tablelite" to quit' >/dev/null 2>&1 || true; \
+		for _ in $$(seq 1 40); do pgrep -xq TableLite || break; sleep 0.25; done; \
+		if pgrep -xq TableLite; then \
+			echo "错误：TableLite 还在运行，请手动退出后重跑。" >&2; exit 1; \
+		fi; \
+	fi
+	@# 直接跑二进制以捕获 stdout 上的 JSON 统计（见 docs/tech-designs/15-testing.md §8.1）。
+	@MYSQL_HOST=127.0.0.1 MYSQL_PORT=13307 MYSQL_USER=root MYSQL_PASSWORD=tablelite MYSQL_DATABASE=tablelite_dev \
+		"$(BUILD_DIR)/Build/Products/$(CONFIG)/TableLite.app/Contents/MacOS/TableLite" \
+		--bench-scroll "$${TL_BENCH_TABLE:-wide_test}"
+
 test: gen ## 跑单元测试（默认 4 路并行；PARALLEL=0 串行，WORKERS=N 调并行度）
 	@./scripts/check-imports.sh
 	@echo "==> xcodebuild test（$(TEST_MODE)）"

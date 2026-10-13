@@ -124,7 +124,7 @@ Makefile 提供 `deps`（检查依赖 + 生成 `Local.xcconfig`）、`gen`（生
 
 手工测试用数据库：`make db` 用 `scripts/dev/docker-compose.yml` 起一个**常驻**容器（镜像同冒烟的 `mysql:8.4`，
 但 compose 文件、容器名、端口均独立：默认 **13307**，冒烟是 13306，两者可同时运行）。
-数据存在容器自己的 named volume 里，示例数据由 `scripts/dev/seed.sql` 首次创建时灌入；
+数据存在容器自己的 named volume 里，示例数据由 `scripts/dev/seed.sql`（另追加 `gen_wide_seed.py` 生成的 200 列 × 3000 行宽表 `wide_test`，用于验证超宽表的滚动性能）首次创建时灌入；
 配 `db-reset` / `db-shell` / `db-stop`。与冒烟的区别在于：冒烟跑完即删，这个留着给 App 连。
 
 **首次在一台新机器上构建前**，还需要接受 Xcode 许可并安装附加组件（两条都需要 sudo）：

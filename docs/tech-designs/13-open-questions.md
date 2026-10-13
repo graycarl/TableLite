@@ -54,6 +54,7 @@
 | S41 | 产物只出 arm64 单架构 | `project.yml` 固定 `ARCHS = arm64`，不产 Intel / 通用二进制。Homebrew 的 `.a` 只有 arm64，Release 的 `ARCHS` 默认是 `arm64 x86_64`，x86_64 切片必然链接失败（Debug 靠 `ONLY_ACTIVE_ARCH = YES` 躲过；装了 Rosetta 的机器上 `xcodebuild` 会把两个架构都编一遍）。自用工具不需要 Intel 产物。见 `12-build-and-deps.md` §3.1 |
 | S42 | 凭据明文写在 `0600` 文件里，不加密 | 本机唯一能可靠保管密钥的地方就是钥匙串，而钥匙串的 XARA partition 绑 cdhash、自签名证书救不了（见 L44）；密钥无处可放，所以安全级别同 `~/.my.cnf`：只靠文件权限 + FileVault。不引入加密，也不把凭据目录放进会被同步 / 备份到别处的位置。见 `02-persistence.md` §3 |
 | S43 | 构建不每次重推 Homebrew 依赖与部署目标 | `make gen` 按输入指纹跳过 `check-deps.sh` / `gen-local-xcconfig.sh`（省 ~7s）。代价：`brew upgrade` 之后不会再自动重算 `Configs/Local.xcconfig` 里的路径与 `TABLELITE_DEPLOYMENT_TARGET`，需要手动跑一次 `make deps`（`make clean` 后也一样会重跑）。见 `12-build-and-deps.md` §4.2 |
+| S44 | 超宽表只做「按水平可视区返回 `nil` + 局部重载」的列虚拟化，**不**自绘整行、**不**改写为 cell-based `NSTableView`、**不**做完整列窗口化（只挂可见列 + 两侧 spacer 列保宽度） | 自绘整行能彻底去掉每列一个视图，但要推翻 `07-data-grid.md` §1 的 view-based 决策，并重做选区、无障碍、每格右键菜单；完整列窗口化要自己维护「列集合 ↔ 总宽度」的映射，列宽拖拽与列显隐会变脆。以上两者收益被「返回 nil + 局部重载」大幅覆盖（实测 p50 190.8 → 16.7 ms）。见 `07-data-grid.md` §10.2 |
 
 ## 2. 已知限制
 
@@ -162,5 +163,6 @@
 | 2026-09-29 | **凭据移出钥匙串**（原 §3.4 的定案未成立）：实测确认登录钥匙串的「始终允许」有两道门 —— ① ACL 受信任应用（自签名证书能固定）、② XARA partition（只认 `cdhash:` / `teamid:` / `apple:` / `apple-tool:` / `unsigned:` 字面量，自签名没有 TeamID，所以改一行代码 partition 就变）。`req:` 这类值 securityd 不认，`-A`（allow-any-app）、`SecItemAdd` 自带 `SecAccess`、改已有条目的 partition 列表都绕不过（最后一条要钥匙串密码）。改为 `~/Library/Application Support/TableLite/credentials.json`（0600、明文、不加密、旧条目不自动迁移）；登记 S42、L45，改写 S31/L44/T13；`make run` 改为先退出已运行实例（否则磁盘二进制与运行中的进程不一致，securityd 报 `-67034 errSecStaticCodeChanged` 并**静默拒绝**，连弹窗都不给）。见 `02-persistence.md` §3/§3.1、`12-build-and-deps.md` §1/§3.4、`specs/01-connections.md` §1/§2、`specs/10-ssh-tunnel.md` §3.2/§3.3、`manual/01`、`manual/10` |
 
 | 2026-09-29 | **拆掉 `make test` 的两处固定开销**（实测端到端 39s → 10s）：① 8 个 `@MainActor` suite 的 `async setUp()/tearDown()` 改为同步 `setUpWithError()/tearDownWithError()` —— `@MainActor` 类上的 async 覆盖会让 XCTest 给每个用例多算 ~100ms（空用例也一样），`FakeMySQLSession` 因此支持在 `init` 里预置应答、`makeHarness()` 默认预置 `successfulResponses()`；② `make gen` 改为按输入指纹跳过依赖解析与 `xcodegen`（登记 S43），`make test` 默认开测试并行（`PARALLEL=0` 关闭）。见 `15-testing.md` §7、`12-build-and-deps.md` §4.2 |
+| 2026-10-13 | **超宽表滚动回到 60 fps**（`wide_test` 200 列：p50 190.8 → 16.7 ms）：根因是 AppKit 的 view-based `NSTableView` 会为「可见行范围 ×**全部列**」物化 cell 视图（实测可见列 : 不可见列 ≈ 4% : 96%），于是每帧成本 ∝ 列数 × 可见行数。改为水平列虚拟化（`viewFor` 对窗口外列返回 `nil` + 视区变化时局部 `reloadData(forRowIndexes:columnIndexes:)`）；同时把 `rebuildPendingPresentation()` 的逐元素赋值改成批次赋值 + 无暂存快路径（原本 3000 行 × 200 列 = 20 万次 Observation 通知、主线程阻塞 2.1s）。登记 S44。见 `07-data-grid.md` §10.2 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

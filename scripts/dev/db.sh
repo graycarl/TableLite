@@ -47,7 +47,12 @@ mysql_exec() { docker exec -i -e MYSQL_PWD="$PASSWORD" "$CONTAINER_NAME" mysql -
 
 seed() {
   printf "${DIM}灌入示例数据（%s）…${RESET}\n" "$DATABASE"
-  mysql_exec < "$SEED_FILE"
+  # seed.sql 之外再追加生成器产出的 200 列宽表 wide_test（200 列 DDL 手写不可维护）
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf "${RED}找不到 python3（生成 200 列宽表的种子数据需要它，装 Xcode CLT 即自带）。${RESET}\n" >&2
+    exit 1
+  fi
+  { cat "$SEED_FILE"; python3 "$ROOT/scripts/dev/gen_wide_seed.py"; } | mysql_exec
   # 字符集回归自查：中文必须原样落库，糊了就当场报错，别等连上 App 才发现
   local name
   name="$(mysql_exec -N -B -e "SELECT name FROM $DATABASE.users WHERE id = 1")"

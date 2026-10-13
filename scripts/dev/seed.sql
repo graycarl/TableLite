@@ -3,6 +3,8 @@
 -- 覆盖目标：网格的两阶段加载（超长文本）、NULL、中文/emoji、二进制、
 --           DECIMAL / ENUM / JSON / DATETIME(3)、外键、足够翻页的行数。
 -- 行数：users 5、orders 20000（大表滚动 / 分页 / 排序）、products 200（20 列，类型铺满）。
+-- 另：db.sh 会在本文件之后追加执行 gen_wide_seed.py 生成的 wide_test
+--    （200 列 × 3000 行宽表，验证超宽表的滚动性能），不在本文件内。
 
 DROP DATABASE IF EXISTS tablelite_dev;
 CREATE DATABASE tablelite_dev CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;

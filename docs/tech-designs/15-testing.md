@@ -85,14 +85,22 @@
 
 - 报数字必须带夹具条件（行数 / 视口 / 帧数 / 步长 / 机器）。绝对毫秒受夹具影响，**结论看相对缩放**。
 - 区分「新建单元格」与「复用 / 重配单元格」：步长大时放大前者，步长小才接近真实复用；
-  两者对应完全不同的修复。
+  两者对应完全不同的修复。反过来，**先用计数探针数清楚稳态下到底建了几个视图**比看采样更直接：
+  2026-10 排查 `wide_test` 时，创建只在第一帧发生、之后 100% 命中复用，于是「新建成本」被整体排除，
+  真因落在「常驻视图数量」上。
+- **成本到底 ∝ 什么，取决于规模参数怎么扫**：宽表的成本不是 ∝ 可见单元，而是 ∝ 可见行 × **全部列**
+  （`NSTableView` 没有水平虚拟化，见 `07-data-grid.md` §10.2）。扫参数必须把「列数」与「行数」分开扫，
+  只扫行数会得出错误结论。
+- **怀疑某个原因时，必须做一次「只关掉它」的反证实验**：2026-10 曾把「单元格用 Auto Layout 约束」当
+  头号嫌疑，全改成手动 `frame` 后 p50 192.8 → 218 ms（无改善），当场推翻。没有这一步，就会去优化一个
+  不存在的瓶颈。
 - 夹具强制 `layoutSubtreeIfNeeded + displayIfNeeded` 会高估真实滚动成本，只用它做 A/B 对比，
   不用它下「是否 60 fps」的结论。
 
 **进 CI 的方式**：毫秒断言会随机器和负载抖，**不进 CI**；要留回归就断言非抖指标
 （操作次数 / 分配次数 / 集合大小），或标成手动 benchmark。
 
-**产出**：探查代码用完即删，不提交；结论（数字 + 决策）回填 `07-data-grid.md` §10.1。
+**产出**：探查代码用完即删，不提交；结论（数字 + 决策）回填 `07-data-grid.md` §10。
 
 ## 7. 测试 suite 的并发结构与运行成本（决策记录，2026-09-29）
 
@@ -120,4 +128,51 @@
   `successfulResponses()`，因此 `setUp` 里不再需要任何 `await`。
 - 约束：**新增 suite 不得写 `async` 的 `setUp` / `tearDown`。** 需要在 setUp 里做异步准备时，
   改成构造期注入（替身预置应答 / 直接建好对象）或挪到用例首行。
+
+## 8. 应用内滚动基准与 Agent 自测基建（决策记录，2026-10-08）
+
+**问题**：帧级卡顿（CA commit 背压、WindowServer 交互、UpdateCycle 调度）只在真实 App 进程里出现，
+§6 的隔离夹具测 CPU 成本够用，测不了帧级行为；而让真人滚动再配合采样，一轮验证要几分钟且无法自动化。
+
+**决策：App 内置基准模式 + 三个脚本，让 Agent 一条命令完成「复现 → 测量 → 视觉自查」全链路。**
+
+### 8.1 `--bench-scroll <table>`：应用内滚动基准
+
+启动参数（与 `--filter-smoke` 等同族，但**不是无头模式**——要的就是真实窗口与渲染管线）：
+
+```sh
+MYSQL_PORT=13307 MYSQL_PASSWORD=tablelite MYSQL_DATABASE=tablelite_dev \
+  TableLite.app/Contents/MacOS/TableLite --bench-scroll wide_test
+```
+
+- 行为：正常启动（真实 `AppEnvironment`）→ 自动连目标库（`MYSQL_*` 环境变量，同 §2 冒烟约定）
+  → 打开指定表 → 等数据加载完成 → 把显示条数调大（退出前恢复偏好原值）
+  → `CADisplayLink` 以固定速度驱动 `clipView.scroll(to:)` 往返滚动 → 记录逐帧间隔
+  → 输出一行 JSON（帧数、p50/p90/p99/max、>34ms 帧数、滚动行程）到 stdout 并退出。
+- **显示条数要在开表之前就调好**（2026-10-13 修）：原来先按偏好的条数加载一遍、再 `setRowLimit` 重载，
+  而 `setRowLimit` 是异步起查询，调用后 `loadState` 还停在旧的 `.loaded`，按状态轮询会**立即返回**——
+  于是第二次加载与测量窗口重叠，数字里混进一段主线程阻塞（表现为 p99 长尾，日志还会谎报「实际 1000 行」）。
+  现在：① 先把 `preferences.rowLimit` 改成 `--bench-rows` 再开表，只加载一次；② 万一标签自带条数压过偏好，
+  兜底走 `waitForReload()`——先等 `.loading` 再等 `.loaded`；任何提前返回路径都在 `defer` 里恢复偏好。
+- **度量用帧间隔分布，不用 CPU 采样**：卡顿是帧级突发，主线程 20% 占用也可能 p99 到秒级
+  （2026-10 排查 wide_test 卡顿的实测教训）。
+- 数字只在**同机器、同表、同参数**下做 A/B 对比，不设绝对阈值、不进 CI（同 §6 读数约定）。
+- 入口封装：`make bench`（Debug）/ `make bench CONFIG=Release`。
+
+### 8.2 `scripts/dev/profile-scroll.sh`：一键卡顿录制
+
+`--bench-scroll` 自驱动 + `xctrace record --template "Animation Hitches" --attach` 录制 →
+导出 `hitches-frame-lifetimes` / `hitches` 两张表。**脚本必须清理 `$TMPDIR/instruments*.ktrace`**：
+xctrace 的原始中间文件不会自动删除，一次录制能留 10GB+（2026-10-08 六个残留文件吃掉 69GB 磁盘）。
+
+### 8.3 `scripts/dev/shot.sh`：窗口截图
+
+用 `CGWindowListCopyWindowInfo` 找 TableLite 主窗口 id，`screencapture -l` 抓图。
+Agent 读图即可自查视觉回归（字体、对齐、颜色、角标），不需要人工过目。
+
+### 8.4 边界
+
+- 基建只服务**开发与排查**，不承诺捕获所有卡顿（触控板惯性滚动、多屏刷新率差异仍可能要人工复核）；
+- 基准模式改动用户偏好后必须恢复；连接用完即断开，不写入连接列表与凭据文件；
+- 性能修复的**决策与数字**仍回填 `07-data-grid.md` §10，本文件只定义工具。
 
