@@ -626,26 +626,43 @@ extension TableDataViewModel {
     /// 由暂存区重建网格的行状态与单元格编辑中值。
     ///
     /// 这是唯一的投影出口：暂存区是唯一真源，网格 / 字段栏都从这里派生。
+    ///
+    /// 写入方式很关键（`07-data-grid.md` §10.2）：`rows` 是 `@Observable` 数组，**每次逐元素
+    /// 写入都会触发一次 Observation `willSet` → SwiftUI 图失效**（200 列 × 1000 行 = 20 万次）。
+    /// 所以：① 暂存区为空且上次没标记过任何行时直接返回；② 只在局部副本上改，最后 `rows`
+    /// 一次赋值；③ 重置范围收敛到上次真正标记过的行。
     internal func rebuildPendingPresentation() {
-        for index in rows.indices {
-            rows[index].changeKind = nil
-            for (column, var cell) in rows[index].cells {
-                cell.draftValue = nil
-                rows[index].cells[column] = cell
+        // 快路径：暂存区为空、上次没标记过任何行、也没有待清理的新增行 —— `rows` 本身就是干净的
+        //（新拉到的行不会有 changeKind / draftValue），不必为了「重置」把每列都碰一遍。
+        guard !pendingStore.isEmpty
+            || !pendingPresentationTouchedRowIDs.isEmpty
+            || !insertionRows.isEmpty else { return }
+
+        var updated = rows
+        if !pendingPresentationTouchedRowIDs.isEmpty {
+            for index in updated.indices where pendingPresentationTouchedRowIDs.contains(updated[index].id) {
+                updated[index].changeKind = nil
+                for (column, var cell) in updated[index].cells {
+                    cell.draftValue = nil
+                    updated[index].cells[column] = cell
+                }
             }
         }
 
+        var touched: Set<String> = []
         var insertions: [GridRow] = []
         for change in pendingStore.changes {
             switch change {
             case .update(let locator, let edits):
-                guard let index = rows.firstIndex(where: { $0.locator == locator }) else { continue }
-                rows[index].changeKind = .update
-                for edit in edits { rows[index].cells[edit.column]?.draftValue = edit.value }
+                guard let index = updated.firstIndex(where: { $0.locator == locator }) else { continue }
+                updated[index].changeKind = .update
+                for edit in edits { updated[index].cells[edit.column]?.draftValue = edit.value }
+                touched.insert(updated[index].id)
 
             case .deletion(let locator):
-                guard let index = rows.firstIndex(where: { $0.locator == locator }) else { continue }
-                rows[index].changeKind = .deletion
+                guard let index = updated.firstIndex(where: { $0.locator == locator }) else { continue }
+                updated[index].changeKind = .deletion
+                touched.insert(updated[index].id)
 
             case .insertion(let id, let edits):
                 var row = makeInsertionRow(id: id)
@@ -653,6 +670,8 @@ extension TableDataViewModel {
                 insertions.append(row)
             }
         }
+        pendingPresentationTouchedRowIDs = touched
+        rows = updated
         insertionRows = insertions
     }
 

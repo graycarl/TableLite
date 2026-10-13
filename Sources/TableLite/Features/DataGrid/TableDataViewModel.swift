@@ -115,6 +115,9 @@ public final class TableDataViewModel {
     public internal(set) var pendingStore = PendingChangeStore()
     /// 新增行（未落库），在网格里显示为绿色行，位于「＋ 插入行」上方。
     public internal(set) var insertionRows: [GridRow] = []
+    /// 上一次投影到网格时被标记过的行 id。`rebuildPendingPresentation()` 只重置这些行，
+    /// 而不是全表 × 全列遍历（见 `07-data-grid.md` §10.2）。
+    @ObservationIgnored internal var pendingPresentationTouchedRowIDs: Set<String> = []
     public internal(set) var isCommitting = false
     public internal(set) var commitCompleted = 0
     public internal(set) var commitTotal = 0

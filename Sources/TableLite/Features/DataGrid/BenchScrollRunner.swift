@@ -81,6 +81,7 @@ final class BenchScrollRunner: NSObject {
     private var maxY: Double = 0
     private var measuring = false
     private var scrollStartedAt: CFTimeInterval = 0
+    /// 原「默认显示行数」偏好值；非 nil 表示基准改过它，退出前要恢复。
     private var savedRowLimit: Int?
     private var tickCount = 0
 
@@ -100,6 +101,7 @@ final class BenchScrollRunner: NSObject {
     }
 
     private func run() async -> Int32 {
+        defer { restoreRowLimit() }
         #if DEBUG
         let build = "Debug"
         #else
@@ -133,6 +135,13 @@ final class BenchScrollRunner: NSObject {
             return 1
         }
 
+        // 显示条数在**开表之前**就调好：ViewModel 初始化时读偏好，这样只加载一次，
+        // 不会出现「先按旧条数加载一遍、再改条数重载」的往返（`15-testing.md` §8.1）。
+        if RowLimit.isValid(config.rows), environment.preferences.rowLimit != config.rows {
+            savedRowLimit = environment.preferences.rowLimit
+            environment.preferences.rowLimit = config.rows
+        }
+
         let tab = session.openTableData(database: config.database, table: config.table, forceNew: true)
         guard let viewModel = await waitForLoaded(tab: tab, timeout: 30) else {
             print("   打开表或加载超时")
@@ -140,15 +149,14 @@ final class BenchScrollRunner: NSObject {
         }
         print("   已加载 \(viewModel.rows.count) 行（显示条数 \(viewModel.rowLimit)）")
 
-        // 显示条数调大，保证滚动行程足够；退出前恢复偏好。
-        if viewModel.rowLimit < config.rows {
-            savedRowLimit = environment.preferences.rowLimit
+        // 兑底：标签自带的显示条数压过了偏好（例如还原的标签）—— 改完必须等**本次**重载跑完。
+        if viewModel.rowLimit != config.rows, RowLimit.isValid(config.rows) {
             viewModel.setRowLimit(config.rows)
-            guard await waitForLoaded(tab: tab, timeout: 30) != nil else {
+            guard let reloaded = await waitForReload(tab: tab, timeout: 30) else {
                 print("   调整显示条数后加载超时")
                 return 1
             }
-            print("   显示条数调至 \(config.rows)，实际 \(viewModel.rows.count) 行")
+            print("   显示条数调至 \(config.rows)，实际 \(reloaded.rows.count) 行")
         }
 
         NSApp.activate(ignoringOtherApps: true)
@@ -214,12 +222,17 @@ final class BenchScrollRunner: NSObject {
     private func finish() {
         link?.invalidate()
         link = nil
-        if let savedRowLimit {
-            environment.preferences.rowLimit = savedRowLimit
-        }
+        restoreRowLimit()
         report()
         finishContinuation?.resume(returning: 0)
         finishContinuation = nil
+    }
+
+    /// 恢复「默认显示行数」。`run()` 用 `defer` 保证各条提前返回路径也会恢复。
+    private func restoreRowLimit() {
+        guard let saved = savedRowLimit else { return }
+        savedRowLimit = nil
+        environment.preferences.rowLimit = saved
     }
 
     private func report() {
@@ -261,6 +274,35 @@ final class BenchScrollRunner: NSObject {
     }
 
     // MARK: - 工具
+
+    /// 等**本次**重载真正跑完。
+    ///
+    /// 不能直接用 `waitForLoaded`：`setRowLimit` 是异步起查询，调用后 `loadState` 还停在
+    /// 改条数之前的 `.loaded`，按状态轮询会立即返回，于是加载与测量窗口重叠，数字里混进一段
+    /// 主线程阻塞（表现为 p99 长尾）。所以先等它进入 `.loading`，再等 `.loaded`。
+    private func waitForReload(tab: Tab, timeout: TimeInterval) async -> TableDataViewModel? {
+        let deadline = CACurrentMediaTime() + timeout
+        var sawLoading = false
+        while CACurrentMediaTime() < deadline {
+            if let viewModel = tab.content as? TableDataViewModel {
+                switch viewModel.loadState {
+                case .loading:
+                    sawLoading = true
+                case .loaded:
+                    if sawLoading { return viewModel }
+                case .failed(let message):
+                    if sawLoading {
+                        print("   调整显示条数后加载失败：\(message)")
+                        return nil
+                    }
+                case .idle:
+                    break
+                }
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        return nil
+    }
 
     /// 等标签的 ViewModel 出现且数据加载完成。
     private func waitForLoaded(tab: Tab, timeout: TimeInterval) async -> TableDataViewModel? {
