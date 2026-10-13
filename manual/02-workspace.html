@@ -70,8 +70,6 @@
     <text class="fnt" x="388" y="31">›</text>
     <line class="ln" x1="410" y1="16" x2="410" y2="44"/>
 
-    <rect class="s-field ln2" x="428" y="17" width="104" height="26" rx="6"/>
-    <text class="c" x="480" y="31">+ 新建查询</text>
     <rect class="s-field ln2" x="540" y="17" width="104" height="26" rx="6"/>
     <text class="c" x="592" y="31">+ 打开表…</text>
 
@@ -120,6 +118,7 @@
     <text class="mut" x="380" y="75">查询 1</text>
     <text class="mut" x="444" y="75">orders</text>
     <text class="fnt" x="508" y="75">＋</text>
+    <text class="fnt s" x="522" y="75">新建查询（⌘T）</text>
 
     <!-- 标签内容区：数据网格（只读，无竖线） -->
     <rect class="s-chrome2" x="250" y="87" width="538" height="26"/>
@@ -321,9 +320,7 @@
   <text class="fnt m" x="416" y="64">›</text>
   <line class="ln" x1="440" y1="47" x2="440" y2="81"/>
 
-  <!-- 新建查询 / 打开表 -->
-  <rect class="s-field ln2" x="456" y="47" width="112" height="34" rx="7"/>
-  <text class="c" x="512" y="64">+ 新建查询</text>
+  <!-- 打开表 -->
   <rect class="s-field ln2" x="576" y="47" width="112" height="34" rx="7"/>
   <text class="c" x="632" y="64">+ 打开表…</text>
 
@@ -350,18 +347,16 @@
   <path class="leader" d="M285 27 L285 47"/>
   <g class="hot" data-hot="2"><circle cx="405" cy="16" r="11"/><text x="405" y="16">2</text></g>
   <path class="leader" d="M405 27 L405 47"/>
-  <g class="hot" data-hot="3"><circle cx="512" cy="16" r="11"/><text x="512" y="16">3</text></g>
-  <path class="leader" d="M512 27 L512 47"/>
-  <g class="hot" data-hot="4"><circle cx="632" cy="16" r="11"/><text x="632" y="16">4</text></g>
+  <g class="hot" data-hot="3"><circle cx="632" cy="16" r="11"/><text x="632" y="16">3</text></g>
   <path class="leader" d="M632 27 L632 47"/>
-  <g class="hot" data-hot="5"><circle cx="742" cy="16" r="11"/><text x="742" y="16">5</text></g>
+  <g class="hot" data-hot="4"><circle cx="742" cy="16" r="11"/><text x="742" y="16">4</text></g>
   <path class="leader" d="M742 27 L742 47"/>
-  <g class="hot" data-hot="6"><circle cx="822" cy="16" r="11"/><text x="822" y="16">6</text></g>
+  <g class="hot" data-hot="5"><circle cx="822" cy="16" r="11"/><text x="822" y="16">5</text></g>
   <path class="leader" d="M822 27 L822 47"/>
-  <g class="hot" data-hot="7"><circle cx="904" cy="16" r="11"/><text x="904" y="16">7</text></g>
+  <g class="hot" data-hot="6"><circle cx="904" cy="16" r="11"/><text x="904" y="16">6</text></g>
   <path class="leader" d="M904 27 L904 47"/>
-  <g class="hot" data-hot="8"><circle cx="970" cy="112" r="11"/><text x="970" y="112">8</text></g>
-  <g class="hot" data-hot="9"><circle cx="968" cy="16" r="11"/><text x="968" y="16">9</text></g>
+  <g class="hot" data-hot="7"><circle cx="970" cy="112" r="11"/><text x="970" y="112">7</text></g>
+  <g class="hot" data-hot="8"><circle cx="968" cy="16" r="11"/><text x="968" y="16">8</text></g>
   <path class="leader" d="M968 27 L968 47"/>
 </svg>
 <figcaption><b>图 2-2</b>　工具栏（与系统标题栏合一，红绿灯按钮与窗口标题也在这一行）。左半边是「我在哪」，右半边是「改了什么、要不要提交」。</figcaption>
@@ -374,19 +369,17 @@
   <td>点开是连接列表（见下图）。左边的小圆点是这个连接的状态：灰=未连接，转圈=连接中，绿=正常，红=异常。</td><td>—</td></tr>
 <tr data-hot="2"><td class="num">2</td><td class="wide">标签前进 / 后退</td>
   <td>按你打开标签的顺序前后跳。和浏览器的前进后退是一个意思。走到头的时候箭头变灰。</td><td><kbd>⌘[</kbd> <kbd>⌘]</kbd></td></tr>
-<tr data-hot="3"><td class="num">3</td><td class="wide">+ 新建查询</td>
-  <td>开一个空白的 SQL 标签，标题是「查询 1」「查询 2」这样递增。可以右键重命名。</td><td><kbd>⌘T</kbd></td></tr>
-<tr data-hot="4"><td class="num">4</td><td class="wide">+ 打开表…</td>
+<tr data-hot="3"><td class="num">3</td><td class="wide">+ 打开表…</td>
   <td>弹出一个表名搜索框。表特别多、不想在对象树里翻的时候用它。输入几个字母就出候选。</td><td>—</td></tr>
-<tr data-hot="5"><td class="num">5</td><td class="wide">放弃</td>
+<tr data-hot="4"><td class="num">4</td><td class="wide">放弃</td>
   <td>丢掉当前标签的全部未提交修改，表格恢复成服务器上的真实数据。改动超过 5 条或包含删除 / 新增时会先确认。</td><td><kbd>⇧⌘⌫</kbd></td></tr>
-<tr data-hot="6"><td class="num">6</td><td class="wide">预览</td>
+<tr data-hot="5"><td class="num">5</td><td class="wide">预览</td>
   <td>打开一个面板，把将要执行的 SQL 一条条列出来。面板里看到的和实际提交的完全一致。</td><td><kbd>⇧⌘P</kbd></td></tr>
-<tr data-hot="7"><td class="num">7</td><td class="wide">提交修改</td>
+<tr data-hot="6"><td class="num">6</td><td class="wide">提交修改</td>
   <td>真的写数据库。右上角的橙色数字是待提交条数，为 0 时整个按钮变灰。只读连接上永远禁用，鼠标悬停会说明原因。</td><td><kbd>⌘S</kbd> 或 <kbd>⌘↩</kbd></td></tr>
-<tr data-hot="8"><td class="num">8</td><td class="wide">连接颜色带</td>
+<tr data-hot="7"><td class="num">7</td><td class="wide">连接颜色带</td>
   <td>一条 2pt 的细带，用连接配置里选的颜色。它是整窗口最容易扫到的一条线，专门用来防「以为自己连的是测试库」。</td><td>—</td></tr>
-<tr data-hot="9"><td class="num">9</td><td class="wide">右侧字段栏开关 ▤</td>
+<tr data-hot="8"><td class="num">8</td><td class="wide">右侧字段栏开关 ▤</td>
   <td>切换右侧字段栏的显示 / 隐藏。只在<b>表数据标签</b>里可用，其它标签上是灰的。默认显示；它<b>没有快捷键</b>。</td><td>—</td></tr>
 </tbody>
 </table>

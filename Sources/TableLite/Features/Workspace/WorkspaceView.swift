@@ -79,7 +79,6 @@ struct WorkspaceView: View {
             WorkspaceToolbar(
                 session: session,
                 onNavigate: { previous in navigate(previous: previous) },
-                onNewQuery: newQuery,
                 onOpenTable: { showOpenTable = true },
                 onToggleInspector: { environment.preferences.showInspector.toggle() },
                 onShowConnections: { showConnectionList = true }
