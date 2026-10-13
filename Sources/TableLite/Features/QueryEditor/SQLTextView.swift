@@ -8,7 +8,8 @@ import AppKit
 /// **硬约束：必须关闭全部智能替换** —— 智能引号、智能破折号、文本替换、拼写纠正、数据检测。
 /// 不关的话 SQL 里的 `'` 会变成弯引号、字符串里的 `--` 会变成长破折号（AGENTS 坑 §1）。
 ///
-/// 组件同时服务三处：查询编辑器、字段栏长文本大窗口（L29）、预览 SQL 面板（L30）。
+/// 组件同时服务两处：查询编辑器、字段栏长文本大窗口（L29）。
+/// 预览 SQL 面板（L30）走 `SQLHighlightedText`，不经这里。
 /// 只读场景把 `isEditable` 置 `false`。
 struct SQLTextView: NSViewRepresentable {
 
