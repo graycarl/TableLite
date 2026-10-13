@@ -79,6 +79,11 @@ struct SQLTextView: NSViewRepresentable {
         scrollView.backgroundColor = .textBackgroundColor
 
         let ruler = LineNumberRulerView(textView: textView, scrollView: scrollView)
+        // 行号栏的绘制不越出编辑器可视区（`docs/tech-designs/10-query-editor.md` §2）。
+        // SwiftUI 桥接的 AppKit 视图不做默认裁剪，NSRulerView 自带的边缘分隔线会画到
+        // 滚动视图上方（盖住编辑器工具栏的「执行」按钮），这里显式裁剪兜底。
+        scrollView.clipsToBounds = true
+        ruler.clipsToBounds = true
         ruler.highlighter = context.coordinator.highlighter
         ruler.isHidden = !showLineNumbers
         context.coordinator.ruler = ruler
@@ -359,11 +364,17 @@ final class LineNumberRulerView: NSRulerView {
     override func drawHashMarksAndLabels(in rect: NSRect) {
         NSColor.controlBackgroundColor.setFill()
         NSBezierPath(rect: bounds).fill()
-        NSColor.separatorColor.setStroke()
-        let separator = NSBezierPath()
-        separator.move(to: NSPoint(x: bounds.maxX - 0.5, y: bounds.minY))
-        separator.line(to: NSPoint(x: bounds.maxX - 0.5, y: bounds.maxY))
-        separator.stroke()
+        // 分隔线先与编辑器可视区求交再画：只画落在可视区内的那段
+        // （`docs/tech-designs/10-query-editor.md` §2）。
+        let scrollBounds = scrollView?.bounds ?? bounds
+        let separatorRect = LineRulerGeometry.separatorRect(rulerBounds: bounds, scrollBounds: scrollBounds)
+        if !separatorRect.isNull, separatorRect.height > 0 {
+            NSColor.separatorColor.setStroke()
+            let separator = NSBezierPath()
+            separator.move(to: NSPoint(x: separatorRect.midX, y: separatorRect.minY))
+            separator.line(to: NSPoint(x: separatorRect.midX, y: separatorRect.maxY))
+            separator.stroke()
+        }
 
         guard let textView,
               let layoutManager = textView.layoutManager,
