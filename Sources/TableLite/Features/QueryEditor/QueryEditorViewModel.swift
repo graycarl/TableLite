@@ -320,7 +320,7 @@ final class QueryEditorViewModel {
         return results.first { $0.id == selectedResultID } ?? results.first
     }
 
-    /// 结果集标签数量（状态栏「共 N 条」）。
+    /// 查询结果集标签数量（结果标签栏「N 个结果集」用）。
     var resultSetCount: Int {
         results.filter { $0.kind == .resultSet }.count
     }

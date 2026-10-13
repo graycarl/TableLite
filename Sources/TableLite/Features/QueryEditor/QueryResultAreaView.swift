@@ -31,6 +31,7 @@ struct QueryResultAreaView: View {
                         ResultTabButton(
                             result: result,
                             isActive: result.id == viewModel.selectedResult?.id,
+                            height: tabBarHeight,
                             onSelect: { viewModel.selectResult(result.id) },
                             onClose: { viewModel.closeResult(result.id) },
                             onCloseOther: { viewModel.closeOtherResults(keeping: result.id) },
@@ -47,8 +48,14 @@ struct QueryResultAreaView: View {
             Spacer(minLength: 0)
             summary
         }
-        .frame(height: 32)
+        .frame(height: tabBarHeight)
         .background(.bar)
+    }
+
+    /// 结果标签不超过一个（含尚未产生结果）时压成细条，把高度让给结果网格；
+    /// 多结果恢复常规高度（`specs/06-query-editor.md` §4）。
+    private var tabBarHeight: CGFloat {
+        viewModel.results.count > 1 ? 32 : 20
     }
 
     /// 超过 24 个时折叠：前 23 个直接显示，其余收进 `…` 下拉（`specs/06-query-editor.md` §4）。
@@ -83,20 +90,7 @@ struct QueryResultAreaView: View {
     }
 
     private var summaryText: String {
-        var parts: [String] = []
-        if viewModel.resultSetCount > 0 {
-            parts.append("共 \(viewModel.resultSetCount) 条")
-        }
-        if viewModel.executedStatementCount > 0 {
-            parts.append("已执行 \(viewModel.executedStatementCount) 条语句")
-        }
-        if viewModel.elapsedMilliseconds > 0 {
-            parts.append("耗时 \(viewModel.elapsedMilliseconds) ms")
-        }
-        if viewModel.totalReturnedRows > 0 {
-            parts.append("返回 \(viewModel.totalReturnedRows) 行")
-        }
-        return parts.isEmpty ? "" : parts.joined(separator: " · ")
+        WorkspaceStatusText.resultSetCountLabel(viewModel.resultSetCount) ?? ""
     }
 
     // MARK: 内容
@@ -135,6 +129,7 @@ private struct ResultTabButton: View {
 
     let result: QueryResultTab
     let isActive: Bool
+    let height: CGFloat
     var onSelect: () -> Void
     var onClose: () -> Void
     var onCloseOther: () -> Void
@@ -155,7 +150,7 @@ private struct ResultTabButton: View {
                     .foregroundStyle(result.isFailure && !isActive ? Color.red : Color.primary)
             }
             .padding(.horizontal, 12)
-            .frame(height: 32)
+            .frame(height: height)
             .background(isActive ? Color(nsColor: .windowBackgroundColor) : Color.clear)
             .overlay(alignment: .bottom) {
                 if isActive {

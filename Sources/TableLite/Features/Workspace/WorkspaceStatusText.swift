@@ -140,7 +140,17 @@ enum WorkspaceStatusText {
         return parts.joined(separator: " · ")
     }
 
-    /// Console Log 工具栏计数（`manual/06-query-editor.html` 图 6-6：`保留最近 5000 条`）。
+    /// 结果标签栏右侧的结果集数量文案：`3 个结果集`。
+    ///
+    /// 只有一个（或还没有）结果集时返回 nil：标签栏只负责结果集切换与数量，
+    /// 执行统计（执行几条语句 / 耗时 / 返回行数）统一在编辑器状态栏看，避免重复
+    /// （`specs/06-query-editor.md` §4，2026-10-13 界面打磨条目 1）。
+    static func resultSetCountLabel(_ resultSetCount: Int) -> String? {
+        guard resultSetCount > 1 else { return nil }
+        return "\(resultSetCount) 个结果集"
+    }
+
+    /// Console Log 工具栏计数（`manual/06-query-editor.html` 图 6-7：`保留最近 5000 条`）。
     ///
     /// 保留条数与当前可见条数一起显示，不丢失原有的条数信息。
     static func consoleLogCountLabel(count: Int, capacity: Int) -> String {

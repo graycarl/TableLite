@@ -270,4 +270,12 @@ final class WorkspaceModelTests: XCTestCase {
             "已执行 1 条语句"
         )
     }
+
+    func testResultSetCountLabelOnlyAppearsForMultipleResultSets() {
+        // 0 / 1 个结果集时标签栏不写字，避免出现「共 1 条」这类废话。
+        XCTAssertNil(WorkspaceStatusText.resultSetCountLabel(0))
+        XCTAssertNil(WorkspaceStatusText.resultSetCountLabel(1))
+        XCTAssertEqual(WorkspaceStatusText.resultSetCountLabel(2), "2 个结果集")
+        XCTAssertEqual(WorkspaceStatusText.resultSetCountLabel(3), "3 个结果集")
+    }
 }

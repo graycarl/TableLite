@@ -164,5 +164,6 @@
 
 | 2026-09-29 | **拆掉 `make test` 的两处固定开销**（实测端到端 39s → 10s）：① 8 个 `@MainActor` suite 的 `async setUp()/tearDown()` 改为同步 `setUpWithError()/tearDownWithError()` —— `@MainActor` 类上的 async 覆盖会让 XCTest 给每个用例多算 ~100ms（空用例也一样），`FakeMySQLSession` 因此支持在 `init` 里预置应答、`makeHarness()` 默认预置 `successfulResponses()`；② `make gen` 改为按输入指纹跳过依赖解析与 `xcodegen`（登记 S43），`make test` 默认开测试并行（`PARALLEL=0` 关闭）。见 `15-testing.md` §7、`12-build-and-deps.md` §4.2 |
 | 2026-10-13 | **超宽表滚动回到 60 fps**（`wide_test` 200 列：p50 190.8 → 16.7 ms）：根因是 AppKit 的 view-based `NSTableView` 会为「可见行范围 ×**全部列**」物化 cell 视图（实测可见列 : 不可见列 ≈ 4% : 96%），于是每帧成本 ∝ 列数 × 可见行数。改为水平列虚拟化（`viewFor` 对窗口外列返回 `nil` + 视区变化时局部 `reloadData(forRowIndexes:columnIndexes:)`）；同时把 `rebuildPendingPresentation()` 的逐元素赋值改成批次赋值 + 无暂存快路径（原本 3000 行 × 200 列 = 20 万次 Observation 通知、主线程阻塞 2.1s）。登记 S44。见 `07-data-grid.md` §10.2 |
+| 2026-10-13 | **结果概要去重 + 单结果压扁结果标签栏**（界面打磨条目 1 / 13）：执行统计（`已执行 N 条语句 · 耗时 X ms · 返回 N 行`）只留在查询编辑器状态栏，结果标签栏右上不再重复；结果集数量文案由「共 N 条」改为「N 个结果集」，且仅 N > 1 时显示（N = 查询结果集数量，不含 `完成` / `错误` 标签）；只有不超过一个结果标签（含尚未产生结果）时标签栏压成 20pt 细条，多结果恢复 32pt。见 `specs/06-query-editor.md` §1/§3/§4、`specs/02-workspace.md` §7、`manual/06-query-editor.html` 图 6-1/6-5、`10-query-editor.md` §6 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。
