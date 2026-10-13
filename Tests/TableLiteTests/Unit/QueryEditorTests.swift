@@ -333,6 +333,46 @@ final class QueryEditorTests: XCTestCase {
         XCTAssertEqual(content, "SELECT draft;")
     }
 
+    /// 关闭「自动保存脚本草稿」后：定时草稿不再写盘，状态栏改为橙色 `未保存`
+    /// —— 修掉原来「什么都没存却显示草稿已自动保存」的误报（`specs/06-query-editor.md` §2）。
+    func testAutoSaveOffKeepsDraftAndWarnsUnsaved() async throws {
+        let session = try await connect()
+        harness.preferences.autoSaveDraft = false
+        let model = makeModel(session)
+        model.textChanged("SELECT 1;")
+
+        XCTAssertEqual(
+            WorkspaceStatusText.draftStatus(
+                hasFile: model.hasFile,
+                isDirty: model.isDirty,
+                autoSaveEnabled: harness.preferences.autoSaveDraft
+            ),
+            WorkspaceStatusText.DraftStatus(text: "未保存", isWarning: true)
+        )
+
+        // 等过防抖窗口，确认定时草稿确实没有落盘。
+        let draftID = try XCTUnwrap(model.tab.kind.draftID)
+        try await Task.sleep(for: .milliseconds(1_200))
+        let written = try await harness.drafts.read(id: draftID)
+        XCTAssertNil(written)
+    }
+
+    /// 开着自动保存时，普通编辑（未关联磁盘文件）状态栏保持干净。
+    func testAutoSaveOnKeepsStatusBarSilentWithoutFile() async throws {
+        let session = try await connect()
+        let model = makeModel(session)
+        model.textChanged("SELECT 1;")
+
+        XCTAssertFalse(model.hasFile)
+        XCTAssertNil(
+            WorkspaceStatusText.draftStatus(
+                hasFile: model.hasFile,
+                isDirty: model.isDirty,
+                autoSaveEnabled: harness.preferences.autoSaveDraft
+            )
+        )
+    }
+
     func testHistoryInsertAppendsToCurrentText() async throws {
         let session = try await connect()
         let model = makeModel(session)

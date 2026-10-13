@@ -278,4 +278,38 @@ final class WorkspaceModelTests: XCTestCase {
         XCTAssertEqual(WorkspaceStatusText.resultSetCountLabel(2), "2 个结果集")
         XCTAssertEqual(WorkspaceStatusText.resultSetCountLabel(3), "3 个结果集")
     }
+
+    // MARK: - 状态栏草稿提示（`specs/06-query-editor.md` §2）
+
+    func testDraftStatusIsSilentWhileAutoSaveIsOn() {
+        // 无磁盘文件的标签：开着自动保存时一律不提示（草稿保存成功静默）。
+        XCTAssertNil(WorkspaceStatusText.draftStatus(hasFile: false, isDirty: true, autoSaveEnabled: true))
+        XCTAssertNil(WorkspaceStatusText.draftStatus(hasFile: false, isDirty: false, autoSaveEnabled: true))
+    }
+
+    func testDraftStatusShowsUnsavedForFileBackedTab() {
+        // 从磁盘打开过 / 另存过的文件有新改动 → 灰色 `未保存`，保存到文件后消失。
+        XCTAssertEqual(
+            WorkspaceStatusText.draftStatus(hasFile: true, isDirty: true, autoSaveEnabled: true),
+            WorkspaceStatusText.DraftStatus(text: "未保存", isWarning: false)
+        )
+        XCTAssertEqual(
+            WorkspaceStatusText.draftStatus(hasFile: true, isDirty: true, autoSaveEnabled: false),
+            WorkspaceStatusText.DraftStatus(text: "未保存", isWarning: false)
+        )
+    }
+
+    func testDraftStatusWarnsWhenAutoSaveIsOffWithoutFile() {
+        // 无磁盘文件 + 自动保存关闭 → 橙色 `未保存`（改动不会被自动保留）。
+        XCTAssertEqual(
+            WorkspaceStatusText.draftStatus(hasFile: false, isDirty: true, autoSaveEnabled: false),
+            WorkspaceStatusText.DraftStatus(text: "未保存", isWarning: true)
+        )
+    }
+
+    func testDraftStatusIsSilentWhenNothingChanged() {
+        XCTAssertNil(WorkspaceStatusText.draftStatus(hasFile: true, isDirty: false, autoSaveEnabled: true))
+        XCTAssertNil(WorkspaceStatusText.draftStatus(hasFile: true, isDirty: false, autoSaveEnabled: false))
+        XCTAssertNil(WorkspaceStatusText.draftStatus(hasFile: false, isDirty: false, autoSaveEnabled: false))
+    }
 }

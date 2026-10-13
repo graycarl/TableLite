@@ -156,4 +156,31 @@ enum WorkspaceStatusText {
     static func consoleLogCountLabel(count: Int, capacity: Int) -> String {
         "\(count) 条 · 保留最近 \(capacity) 条"
     }
+
+    // MARK: 查询编辑器状态栏：草稿提示（`specs/06-query-editor.md` §2）
+
+    /// 状态栏右端要显示的提示：文案 + 是否用警示色（橙）。
+    struct DraftStatus: Equatable {
+        var text: String
+        /// true = 橙色警示（改动不会被自动保留）。
+        var isWarning: Bool
+    }
+
+    /// 未保存文案（`specs/06-query-editor.md` §2：状态栏只在改动可能丢失时提示 `未保存`）。
+    static let unsavedText = "未保存"
+
+    /// 查询编辑器状态栏右端的草稿提示；返回 nil 表示什么都不显示。
+    ///
+    /// - 有磁盘文件的标签：文件有新改动（`isDirty`）→ 灰色 `未保存`，保存到文件后消失。
+    /// - 没有磁盘文件的标签：只在自动保存草稿关闭时给橙色 `未保存`（改动不会被自动保留）；
+    ///   开着自动保存一律静默——草稿保存成功不提示任何东西。
+    ///
+    /// 自动保存成功与否不影响这里的判定（`isDirty` 只在文件保存后复位），所以「成功即静默」
+    /// 由规则本身保证，不需要额外记录草稿是否落盘。
+    static func draftStatus(hasFile: Bool, isDirty: Bool, autoSaveEnabled: Bool) -> DraftStatus? {
+        guard isDirty else { return nil }
+        if hasFile { return DraftStatus(text: unsavedText, isWarning: false) }
+        guard !autoSaveEnabled else { return nil }
+        return DraftStatus(text: unsavedText, isWarning: true)
+    }
 }

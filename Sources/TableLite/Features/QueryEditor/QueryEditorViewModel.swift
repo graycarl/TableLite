@@ -379,10 +379,16 @@ final class QueryEditorViewModel {
         draftTask?.cancel()
         let content = text
         let store = drafts
-        draftTask = Task {
+        draftTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled else { return }
-            try? await store.write(content, id: draftID)
+            do {
+                try await store.write(content, id: draftID)
+            } catch {
+                // 写盘失败不能静默（`specs/06-query-editor.md` §2）：走编辑器轻提示，
+                // 文案沿用脚本文件保存失败的那句，不新增措辞。
+                self?.showNotice("保存失败")
+            }
         }
     }
 
