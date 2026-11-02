@@ -5,6 +5,12 @@ BUILD_DIR := $(CURDIR)/.build
 CONFIG ?= Debug
 INSTALL_DIR ?= $(HOME)/Applications
 
+# Xcode GUI（⌘B / ⌘U、Previews、索引）与漏传 -derivedDataPath 的 xcodebuild 会把产物写进
+# ~/Library/Developer/Xcode/DerivedData/TableLite-<工程路径哈希>/。那份产物与源码 / 签名身份都可能
+# 不同步，一律当垃圾：clean 一并删，build / doctor 报告。见 docs/tech-designs/12-build-and-deps.md §4.3。
+XCODE_DERIVED_DATA := $(HOME)/Library/Developer/Xcode/DerivedData
+STRAY_DERIVED_DATA := $(wildcard $(XCODE_DERIVED_DATA)/TableLite-*)
+
 # 单元测试默认并行（4 路）：test session 11.9s → 7.3s。排查顺序相关的失败时用 PARALLEL=0。
 # 见 docs/tech-designs/12-build-and-deps.md §4.2。
 PARALLEL ?= 1
@@ -39,6 +45,11 @@ signing: ## 建/导入本机自签名证书，稳定代码身份（新机器一�
 	@./scripts/gen-local-xcconfig.sh
 
 build: gen ## 构建 .app
+	@if [ -n "$(STRAY_DERIVED_DATA)" ]; then \
+		echo "提示：Xcode GUI 的 DerivedData 里有遗留产物（不可信，见 docs/tech-designs/12-build-and-deps.md §4.3）："; \
+		for d in $(STRAY_DERIVED_DATA); do echo "    $$d"; done; \
+		echo "  make clean 可一并清理。"; \
+	fi
 	@echo "==> xcodebuild ($(CONFIG))"
 	@xcodebuild \
 		-project "$(PROJECT)" \
@@ -154,11 +165,22 @@ doctor: deps ## 打印依赖与链接情况，排查构建问题
 	else echo "  (还没构建，先 make build)"; fi
 	@echo "  本机 macOS $$(sw_vers -productVersion)"
 	@echo
+	@echo "== Xcode GUI 遗留产物（唯一有效产物在 .build，见 12-build-and-deps.md §4.3）=="
+	@if [ -z "$(STRAY_DERIVED_DATA)" ]; then \
+		echo "  (无)"; \
+	else \
+		for d in $(STRAY_DERIVED_DATA); do echo "  ✗ $${d}（make clean 可清）"; done; \
+	fi
+	@echo
 	@echo "== 外部认证插件（连老服务器时才用到，见 13-open-questions.md L41）=="
 	@ls "$$(brew --prefix mysql-client)/lib/plugin" 2>/dev/null || true
 
-clean: ## 清理构建产物
+clean: ## 清理构建产物（含 Xcode GUI 遗留的 DerivedData）
 	@rm -rf "$(BUILD_DIR)"
+	@if [ -n "$(STRAY_DERIVED_DATA)" ]; then \
+		echo "==> 清理 Xcode GUI 遗留的 DerivedData"; \
+		for d in $(STRAY_DERIVED_DATA); do echo "    $$d"; rm -rf "$$d"; done; \
+	fi
 
 distclean: clean ## 清理构建产物 + 生成的工程与配置
 	@rm -rf "$(PROJECT)" Configs/Local.xcconfig

@@ -166,6 +166,28 @@ xcodebuild -runFirstLaunch
 三项合计：`make test` 端到端 ~39s → **~10s**（其中：修完 async 覆盖 24s，再跳依赖解析 + 开并行 10s；
 `PARALLEL=0` 时为 15s）。数字受机器与负载影响，结论看相对值（实测机：macOS 27 / Mac Studio 10 核）。
 
+### 4.3 产物位置只有一个：`.build`（决策记录，2026-11-02）
+
+所有 make 目标都显式传 `-derivedDataPath $(CURDIR)/.build`，**唯一有效产物**是
+`.build/Build/Products/<CONFIG>/`。但 DerivedData 位置是**每次调用时由这个参数决定**的，工程里没有钉住它
+（scheme 不提供该选项，`project.yml` 也不覆盖 `SYMROOT` / `OBJROOT`），于是下面这些调用仍会落到
+`~/Library/Developer/Xcode/DerivedData/TableLite-<工程绝对路径哈希>/`：
+
+- Xcode GUI：⌘B / ⌘U / ⌘R、`#Preview`、索引（`Index.noindex/`）；
+- 手敲的 `xcodebuild`（连 `-showBuildSettings` 这种只读调用也会创建 / 复用该目录），以及将来任何漏传参数的脚本。
+
+那份产物**不可信**：它与源码、与 §3.4 的签名身份都可能不同步（同 §3.4 里「运行中的进程与磁盘二进制不一致」那类坑），
+而且 GUI 构建不与 `.build` 共享任何中间产物，等于整包重编一遍。
+
+硬约束：
+
+- `make clean` **必须**连 `DerivedData/TableLite-*` 一起删（不止 `.build`），用户不必记住两个位置。
+- `make doctor` **必须**报告残留的 `DerivedData/TableLite-*`；`make build` 检测到残留时打印一行提示，但不中断构建。
+- 哈希后缀随工程**绝对路径**变化：移动 / 重命名仓库会多出一个新目录，旧目录只能靠上面的清理或手动删。
+
+刻意不做：不改 Xcode 的全局 DerivedData 位置，也不在工程里覆盖 `SYMROOT` / `OBJROOT`（登记
+[`13-open-questions.md`](13-open-questions.md) S45）。
+
 ## 5. 版本控制
 
 - **必须忽略**：构建产物、`*.xcodeproj`、`Configs/Local.xcconfig`、`xcuserdata/`、`*.xcworkspace`、`.DS_Store`。

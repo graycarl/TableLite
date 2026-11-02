@@ -80,6 +80,7 @@
 | 性能排查 | 隔离夹具（假后端 + 真 AppKit + 程序化滚动）+ 扫参数看曲线 + `sample` + 微基准；毫秒基准不进 CI | [15](15-testing.md) §6 |
 | 测试 suite 并发结构 | `setUp` / `tearDown` 必须同步（`setUpWithError` / `tearDownWithError`）；`@MainActor` 类上写 `async` 覆盖会让 XCTest 每个用例多花 ~100ms | [15](15-testing.md) §7 |
 | 构建入口加速 | `make gen` 按输入指纹跳过依赖解析与 `xcodegen`；`make test` 默认测试并行（`PARALLEL=0` 关闭） | [12](12-build-and-deps.md) §4.2、[13](13-open-questions.md) S43 |
+| 构建产物位置 | 唯一有效产物在 `.build`（所有 make 目标显式传 `-derivedDataPath`）；Xcode GUI / 手敲 `xcodebuild` 落在 `~/Library/Developer/Xcode/DerivedData/TableLite-*` 里的那份不可信，`make clean` 一并删、`make doctor` 报告 | [12](12-build-and-deps.md) §4.3 |
 | 分发 | `make run` 日常验证、`make dist` 出 Release zip；产物不依赖目标机 Homebrew（老认证插件除外，见 L41） | [12](12-build-and-deps.md) §4.1 |
 | App 图标 | 脚本矢量生成、不引入外部素材；尺寸对齐苹果图标网格；小尺寸参数化简化 | [12](12-build-and-deps.md) §7 |
 

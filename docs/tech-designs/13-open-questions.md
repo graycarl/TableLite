@@ -55,6 +55,7 @@
 | S42 | 凭据明文写在 `0600` 文件里，不加密 | 本机唯一能可靠保管密钥的地方就是钥匙串，而钥匙串的 XARA partition 绑 cdhash、自签名证书救不了（见 L44）；密钥无处可放，所以安全级别同 `~/.my.cnf`：只靠文件权限 + FileVault。不引入加密，也不把凭据目录放进会被同步 / 备份到别处的位置。见 `02-persistence.md` §3 |
 | S43 | 构建不每次重推 Homebrew 依赖与部署目标 | `make gen` 按输入指纹跳过 `check-deps.sh` / `gen-local-xcconfig.sh`（省 ~7s）。代价：`brew upgrade` 之后不会再自动重算 `Configs/Local.xcconfig` 里的路径与 `TABLELITE_DEPLOYMENT_TARGET`，需要手动跑一次 `make deps`（`make clean` 后也一样会重跑）。见 `12-build-and-deps.md` §4.2 |
 | S44 | 超宽表只做「按水平可视区返回 `nil` + 局部重载」的列虚拟化，**不**自绘整行、**不**改写为 cell-based `NSTableView`、**不**做完整列窗口化（只挂可见列 + 两侧 spacer 列保宽度） | 自绘整行能彻底去掉每列一个视图，但要推翻 `07-data-grid.md` §1 的 view-based 决策，并重做选区、无障碍、每格右键菜单；完整列窗口化要自己维护「列集合 ↔ 总宽度」的映射，列宽拖拽与列显隐会变脆。以上两者收益被「返回 nil + 局部重载」大幅覆盖（实测 p50 190.8 → 16.7 ms）。见 `07-data-grid.md` §10.2 |
+| S45 | 不改 Xcode 的全局 DerivedData 位置，也不在工程里覆盖 `SYMROOT` / `OBJROOT` | 该设置属本机偏好、不落仓库，换台机器就得重设；覆盖构建变量又会让「`.build` 是唯一产物位置」出现第二个例外。改为 `make clean` 连 `DerivedData/TableLite-*` 一起删、`make doctor` 报告残留、`make build` 检测到打一行提示。见 `12-build-and-deps.md` §4.3 |
 
 ## 2. 已知限制
 
@@ -167,5 +168,6 @@
 | 2026-10-13 | **结果概要去重 + 单结果压扁结果标签栏**（界面打磨条目 1 / 13）：执行统计（`已执行 N 条语句 · 耗时 X ms · 返回 N 行`）只留在查询编辑器状态栏，结果标签栏右上不再重复；结果集数量文案由「共 N 条」改为「N 个结果集」，且仅 N > 1 时显示（N = 查询结果集数量，不含 `完成` / `错误` 标签）；只有不超过一个结果标签（含尚未产生结果）时标签栏压成 20pt 细条，多结果恢复 32pt。见 `specs/06-query-editor.md` §1/§3/§4、`specs/02-workspace.md` §7、`manual/06-query-editor.html` 图 6-1/6-5、`10-query-editor.md` §6 |
 | 2026-10-13 | **草稿自动保存提示静默化**（界面打磨条目 3）：状态栏不再常驻 `草稿已自动保存`（自动保存成功不提示任何东西）；只在改动可能丢失时提示 `未保存` —— 有磁盘文件的标签按文件落盘状态给灰色提示，无文件的标签只在偏好 `editor.autoSaveDraft` 关闭时给橙色警示；草稿写盘失败复用编辑器轻提示（沿用脚本保存失败的文案）。修掉「关闭自动保存仍显示已保存」的误报（`scheduleDraftSave` 的 `guard` 直接 return，什么都没存）。判定抽成纯函数 `WorkspaceStatusText.draftStatus`，**不额外记录「草稿已落盘」状态**：「成功即静默」由「无文件 + 自动保存开启 → 不显示」这条规则本身保证。腾出的状态栏右端**刻意不再常驻任何信息**（当前库 / 只读标记另有入口，见 2026-09-24）。见 `specs/06-query-editor.md` §2、`specs/11-preferences.md` §4、`manual/06-query-editor.html`、`manual/11-preferences.html`、`10-query-editor.md` §9 |
 | 2026-10-13 | **去掉重复的「新建查询」入口**（界面打磨条目 5）：标题栏中间原有一个 `+ 新建查询`、标签栏末尾又有一个 `+`，同一个动作两个入口。拍板只留**标签栏末尾**那个（贴着标签、符合浏览器式心智），标题栏中间只留 `打开表…`；标签栏 `+` 的悬停提示补上 `新建查询（⌘T）`。`⌘T`（菜单「文件 → 新建查询」）与标签栏 `+` 都保留，无标签时标签栏仍常驻。见 `specs/02-workspace.md` §2/§6、`manual/02-workspace.html` 图 2-1/2-2、`manual/index.html` 图 0-1 |
+| 2026-11-02 | **构建产物位置收敛到 `.build`**：`make clean` 现在连 Xcode GUI 遗留的 `~/Library/Developer/Xcode/DerivedData/TableLite-*` 一起删，`make doctor` 报告残留、`make build` 检测到打一行提示。动因：GUI / 手敲 `xcodebuild` 不带 `-derivedDataPath` 时产物落在 DerivedData，原来的 `make clean` 管不到；而那份产物与源码、签名身份都可能不同步（`AGENTS.md` 早已警告别运行它）。登记 S45。见 `12-build-and-deps.md` §4.3 |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。
