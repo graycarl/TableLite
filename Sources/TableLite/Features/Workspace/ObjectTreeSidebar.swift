@@ -72,6 +72,7 @@ struct ObjectTreeSidebar: View {
             TextField("搜索表、视图…", text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($searchFocused)
+                .accessibilityIdentifier("sidebar.search")
             if !searchText.isEmpty {
                 Button {
                     searchText = ""
@@ -126,6 +127,7 @@ struct ObjectTreeSidebar: View {
             }
         }
         .frame(maxHeight: .infinity)
+        .accessibilityIdentifier("sidebar.tree")
     }
 
     @ViewBuilder

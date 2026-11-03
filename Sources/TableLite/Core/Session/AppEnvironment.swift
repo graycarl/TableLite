@@ -21,6 +21,19 @@ public final class AppEnvironment {
     public let sessionManager: SessionManager
     public let clock: Clock
 
+    /// 是否在调试 profile 里运行（`15-testing.md` §9.1，仅 Debug 构建可能为 true）。
+    public let isDevProfile: Bool
+    /// 调试 profile 用的 `UserDefaults` suite 名；nil 表示标准域。
+    public let defaultsSuiteName: String?
+
+    /// 窗口 frame 自动保存名。调试 profile 必须带后缀，
+    /// 因为 `setFrameAutosaveName` 走 UserDefaults 标准域，不受 suite 隔离（`15-testing.md` §9.1）。
+    public var windowFrameAutosaveName: String {
+        isDevProfile
+            ? WorkspaceStateStore.windowFrameAutosaveName + "-dev"
+            : WorkspaceStateStore.windowFrameAutosaveName
+    }
+
     @ObservationIgnored private var didStart = false
 
     public init(
@@ -34,7 +47,9 @@ public final class AppEnvironment {
         drafts: QueryDraftStore,
         workspace: WorkspaceStateStore,
         clock: Clock,
-        factory: SessionBackendFactory
+        factory: SessionBackendFactory,
+        isDevProfile: Bool = false,
+        defaultsSuiteName: String? = nil
     ) {
         self.layout = layout
         self.preferences = preferences
@@ -46,6 +61,8 @@ public final class AppEnvironment {
         self.drafts = drafts
         self.workspace = workspace
         self.clock = clock
+        self.isDevProfile = isDevProfile
+        self.defaultsSuiteName = defaultsSuiteName
         let services = SessionServices(
             preferences: preferences,
             consoleLog: consoleLog,
@@ -74,9 +91,28 @@ public final class AppEnvironment {
 
     /// 真实运行环境（`Application Support/TableLite` + 凭据文件 + UserDefaults）。
     public static func live() throws -> AppEnvironment {
-        let layout = try AppStorageLayout.live()
+        try live(dataDirectory: nil, defaultsSuite: nil)
+    }
+
+    /// 真实运行环境的可覆盖版本：把存储根与偏好域指向别处。
+    ///
+    /// 只供 Debug 调试 profile 使用（`15-testing.md` §9.1）；`nil` 等价于 `live()`。
+    public static func live(dataDirectory: URL?, defaultsSuite: String?) throws -> AppEnvironment {
+        let layout: AppStorageLayout
+        if let dataDirectory {
+            try AtomicFileWriter.ensureDirectory(dataDirectory)
+            layout = AppStorageLayout(rootDirectory: dataDirectory)
+        } else {
+            layout = try AppStorageLayout.live()
+        }
+        let keyValue: KeyValueStore
+        if let defaultsSuite, let defaults = UserDefaults(suiteName: defaultsSuite) {
+            keyValue = UserDefaultsKeyValueStore(defaults: defaults)
+        } else {
+            keyValue = UserDefaultsKeyValueStore()
+        }
         let clock = SystemClock()
-        let preferences = Preferences()
+        let preferences = Preferences(store: keyValue)
         let credentials = FileCredentialStore(layout: layout)
         let connections = ConnectionStore(layout: layout, credentials: credentials)
         let consoleLog = ConsoleLogStore(
@@ -95,9 +131,11 @@ public final class AppEnvironment {
             history: QueryHistoryStore(layout: layout),
             sessionState: SessionStateStore(layout: layout),
             drafts: QueryDraftStore(layout: layout, clock: clock),
-            workspace: WorkspaceStateStore(store: UserDefaultsKeyValueStore()),
+            workspace: WorkspaceStateStore(store: keyValue),
             clock: clock,
-            factory: .live
+            factory: .live,
+            isDevProfile: dataDirectory != nil || defaultsSuite != nil,
+            defaultsSuiteName: defaultsSuite
         )
     }
 

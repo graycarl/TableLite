@@ -56,6 +56,13 @@
 | S43 | 构建不每次重推 Homebrew 依赖与部署目标 | `make gen` 按输入指纹跳过 `check-deps.sh` / `gen-local-xcconfig.sh`（省 ~7s）。代价：`brew upgrade` 之后不会再自动重算 `Configs/Local.xcconfig` 里的路径与 `TABLELITE_DEPLOYMENT_TARGET`，需要手动跑一次 `make deps`（`make clean` 后也一样会重跑）。见 `12-build-and-deps.md` §4.2 |
 | S44 | 超宽表只做「按水平可视区返回 `nil` + 局部重载」的列虚拟化，**不**自绘整行、**不**改写为 cell-based `NSTableView`、**不**做完整列窗口化（只挂可见列 + 两侧 spacer 列保宽度） | 自绘整行能彻底去掉每列一个视图，但要推翻 `07-data-grid.md` §1 的 view-based 决策，并重做选区、无障碍、每格右键菜单；完整列窗口化要自己维护「列集合 ↔ 总宽度」的映射，列宽拖拽与列显隐会变脆。以上两者收益被「返回 nil + 局部重载」大幅覆盖（实测 p50 190.8 → 16.7 ms）。见 `07-data-grid.md` §10.2 |
 | S45 | 不改 Xcode 的全局 DerivedData 位置，也不在工程里覆盖 `SYMROOT` / `OBJROOT` | 该设置属本机偏好、不落仓库，换台机器就得重设；覆盖构建变量又会让「`.build` 是唯一产物位置」出现第二个例外。改为 `make clean` 连 `DerivedData/TableLite-*` 一起删、`make doctor` 报告残留、`make build` 检测到打一行提示。见 `12-build-and-deps.md` §4.3 |
+| S46 | 不做常驻的应用内调试桥（HTTP / socket 读内部状态、发语义动作） | 启动原语 + AX 驱动已覆盖「到某个状态、点某个控件」；常驻桥要先定义一套命令协议，属于过早抽象。真遇到「运行中高频读内部状态」再加。见 `15-testing.md` §9 |
+| S47 | 不做应用内离屏截图，也不做像素级基线 diff | 真实窗口截图（`screencapture -l`）含窗口装饰与材质，才是用户看到的样子；离屏渲染拿不到标题栏/工具栏，基线图与阈值又是一套维护成本。见 `15-testing.md` §9.6 |
+| S48 | 不做热重载 / 注入工具 | 增量 `make build` 约 25s，可接受；`-interposable` 一类要改构建 flag 且不稳定。调试通路默认不触发构建，由人决定何时重编 |
+| S49 | 不预置具名调试场景 | 原语 + AX 已覆盖盘点过的状态；预置场景会重复实现并长成第二套 UI 测试（与 S22 冲突）。只留注册点，需要时再加。见 `15-testing.md` §9.3 |
+| S50 | `--dev-*` 调试通路只在 Debug 构建存在 | 全部包在 `#if DEBUG` 里，Release 不解析、不写隔离目录以外的任何东西。理由：调试通路不得进发布产物。见 `15-testing.md` §9.9 |
+| S51 | 调试实例不隔离 AppKit 全局偏好 | `NSNavLastRootDirectory`、`~/Library/Saved Application State/` 等由 AppKit 自己写，改造成本远超收益；窗口 frame 自动保存这一项已用 autosave 名后缀隔离。见 `15-testing.md` §9.1 |
+| S52 | 不新增统一日志 sink | SQL 与服务器错误走 Console Log 落盘，存储层走 OSLog，原语轨迹走 stdout；由 `tl.sh logs` 合并三源。再加一条调试专用日志通道只会多一处维护。见 `15-testing.md` §9.6 |
 
 ## 2. 已知限制
 
@@ -169,5 +176,6 @@
 | 2026-10-13 | **草稿自动保存提示静默化**（界面打磨条目 3）：状态栏不再常驻 `草稿已自动保存`（自动保存成功不提示任何东西）；只在改动可能丢失时提示 `未保存` —— 有磁盘文件的标签按文件落盘状态给灰色提示，无文件的标签只在偏好 `editor.autoSaveDraft` 关闭时给橙色警示；草稿写盘失败复用编辑器轻提示（沿用脚本保存失败的文案）。修掉「关闭自动保存仍显示已保存」的误报（`scheduleDraftSave` 的 `guard` 直接 return，什么都没存）。判定抽成纯函数 `WorkspaceStatusText.draftStatus`，**不额外记录「草稿已落盘」状态**：「成功即静默」由「无文件 + 自动保存开启 → 不显示」这条规则本身保证。腾出的状态栏右端**刻意不再常驻任何信息**（当前库 / 只读标记另有入口，见 2026-09-24）。见 `specs/06-query-editor.md` §2、`specs/11-preferences.md` §4、`manual/06-query-editor.html`、`manual/11-preferences.html`、`10-query-editor.md` §9 |
 | 2026-10-13 | **去掉重复的「新建查询」入口**（界面打磨条目 5）：标题栏中间原有一个 `+ 新建查询`、标签栏末尾又有一个 `+`，同一个动作两个入口。拍板只留**标签栏末尾**那个（贴着标签、符合浏览器式心智），标题栏中间只留 `打开表…`；标签栏 `+` 的悬停提示补上 `新建查询（⌘T）`。`⌘T`（菜单「文件 → 新建查询」）与标签栏 `+` 都保留，无标签时标签栏仍常驻。见 `specs/02-workspace.md` §2/§6、`manual/02-workspace.html` 图 2-1/2-2、`manual/index.html` 图 0-1 |
 | 2026-11-02 | **构建产物位置收敛到 `.build`**：`make clean` 现在连 Xcode GUI 遗留的 `~/Library/Developer/Xcode/DerivedData/TableLite-*` 一起删，`make doctor` 报告残留、`make build` 检测到打一行提示。动因：GUI / 手敲 `xcodebuild` 不带 `-derivedDataPath` 时产物落在 DerivedData，原来的 `make clean` 管不到；而那份产物与源码、签名身份都可能不同步（`AGENTS.md` 早已警告别运行它）。登记 S45。见 `12-build-and-deps.md` §4.3 |
+| 2026-11-04 | **新增 agent 自测基建**（`15-testing.md` §9）：Debug-only 的隔离 profile（`--dev-data-dir` / `--dev-defaults-suite`）、启动原语（连库/开表/选格/造改动/外观/窗口尺寸 + ready 契约）、AX 驱动 `axctl`（剪枝 + 行列寻址 + 进程内 wait）、`scripts/dev/tl.sh` 统一入口与 selftest、截图按 PID 定位与三源日志合并。登记 S46–S52：不做常驻调试桥、不做离屏截图/像素基线、不做热重载、不预置具名场景、调试通路仅 Debug、不隔离 AppKit 全局偏好、不新增统一日志 sink。见 `06-ui-layer.md` §11（identifier 规范）、`02-persistence.md` §1（存储覆盖） |
 
 > 新增限制或简化时，必须同时在本文件登记并在对应需求文档里说明，避免「以为做了其实没做」。

@@ -143,7 +143,11 @@ final class BenchScrollRunner: NSObject {
         }
 
         let tab = session.openTableData(database: config.database, table: config.table, forceNew: true)
-        guard let viewModel = await waitForLoaded(tab: tab, timeout: 30) else {
+        guard let viewModel = await DevStateProbe.waitForLoaded(
+            tab: tab,
+            timeout: 30,
+            onFailure: { print("   加载失败：\($0)") }
+        ) else {
             print("   打开表或加载超时")
             return 1
         }
@@ -152,7 +156,11 @@ final class BenchScrollRunner: NSObject {
         // 兑底：标签自带的显示条数压过了偏好（例如还原的标签）—— 改完必须等**本次**重载跑完。
         if viewModel.rowLimit != config.rows, RowLimit.isValid(config.rows) {
             viewModel.setRowLimit(config.rows)
-            guard let reloaded = await waitForReload(tab: tab, timeout: 30) else {
+            guard let reloaded = await DevStateProbe.waitForReload(
+                tab: tab,
+                timeout: 30,
+                onFailure: { print("   调整显示条数后加载失败：\($0)") }
+            ) else {
                 print("   调整显示条数后加载超时")
                 return 1
             }
@@ -160,7 +168,7 @@ final class BenchScrollRunner: NSObject {
         }
 
         NSApp.activate(ignoringOtherApps: true)
-        guard let found = findGridScrollView() else {
+        guard let found = DevStateProbe.findGridScrollView() else {
             print("   找不到网格视图")
             return 1
         }
@@ -271,73 +279,5 @@ final class BenchScrollRunner: NSObject {
         """)
         print(String(format: "   帧 %d（%.0f fps） p50 %.1fms  p90 %.1fms  p99 %.1fms  max %.1fms  >34ms %d 帧",
                      sorted.count, fps, p50, p90, p99, maxValue, over34))
-    }
-
-    // MARK: - 工具
-
-    /// 等**本次**重载真正跑完。
-    ///
-    /// 不能直接用 `waitForLoaded`：`setRowLimit` 是异步起查询，调用后 `loadState` 还停在
-    /// 改条数之前的 `.loaded`，按状态轮询会立即返回，于是加载与测量窗口重叠，数字里混进一段
-    /// 主线程阻塞（表现为 p99 长尾）。所以先等它进入 `.loading`，再等 `.loaded`。
-    private func waitForReload(tab: Tab, timeout: TimeInterval) async -> TableDataViewModel? {
-        let deadline = CACurrentMediaTime() + timeout
-        var sawLoading = false
-        while CACurrentMediaTime() < deadline {
-            if let viewModel = tab.content as? TableDataViewModel {
-                switch viewModel.loadState {
-                case .loading:
-                    sawLoading = true
-                case .loaded:
-                    if sawLoading { return viewModel }
-                case .failed(let message):
-                    if sawLoading {
-                        print("   调整显示条数后加载失败：\(message)")
-                        return nil
-                    }
-                case .idle:
-                    break
-                }
-            }
-            try? await Task.sleep(nanoseconds: 100_000_000)
-        }
-        return nil
-    }
-
-    /// 等标签的 ViewModel 出现且数据加载完成。
-    private func waitForLoaded(tab: Tab, timeout: TimeInterval) async -> TableDataViewModel? {
-        let deadline = CACurrentMediaTime() + timeout
-        while CACurrentMediaTime() < deadline {
-            if let viewModel = tab.content as? TableDataViewModel {
-                switch viewModel.loadState {
-                case .loaded: return viewModel
-                case .failed(let message):
-                    print("   加载失败：\(message)")
-                    return nil
-                case .idle, .loading: break
-                }
-            }
-            try? await Task.sleep(nanoseconds: 100_000_000)
-        }
-        return nil
-    }
-
-    /// 在主窗口视图树里找数据网格的 NSScrollView（documentView 是 DataGridTableView）。
-    private func findGridScrollView() -> NSScrollView? {
-        for window in NSApp.windows {
-            if let found = findScrollView(in: window.contentView) { return found }
-        }
-        return nil
-    }
-
-    private func findScrollView(in view: NSView?) -> NSScrollView? {
-        guard let view else { return nil }
-        if let scrollView = view as? NSScrollView, scrollView.documentView is DataGridTableView {
-            return scrollView
-        }
-        for subview in view.subviews {
-            if let found = findScrollView(in: subview) { return found }
-        }
-        return nil
     }
 }

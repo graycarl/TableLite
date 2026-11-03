@@ -90,3 +90,17 @@
 - 连接表单的错误提示时机：字段被编辑过或首次尝试「测试连接 / 保存」后才显示内联红字（`specs/01-connections.md` §2）。
 
 做这些约定的原因是 UI 走查时发现按钮样式、圆角、间距、背景色在各视图里发散；统一后新代码只能在这几档里选。
+
+## 11. 可访问性标识（决策记录，2026-11-04）
+
+**静态控件必须带 `accessibilityIdentifier`；数据驱动元素不标。**
+
+- 用途：调试与自检工具按 id 精确定位控件（`15-testing.md` §9.4）。人工验收仍看 `manual/`（S22）。
+- 命名 `area.control[.variant]`：全小写短横线、英文，**不塞数据**。
+  例：`toolbar.run-query`、`tabs.close`、`grid.statusbar.filter`、`sheet.import.next`、`dialog.destructive.confirm`。
+  禁止 `sidebar.node.wide_test` 这类会随数据变化的 id。
+- **静态控件**（工具栏、状态栏动作、标签栏、面板主次按钮、搜索框）用 identifier；
+  **数据驱动元素**（对象树节点、标签页、表格单元格、字段栏字段）用「容器 identifier + 标题/索引」定位。
+  理由：把数据写进 identifier 等于给每个数据项维护一份标识，数据一变就失效。
+- 实现：SwiftUI 用 `.accessibilityIdentifier(...)`；`NSViewRepresentable` 的视图（网格、编辑器、表头等）用 `setAccessibilityIdentifier`。
+- identifier 只服务工具与无障碍，不是界面文案：不写进 `specs/` 与 `manual/`，也不做本地化。

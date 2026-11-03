@@ -44,6 +44,7 @@ struct GridStatusBarView: View {
                     .buttonStyle(.subtle)
                     .controlSize(.small)
                     .help("取消正在进行的查询（⌘.）")
+                    .accessibilityIdentifier("grid.statusbar.cancel")
             }
 
             limitControl
@@ -54,6 +55,7 @@ struct GridStatusBarView: View {
             .buttonStyle(.subtle)
             .disabled(viewModel.isCountingExact || !viewModel.isMetadataLoaded)
             .help("执行一次 COUNT(*)，可能很慢；完成后把「约 N 行」换成精确总行数")
+            .accessibilityIdentifier("grid.statusbar.stats")
 
             if viewModel.isCountingExact {
                 ProgressView()
@@ -66,14 +68,17 @@ struct GridStatusBarView: View {
                 .buttonStyle(.subtle)
                 .controlSize(.small)
                 .help("打开或关闭行过滤器（⌘F）")
+                .accessibilityIdentifier("grid.statusbar.filter")
             Button("列") { viewModel.presentColumnFilter() }
                 .buttonStyle(.subtle)
                 .controlSize(.small)
                 .help("选择要显示的列（⌥⌘F）")
+                .accessibilityIdentifier("grid.statusbar.columns")
             Button("导出", action: onExport)
                 .buttonStyle(.subtle)
                 .controlSize(.small)
                 .help("导出当前过滤条件下的全部数据（⇧⌘E）")
+                .accessibilityIdentifier("grid.statusbar.export")
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
@@ -103,6 +108,7 @@ struct GridStatusBarView: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .help("最多显示多少行（上限 \(RowLimit.maximum)）")
+        .accessibilityIdentifier("grid.statusbar.row-limit")
         .alert("最多显示多少行", isPresented: $isCustomLimitPresented) {
             TextField("行数", text: $customLimitText)
             Button("确定") { applyCustomLimit() }

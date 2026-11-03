@@ -118,6 +118,7 @@ struct QueryEditorView: View {
             }
             .buttonStyle(.borderedProminent)
             .help("\(viewModel.defaultScope.displayName)（⌘↩）")
+            .accessibilityIdentifier("editor.run")
             .disabled(viewModel.isRunning)
 
             Menu {
@@ -130,6 +131,7 @@ struct QueryEditorView: View {
             .menuIndicator(.hidden)
             .frame(width: 24)
             .help("默认执行范围：\(viewModel.defaultScope.displayName)")
+            .accessibilityIdentifier("editor.scope")
 
             Button {
                 viewModel.executeAll()
@@ -138,6 +140,7 @@ struct QueryEditorView: View {
             }
             .buttonStyle(.subtle)
             .help("执行全部（⇧⌘↩）")
+            .accessibilityIdentifier("editor.run-all")
             .disabled(viewModel.isRunning)
 
             Button {
@@ -147,13 +150,16 @@ struct QueryEditorView: View {
             }
             .buttonStyle(.subtle)
             .help("停止（⌘.）")
+            .accessibilityIdentifier("editor.stop")
             .disabled(!viewModel.isRunning || viewModel.isStopping)
 
             Divider().frame(height: 18)
 
             Button("打开") { openScript() }
+                .accessibilityIdentifier("editor.open")
                 .buttonStyle(.subtle)
             Button("另存为") { _ = viewModel.saveScriptAs() }
+                .accessibilityIdentifier("editor.save")
                 .buttonStyle(.subtle)
 
             Spacer()

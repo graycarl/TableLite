@@ -20,7 +20,7 @@
 | [12-build-and-deps.md](12-build-and-deps.md) | 技术选型、Homebrew 依赖、静态链接、版本控制、构建入口开销 |
 | [13-open-questions.md](13-open-questions.md) | 已知限制、刻意简化、待定事项 |
 | [14-row-inspector.md](14-row-inspector.md) | 右侧字段栏：技术选型、提交路径、大字段按需加载与暂存联动 |
-| [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI、性能排查方法、应用内滚动基准与 Agent 自测基建、测试 suite 运行成本 |
+| [15-testing.md](15-testing.md) | 支持的服务器版本、测试分层、可测试性注入点、依赖方向校验、CI、性能排查方法、应用内滚动基准、Agent 自测基建（隔离实例 / 启动原语 / AX 驱动）、测试 suite 运行成本 |
 
 ## 与需求文档的对应
 
@@ -79,6 +79,9 @@
 | 可测试性 | 手写协议 + `AppEnvironment` 注入（`Clock` / `CredentialStore` / `FileSystemLocator`），不引入 DI 框架 | [15](15-testing.md) §3 |
 | 性能排查 | 隔离夹具（假后端 + 真 AppKit + 程序化滚动）+ 扫参数看曲线 + `sample` + 微基准；毫秒基准不进 CI | [15](15-testing.md) §6 |
 | 测试 suite 并发结构 | `setUp` / `tearDown` 必须同步（`setUpWithError` / `tearDownWithError`）；`@MainActor` 类上写 `async` 覆盖会让 XCTest 每个用例多花 ~100ms | [15](15-testing.md) §7 |
+| Agent 调试通路 | **只在 Debug 构建存在**：隔离 profile（`--dev-data-dir` / `--dev-defaults-suite`）+ 启动原语 + ready 契约；交互走 AX 真实路径，不引入常驻调试桥 | [15](15-testing.md) §9、[13](13-open-questions.md) S46、S50 |
+| 调试实例定位 | 调试实例与真实实例 bundle id 相同：一切按 **PID** 定位（窗口截图 / AX / 退出），禁止 `pkill` 与 `tell application id` | [15](15-testing.md) §9.7 |
+| 可访问性标识 | 静态控件用 `area.control[.variant]` 形式的 identifier；数据驱动元素用容器 + 标题/索引，identifier 不塞数据 | [06](06-ui-layer.md) §11 |
 | 构建入口加速 | `make gen` 按输入指纹跳过依赖解析与 `xcodegen`；`make test` 默认测试并行（`PARALLEL=0` 关闭） | [12](12-build-and-deps.md) §4.2、[13](13-open-questions.md) S43 |
 | 构建产物位置 | 唯一有效产物在 `.build`（所有 make 目标显式传 `-derivedDataPath`）；Xcode GUI / 手敲 `xcodebuild` 落在 `~/Library/Developer/Xcode/DerivedData/TableLite-*` 里的那份不可信，`make clean` 一并删、`make doctor` 报告 | [12](12-build-and-deps.md) §4.3 |
 | 分发 | `make run` 日常验证、`make dist` 出 Release zip；产物不依赖目标机 Homebrew（老认证插件除外，见 L41） | [12](12-build-and-deps.md) §4.1 |

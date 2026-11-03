@@ -368,12 +368,15 @@ struct ConnectionFormView: View {
                 validationRevealed = true
                 viewModel.testCurrentForm()
             }
+            .accessibilityIdentifier("sheet.connection.test")
             Spacer()
             Button("取消") { viewModel.cancelForm() }
+                .accessibilityIdentifier("sheet.connection.cancel")
                 .keyboardShortcut(.cancelAction)
             Button("保存") {
                 Task { await viewModel.saveCurrentForm() }
             }
+            .accessibilityIdentifier("sheet.connection.save")
             .keyboardShortcut(.defaultAction)
             .disabled(!issues.isEmpty)
         }

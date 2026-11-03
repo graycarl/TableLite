@@ -45,6 +45,7 @@ struct DataGridView: NSViewRepresentable {
         tableView.action = #selector(DataGridCoordinator.tableViewClicked(_:))
         tableView.doubleAction = #selector(DataGridCoordinator.tableViewDoubleClicked(_:))
         tableView.setAccessibilityLabel("表数据网格")
+        tableView.setAccessibilityIdentifier("grid.table")
 
         let headerView = GridHeaderView()
         headerView.coordinator = coordinator
