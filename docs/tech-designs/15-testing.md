@@ -129,7 +129,7 @@
 - 约束：**新增 suite 不得写 `async` 的 `setUp` / `tearDown`。** 需要在 setUp 里做异步准备时，
   改成构造期注入（替身预置应答 / 直接建好对象）或挪到用例首行。
 
-## 8. 应用内滚动基准与 Agent 自测基建（决策记录，2026-10-08）
+## 8. 应用内滚动基准（决策记录，2026-10-08）
 
 **问题**：帧级卡顿（CA commit 背压、WindowServer 交互、UpdateCycle 调度）只在真实 App 进程里出现，
 §6 的隔离夹具测 CPU 成本够用，测不了帧级行为；而让真人滚动再配合采样，一轮验证要几分钟且无法自动化。
@@ -167,8 +167,9 @@ xctrace 的原始中间文件不会自动删除，一次录制能留 10GB+（202
 
 ### 8.3 `scripts/dev/shot.sh`：窗口截图
 
-用 `CGWindowListCopyWindowInfo` 找 TableLite 主窗口 id，`screencapture -l` 抓图。
-Agent 读图即可自查视觉回归（字体、对齐、颜色、角标），不需要人工过目。
+**按 PID** 定位调试实例的窗口（`axctl window`，`kCGWindowOwnerPID` 过滤，取面积最大的窗口），
+`screencapture -l` 抓图。Agent 读图即可自查视觉回归（字体、对齐、颜色、角标），不需要人工过目。
+同名双实例下按 app 名找窗口会截错进程，所以不做。详见 §9.6。
 
 ### 8.4 边界
 
@@ -181,20 +182,29 @@ Agent 读图即可自查视觉回归（字体、对齐、颜色、角标），�
 **问题**：§6 / §8 解决的是「量得准」，但 agent 日常要做的是「看一眼某个界面 / 点一下某个按钮 / 看看报了什么错」。
 现状只有几个写死的 smoke 模式，任何新状态都得真人点；截图能看不能动；脚本按 app 名找进程与窗口，双实例下会互相误伤。
 
-**决策：给 agent 一套「隔离实例 + 启动原语 + AX 驱动 + 三源日志」的通路，全部只在 Debug 构建存在，不引入常驻服务。**
+**决策：给 agent 一套「隔离实例 + 启动原语 + AX 驱动 + 三源日志」的通路，调试通路只在 Debug 构建存在，不引入常驻服务。**
+
+- 例外：`DevStateProbe`（等加载 / 定位网格）与 §8 的 `--bench-scroll` 共用，**Release 也编译**，
+  但不被调用时没有任何行为；S50 的「只在 Debug」只约束 `--dev-*` 与 `DevLaunchRunner`/`DevLaunchOptions`。
 
 ### 9.1 隔离 profile（决策记录）
 
 - 两个 Debug-only 启动参数：`--dev-data-dir <path>` 覆盖存储根（`AppStorageLayout`），
   `--dev-defaults-suite <id>` 把偏好与工作区状态切到独立 `UserDefaults` suite。
-- **硬约束：必须拒绝**指向真实根 `Application Support/TableLite`、它的任何祖先、`$HOME`、空路径的 `--dev-data-dir`，
-  以及等于主 bundle id 的 suite。调试实例绝不能写坏真实配置。
+  **两者必须成组**：只给数据目录时自动补 `<主 bundle id>.dev`；`AppEnvironment.live` 只收到一半会抛错，
+  suite 无法创建时也抛错，**不静默回落到标准域**。
+- **硬约束：必须拒绝**指向真实根 `Application Support/TableLite`、它的任何祖先与后代、`$HOME` 及其祖先、
+  系统根 `/`、空路径的 `--dev-data-dir`（展开 `~`、解析符号链接后再比较路径分量）；
+  以及为空或等于主 bundle id 的 suite。调试实例绝不能写坏真实配置。
+- 同一组校验在脚本侧（`scripts/dev/lib/profile.sh`）重新实现一次：`rm -rf` / `defaults delete` 在那一半。
 - 种子由脚本直接写文件完成（`connections.json` / `credentials.json`，格式见 `02-persistence.md` §2/§3），
   并在 dev suite 里预置 `consoleLog.writeToFile = true`；`--dev-connect` 建立的临时连接不落盘、不写凭据。
 - 窗口 frame 自动保存（`NSWindow.setFrameAutosaveName`）写的是 UserDefaults 标准域，**不受 suite 隔离**：
   调试 profile 下 autosave 名必须带 `-dev` 后缀。
 - 已知可接受残留：AppKit 全局键（`NSNavLastRootDirectory` 等）与 `~/Library/Saved Application State/`（S51）。
-- 默认路径 `.build/dev-data` + suite `com.graycarl.tablelite.dev`；`make clean` 会连带删除，下次启动自动重灌种子。
+- 默认路径 `.build/dev-data` + suite `com.graycarl.tablelite.dev`。`make clean` 只删 `.build`（数据目录没了、
+  suite plist 还在）；要干净重来用 `tl.sh reset`——它同时清 dev suite 与标准域里的
+  `NSWindow Frame TableLite.MainWindow-dev`（窗口 frame 自动保存那条，S51 的例外项）。
 
 ### 9.2 启动原语（决策记录）
 
@@ -206,21 +216,28 @@ Agent 读图即可自查视觉回归（字体、对齐、颜色、角标），�
 | `--dev-open-connection <name\|id>` | 从隔离 `connections.json` 取连接，密码读隔离 `credentials.json` |
 | `--dev-open-table <db.table>` | 打开表数据标签并等加载完成 |
 | `--dev-open-tab query\|history\|console\|structure\|definition` | 打开并选中对应标签 |
-| `--dev-select-cell <row>,<column>` | 选中网格单元格（列支持列名或序号），走 delegate 的真实选区路径 |
-| `--dev-edit-cell <row>,<column>=<value>`（可重复） | 走字段栏的编辑 API 造未提交改动；`=NULL` 置空 |
+| `--dev-select-cell <row>,<column>` | 选中网格单元格；行 **1-based**，列只认**列名**，走 delegate 的真实选区路径 |
+| `--dev-edit-cell <row>,<column>=<value>`（可重复） | 走字段栏的编辑 API 造未提交改动；值等于 `NULL`（大小写不敏感）表示置空。**无法表达字面量文本 `null`**（刻意简化，需要时改用 AX 在字段栏里输入） |
 | `--dev-appearance light\|dark\|system` | 写隔离偏好并套到 `NSApp` |
 | `--dev-window-size <w>x<h>` | 固定窗口尺寸（截图可对比的前提） |
 | `--dev-row-limit <n>` | 显示条数 |
-| `--dev-scenario <name>` | 具名场景注册表（9.3，v1 空） |
+| `--dev-scenario <name>` | 具名场景注册表（9.3，v1 空）；名字在解析阶段就校验 |
 | `--dev-ready-file <path>` | 原子写 ready JSON（同时 stdout 一行） |
 
 **执行语义（硬约束）**
 
-- 固定顺序：连接 → 显示条数（先写偏好，ViewModel 初始化时读）→ 打开标签/表 → 选格 → 造改动 → 外观 → 窗口尺寸 → ready。
-  `--dev-open-table` 用 `forceNew: false`：还原的标签现场（过滤 / 排序 / 列宽）会一起回来，这是真实行为，脚本不能假设初始状态。
-- 每步 30s 超时（加载类沿用 `waitForLoaded`）；任何一步失败 → stdout 输出 `{"ready":false,…}` 并 `exit 1`。
-- **ready 契约**（脚本据此判断「可以截图 / 可以点」，不用 sleep 猜）：
-  `{"ready":true,"pid":…,"data_dir":…,"defaults_suite":…,"window":{"id":…,"frame":…},"state":{"connection":…,"tab":…,"db":…,"table":…,"rows":…,"row_limit":…,"selection":…,"pending":…},"warnings":[…]}`。
+- 固定顺序：等窗口 → 外观 → 窗口尺寸 → 显示条数（先写偏好，ViewModel 初始化时读）→ 连接 →
+  打开标签/表 → 选格 → 造改动 → 场景 → ready。
+  `--dev-open-table` 用 `forceNew: false`：还原的标签现场（过滤 / 排序 / 列宽 / 显示条数）会一起回来，
+  这是真实行为，脚本不能假设初始状态；显示条数被标签现场压掉时会补一次重载（同 §8.1 的做法）。
+- 超时：窗口 15s；标签内容装配 15s；表加载 / 重载 30s。任何一步失败（含 `--dev-edit-cell` 没产生改动）
+  → stdout 输出 `{"ready":false,…}` 并 `exit 1`；ready 文件写失败同样算失败。
+- 与 `--bench-scroll` / `--*-smoke` **互斥**：两者都会往 stdout 打 JSON 并退出，组合使用直接报错。
+- **ready 契约**（脚本据此判断「可以截图 / 可以点」，不用 sleep 猜；键名以 `DevLaunchRunner.stateSnapshot` 为准）：
+  `{"ready":true,"pid":…,"data_dir":…,"defaults_suite":…,"is_dev_profile":…,"window":{"id":…,"frame":{…}},
+  "state":{"connection":…,"database":…,"tabs":[…],"tab":…,"tab_kind":…,"table":…,"rows":…,"row_limit":…,
+  "pending":…,"selected_rows":…,"focused_column":…,"columns":[…],"load_state":…},"warnings":[…]}`。
+  `state.rows` 是**已加载数据行**（不含新增行），`--dev-select-cell` 的行号按网格行（含新增行）算。
 - 原语只调用现有公开 API（`SessionManager` / `ConnectionSession` / `TableDataViewModel`），不绕过产品逻辑。
   原语失败多半意味着产品 bug，**禁止**为了让调试通过而在原语里加特例。
 
@@ -235,12 +252,14 @@ Agent 读图即可自查视觉回归（字体、对齐、颜色、角标），�
 
 自写 Swift CLI（`scripts/dev/axctl.swift`，`swiftc` 编译缓存到 `.build/tools/`），JSON 输出；**一律按 PID 定位**，禁止按 app 名。
 
-- 能力：`doctor`、`window`、`activate`、`terminate`、`dump`（默认剪枝）、`find`（id / role / title / desc +
-  `--within` + `--nth`）、`attributes` / `attr`、`click`（默认 AXPress，`--coords` 走坐标）、`press`、
-  `set-value` / `type`、`key`、`cell <row>,<col>`、`wait`（单进程轮询）。
+- 能力：`doctor`、`window`（按面积返回主窗口优先）、`activate`、`terminate`、`dump`（默认剪枝）、
+  `find`（id / role / title / desc + `--within` + `--nth`；**必须给选择器**）、`attributes` / `attr`、
+  `click`（默认 AXPress，`--coords` 走坐标）、`press`、`set-value` / `type`（默认写 `AXValue`，
+  `--keys` 走真实键盘）、`key`、`cell <row>,<col>`（行 1-based、列名或 **0-based AX 列序号**）、
+  `wait`（单进程轮询）。**失败一律非 0 退出**，脚本用退出码判断成败。
 - 实测踩过的两条坑，已固化在工具里：
   - **先聚焦再写 `AXValue`**：SwiftUI `TextField` 不在焦点上时，直接写 `AXValue` 不会进入 Binding，
-    随后点「应用」读到旧草稿。`type` 现在先设 `AXFocused` 再写值。
+    随后点「应用」读到旧草稿。`type` 与 `set-value` 都先设 `AXFocused` 再写值。
   - **带修饰键的快捷键走全局事件**：`CGEventPostToPid` 命不中 SwiftUI 的 key equivalent（`⌘↩` 不执行），
     改为先用 `AXFrontmost` 按 PID 激活，再 `CGEventPost` 到 HID；`NSRunningApplication.activate`
     在同名双实例下可能激活错进程，不用它。
@@ -258,12 +277,13 @@ Agent 读图即可自查视觉回归（字体、对齐、颜色、角标），�
 
 ### 9.6 截图与日志（决策记录）
 
-- 截图仍用 `screencapture -l<window id>`（真实像素，含窗口装饰）：`scripts/dev/shot.sh` 改为**按 PID** 取窗口并支持 `--scale`；
-  确定性由 9.2 的 `--dev-appearance` / `--dev-window-size` 保证（不做应用内离屏截图，S47）。
-- 日志三源，`scripts/dev/logs.sh` 合并输出（`--since` / `--grep`）：
+- 截图仍用 `screencapture -l<window id>`（真实像素，含窗口装饰）：`tl.sh shot [path] [--width 像素]`
+  （`shot.sh` 是它的薄壳）**按 PID** 取窗口；确定性由 9.2 的 `--dev-appearance` / `--dev-window-size` 保证
+  （不做应用内离屏截图，S47）。
+- 日志三源，`tl.sh logs [--since 2m] [--grep 正则]` 合并输出：
   1. `run.log`（app stdout：原语轨迹 + ready JSON）；
   2. 隔离目录下的 `ConsoleLogs/*.log`（SQL 与服务器错误，靠 9.1 预置落盘）；
-  3. `log show --info --predicate 'subsystem == "com.graycarl.tablelite"'`（`StoreLog`）。
+  3. `log show --info --debug --predicate 'subsystem == "com.graycarl.tablelite"'`（`StoreLog`）。
 - **不新增统一日志 sink**（S52）：UI 症状（布局、文案、错位）用截图 + AX 判断，不指望日志。
 
 ### 9.7 统一入口与自检（决策记录）
@@ -271,9 +291,12 @@ Agent 读图即可自查视觉回归（字体、对齐、颜色、角标），�
 - 单一入口 `scripts/dev/tl.sh`：`run` / `reset` / `quit` / `shot` / `ax` / `cell` / `logs` / `doctor` / `selftest` / `help`；
   实现放 `scripts/dev/lib/`；Make 只留人类别名 `make dev` / `make dev-reset` / `make dev-selftest`。
 - **进程安全（硬约束）**：调试实例与真实实例 bundle id 相同，禁止 `pkill -x TableLite` 与 `osascript tell application id`；
-  退出只能按 PID：AX 点「退出」菜单 → `SIGTERM` → `SIGKILL`。
+  退出只能按 PID：`NSRunningApplication(processIdentifier:).terminate()`（Apple Event，走真实退出流程）→ `SIGTERM` → `SIGKILL`。
+- PID 会被系统复用，所以 `app.pid` 必须做**身份校验**（`ps` 的 command 同时包含产物路径与 `--dev-data-dir`），
+  不匹配就当 stale 删掉；`reset` 前后还要校验目标路径不是真实数据区。
 - `selftest` 断言三个代表性状态的关键 identifier 与 `cell r,c` 可用，并用「筛选后读回单元格」验证
   交互真的改到了状态（不只是点到了按钮）。identifier 失效必须变红，否则工具会退化成猜坐标而无人察觉。
+  前置条件是 dev MySQL 可达；收尾会退出调试实例（截图留在 `/tmp/tablelite-selftest-*.png`）。
 
 ### 9.7.1 常用命令（agent 视角）
 

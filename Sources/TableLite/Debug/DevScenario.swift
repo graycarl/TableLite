@@ -31,9 +31,5 @@ enum DevScenarioRegistry {
     static func scenario(named name: String) -> DevScenario? {
         all.first { $0.name == name }
     }
-
-    static var listDescription: String {
-        all.map { "\($0.name)：\($0.summary)" }.joined(separator: "\n")
-    }
 }
 #endif

@@ -30,7 +30,17 @@ final class DevLaunchOptionsTests: XCTestCase {
     func testAcceptsCustomDataDirectory() throws {
         let options = try parse(["--dev-data-dir", "/tmp/tablelite-dev"])
         XCTAssertEqual(options.dataDirectory?.path, "/tmp/tablelite-dev")
+        // 只给数据目录时必须自动补 dev suite：否则偏好会写回真实域。
+        XCTAssertEqual(options.defaultsSuite, "com.graycarl.tablelite.dev")
         XCTAssertFalse(options.isEmpty)
+    }
+
+    func testKeepsExplicitDefaultsSuite() throws {
+        let options = try parse([
+            "--dev-data-dir", "/tmp/tablelite-dev",
+            "--dev-defaults-suite", "com.example.devprofile"
+        ])
+        XCTAssertEqual(options.defaultsSuite, "com.example.devprofile")
     }
 
     func testRejectsLiveRootAndAncestors() {
@@ -38,7 +48,13 @@ final class DevLaunchOptionsTests: XCTestCase {
             "/Users/tester/Library/Application Support/TableLite",
             "/Users/tester/Library/Application Support",
             "/Users/tester",
-            "/Users"
+            "/Users",
+            "/",
+            "/Users/tester/",
+            // 真实根的后代同样在真实数据区里。
+            "/Users/tester/Library/Application Support/TableLite/dev",
+            // `..` 规范化后指回真实根。
+            "/Users/tester/Library/Application Support/TableLite/../TableLite"
         ] {
             XCTAssertThrowsError(try parse(["--dev-data-dir", path]), path) { error in
                 guard case DevLaunchError.dangerousDataDirectory = error else {
@@ -112,13 +128,15 @@ final class DevLaunchOptionsTests: XCTestCase {
             "--dev-edit-cell", "1,status=paid",
             "--dev-edit-cell", "2,note=含 = 等号",
             "--dev-edit-cell", "3,note=",
-            "--dev-edit-cell", "4,note=NULL"
+            "--dev-edit-cell", "4,note=NULL",
+            "--dev-edit-cell", "5,note=null"
         ])
-        XCTAssertEqual(options.editCells.count, 4)
+        XCTAssertEqual(options.editCells.count, 5)
         XCTAssertEqual(options.editCells[0].value, .text("paid"))
         XCTAssertEqual(options.editCells[1].value, .text("含 = 等号"))
         XCTAssertEqual(options.editCells[2].value, .text(""))
         XCTAssertEqual(options.editCells[3].value, .null)
+        XCTAssertEqual(options.editCells[4].value, .null)
     }
 
     // MARK: 外观 / 尺寸 / 行数
@@ -139,6 +157,40 @@ final class DevLaunchOptionsTests: XCTestCase {
         XCTAssertEqual(try parse(["--dev-row-limit", "1000"]).rowLimit, 1000)
         XCTAssertThrowsError(try parse(["--dev-row-limit", "0"]))
         XCTAssertThrowsError(try parse(["--dev-row-limit", "\(RowLimit.maximum + 1)"]))
+    }
+
+    // MARK: 标签 / 场景
+
+    func testParsesOpenTab() throws {
+        for target in ["query", "history", "console", "structure", "definition"] {
+            XCTAssertEqual(try parse(["--dev-open-tab", target]).openTab?.rawValue, target)
+        }
+        XCTAssertThrowsError(try parse(["--dev-open-tab", "bogus"]))
+    }
+
+    func testRejectsUnknownScenario() {
+        XCTAssertThrowsError(try parse(["--dev-scenario", "pending-changes"])) { error in
+            guard case DevLaunchError.unknownScenario("pending-changes") = error else {
+                return XCTFail("应报未知场景，实际 \(error)")
+            }
+        }
+    }
+
+    func testRejectsConflictingModes() {
+        for flag in ["--bench-scroll", "--smoke", "--query-smoke", "--filter-smoke", "--edit-smoke"] {
+            XCTAssertThrowsError(try parse([flag, "x", "--dev-open-table", "db.t"]), flag) { error in
+                guard case DevLaunchError.conflictingMode = error else {
+                    return XCTFail("\(flag) 应报互斥，实际 \(error)")
+                }
+            }
+        }
+    }
+
+    func testParsesIPv6Connection() throws {
+        XCTAssertEqual(
+            try parse(["--dev-connect", "[::1]:13307/tablelite_dev"]).connection,
+            .init(host: "::1", port: 13307, database: "tablelite_dev")
+        )
     }
 
     // MARK: 参数拼写
@@ -166,7 +218,7 @@ final class DevLaunchOptionsTests: XCTestCase {
     }
 
     func testIgnoresNonDevArguments() throws {
-        let options = try parse(["--bench-scroll", "wide_test", "--dev-open-table", "db.t"])
+        let options = try parse(["--some-other-flag", "value", "--dev-open-table", "db.t"])
         XCTAssertEqual(options.openTable?.table, "t")
         XCTAssertEqual(options.openTable?.database, "db")
     }

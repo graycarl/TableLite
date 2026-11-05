@@ -104,3 +104,7 @@
   理由：把数据写进 identifier 等于给每个数据项维护一份标识，数据一变就失效。
 - 实现：SwiftUI 用 `.accessibilityIdentifier(...)`；`NSViewRepresentable` 的视图（网格、编辑器、表头等）用 `setAccessibilityIdentifier`。
 - identifier 只服务工具与无障碍，不是界面文案：不写进 `specs/` 与 `manual/`，也不做本地化。
+- **容器**要拿 identifier 时必须配 `.accessibilityElement(children: .contain)`：否则 SwiftUI 会把 id 传播到
+  整棵子树（`--id` 一次命中多个），或者被子树里的元素顶掉。叶子控件不受影响。
+- 「必须标」的范围是**调试自检覆盖的面**（`tl.sh selftest` 里的三个状态 + 常用入口），不是字面意义上的
+  每一个控件；新增交互入口时按需补，并在 selftest 里加一条断言。

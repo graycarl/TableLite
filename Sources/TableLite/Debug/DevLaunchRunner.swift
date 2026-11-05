@@ -4,16 +4,11 @@ import Foundation
 
 /// 调试启动原语的执行器（`docs/tech-designs/15-testing.md` §9.2）。
 ///
-/// 只在 Debug 构建存在（S50）。流程：等窗口 → 连接 → 开表/标签 → 选格 → 造改动 →
-/// 外观/窗口尺寸 → 场景 → 输出 ready JSON。任何一步失败都打印 `{"ready":false,…}` 并退出，
-/// 脚本据此报错，不靠 sleep 猜。
+/// 只在 Debug 构建存在（S50）。流程：等窗口 → 外观 → 窗口尺寸 → 显示条数（写偏好）→ 连接 →
+/// 开表/标签 → 选格 → 造改动 → 场景 → 输出 ready JSON。任何一步失败都打印 `{"ready":false,…}`
+/// 并退出，脚本据此报错，不靠 sleep 猜。
 @MainActor
 final class DevLaunchRunner {
-
-    /// 只要有任意 `--dev-*` 参数就算被请求（具体参数由 `DevLaunchOptions.parse` 校验）。
-    static var isRequested: Bool {
-        CommandLine.arguments.contains { $0.hasPrefix("--dev-") }
-    }
 
     static func scheduleIfRequested(environment: AppEnvironment, options: DevLaunchOptions) {
         guard !options.isEmpty else { return }
@@ -22,6 +17,7 @@ final class DevLaunchRunner {
         runner.start()
     }
 
+    /// 持有当前 runner：`start()` 里的 Task 只捕获 self，这里留一份保证整个调试周期内不被释放。
     private static var shared: DevLaunchRunner?
 
     private let environment: AppEnvironment
@@ -46,7 +42,7 @@ final class DevLaunchRunner {
     private func run() async -> Int32 {
         do {
             try await perform()
-            printReady()
+            try printReady()
             return 0
         } catch {
             DevLaunchOutput.printFailure(Self.describe(error))
@@ -101,8 +97,9 @@ final class DevLaunchRunner {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if let window = DevStateProbe.mainWindow() {
-                // 坐标点击要求调试实例在最前面（§9.4）；按 PID 激活，不影响真实实例的窗口内容。
-                NSApplication.shared.activate(ignoringOtherApps: true)
+                // 坐标点击要求调试实例在最前面（§9.4）。这里只把自己的窗口抬到前面；
+                // 按 PID 精确激活由 axctl（AXFrontmost）负责，同名双实例下不会激活错进程。
+                NSApplication.shared.activate()
                 window.makeKeyAndOrderFront(nil)
                 return
             }
@@ -171,12 +168,25 @@ final class DevLaunchRunner {
     private func openTable(_ spec: DevLaunchOptions.TableSpec, in session: ConnectionSession) async throws {
         let database = try resolveDatabase(spec.database, in: session)
         let tab = session.openTableData(database: database, table: spec.table)
-        guard await DevStateProbe.waitForLoaded(
+        var failure: String?
+        guard let viewModel = await DevStateProbe.waitForLoaded(
             tab: tab,
             timeout: 30,
-            onFailure: { warnings.append("加载 \(database).\(spec.table) 失败：\($0)") }
-        ) != nil else {
-            throw StepError("打开表 \(database).\(spec.table) 超时或加载失败")
+            onFailure: { failure = $0 }
+        ) else {
+            throw StepError("打开表 \(database).\(spec.table) 失败：\(failure ?? "30s 内未加载完成")")
+        }
+        // 标签现场（session.json）会带回自己的显示条数，把偏好压掉；照 `--bench-scroll` 的做法补一次。
+        if let limit = options.rowLimit, viewModel.rowLimit != limit {
+            var reloadFailure: String?
+            viewModel.setRowLimit(limit)
+            guard await DevStateProbe.waitForReload(
+                tab: tab,
+                timeout: 30,
+                onFailure: { reloadFailure = $0 }
+            ) != nil else {
+                throw StepError("调整显示条数到 \(limit) 失败：\(reloadFailure ?? "30s 内未重载完成")")
+            }
         }
     }
 
@@ -196,11 +206,10 @@ final class DevLaunchRunner {
             let (database, table) = try requireOpenTable(in: session)
             tab = session.openObjectDefinition(database: database, object: table)
         }
-        // 查询标签的内容视图是 QueryEditorViewModel，只需装配完成；表数据标签会加载数据。
-        if case .tableData = tab.kind, tab.content is TableDataViewModel {
-            // 表数据标签的数据加载已由 --dev-open-table 等过；这里只保证内容已装配。
-        } else if await DevStateProbe.waitForContent(tab: tab, timeout: 10) == nil {
-            warnings.append("标签「\(tab.title)」的内容视图 10s 内没有装配完成")
+        // 表数据标签的数据加载已由 --dev-open-table 等过；其余标签只需内容视图装配完成。
+        if case .tableData = tab.kind { return }
+        guard await DevStateProbe.waitForContent(tab: tab, timeout: 15) != nil else {
+            throw StepError("标签「\(tab.title)」的内容视图 15s 内没有装配完成")
         }
     }
 
@@ -237,15 +246,22 @@ final class DevLaunchRunner {
             throw StepError("列「\(cell.column)」不存在（可用列见 ready JSON 的 state.columns）")
         }
         guard let row = viewModel.gridRows.first(where: { $0.rowIndexInPage == cell.row - 1 }) else {
-            throw StepError("行号 \(cell.row) 超出范围（当前 \(viewModel.rows.count) 行）")
+            throw StepError("行号 \(cell.row) 超出范围（网格当前 \(viewModel.gridRows.count) 行）")
         }
-        guard let tableView = DevStateProbe.findGridTableView() else {
-            throw StepError("找不到数据网格视图")
+        // `.loaded` 不代表 SwiftUI 已经把 DataGridTableView 建出来，轮询一下再点。
+        let deadline = Date().addingTimeInterval(5)
+        var tableView: NSTableView?
+        while tableView == nil, Date() < deadline {
+            tableView = DevStateProbe.findGridTableView()
+            if tableView == nil { try? await Task.sleep(nanoseconds: 100_000_000) }
         }
-        if let index = viewModel.gridRows.firstIndex(where: { $0.id == row.id }) {
-            tableView.scrollRowToVisible(index)
-            tableView.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
+        guard let tableView else { throw StepError("5s 内没有出现数据网格视图") }
+        guard let index = viewModel.gridRows.firstIndex(where: { $0.id == row.id }),
+              index < tableView.numberOfRows else {
+            throw StepError("网格行索引越界（第 \(cell.row) 行 / 网格 \(tableView.numberOfRows) 行）")
         }
+        tableView.scrollRowToVisible(index)
+        tableView.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
         // 选区变化会经 delegate 回写；列焦点与字段栏在这里补一次（delegate 只能给首列）。
         viewModel.focusInspector(rowID: row.id, column: cell.column)
     }
@@ -253,18 +269,20 @@ final class DevLaunchRunner {
     private func applyEdit(_ edit: DevLaunchOptions.CellEdit, in session: ConnectionSession) async throws {
         let viewModel = try activeTableViewModel(in: session)
         guard let row = viewModel.gridRows.first(where: { $0.rowIndexInPage == edit.row - 1 }) else {
-            throw StepError("行号 \(edit.row) 超出范围（当前 \(viewModel.rows.count) 行）")
+            throw StepError("行号 \(edit.row) 超出范围（网格当前 \(viewModel.gridRows.count) 行）")
         }
         let before = viewModel.pendingCount
         await viewModel.applyInspectorEdit(rowID: row.id, column: edit.column, value: edit.value)
         if viewModel.pendingCount == before {
-            warnings.append("--dev-edit-cell \(edit.row),\(edit.column) 没有产生改动（只读 / 无主键 / 值未变化 / 截断值未加载？）")
+            // 产品在拒绝编辑时会弹轻提示（只读 / 无主键 / 行已删……），把它原样带出来。
+            let reason = viewModel.copyNotice.map { "：\($0)" } ?? "（原因未知：只读 / 无主键 / 值未变化 / 截断值未加载）"
+            throw StepError("--dev-edit-cell \(edit.row),\(edit.column) 没有产生改动\(reason)")
         }
     }
 
     // MARK: - ready
 
-    private func printReady() {
+    private func printReady() throws {
         var payload: [String: Any] = [
             "ready": true,
             "pid": ProcessInfo.processInfo.processIdentifier,
@@ -287,15 +305,15 @@ final class DevLaunchRunner {
         payload["warnings"] = warnings
 
         let line = DevLaunchOutput.line(payload)
-        print(line)
         if let readyFile = options.readyFile {
             do {
                 try Data(line.utf8).write(to: readyFile, options: .atomic)
             } catch {
-                warnings.append("写入 ready 文件失败：\(error)")
-                print(DevLaunchOutput.line(["ready": true, "warning": "写入 ready 文件失败：\(error)"]))
+                // 写不出 ready 文件时脚本会一直等：必须失败退出，不能报 ready 让人白等。
+                throw StepError("写入 ready 文件失败（\(readyFile.path)）：\(error)")
             }
         }
+        print(line)
         fflush(stdout)
     }
 

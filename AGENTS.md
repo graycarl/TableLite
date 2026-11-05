@@ -80,7 +80,7 @@ make smoke
 make dev        # 隔离调试实例：scripts/dev/tl.sh run（Debug-only，见 tech-designs/15 §9）
                 #   传启动原语：make dev ARGS="--dev-open-connection demo --dev-open-table db.t"
 make dev-reset  # 清空隔离 profile（数据目录 + dev 偏好 suite）
-make dev-selftest  # 调试基建自检（关键 identifier / 网格寻址 / 截图与 AX 权限）
+make dev-selftest  # 调试基建自检（关键 identifier / 网格寻址 / 交互；权限检查在 tl.sh doctor）
 ```
 
 **agent 调试入口**：`scripts/dev/tl.sh {run|reset|quit|shot|ax|cell|logs|doctor|selftest|help}`，

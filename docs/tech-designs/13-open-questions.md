@@ -60,8 +60,8 @@
 | S47 | 不做应用内离屏截图，也不做像素级基线 diff | 真实窗口截图（`screencapture -l`）含窗口装饰与材质，才是用户看到的样子；离屏渲染拿不到标题栏/工具栏，基线图与阈值又是一套维护成本。见 `15-testing.md` §9.6 |
 | S48 | 不做热重载 / 注入工具 | 增量 `make build` 约 25s，可接受；`-interposable` 一类要改构建 flag 且不稳定。调试通路默认不触发构建，由人决定何时重编 |
 | S49 | 不预置具名调试场景 | 原语 + AX 已覆盖盘点过的状态；预置场景会重复实现并长成第二套 UI 测试（与 S22 冲突）。只留注册点，需要时再加。见 `15-testing.md` §9.3 |
-| S50 | `--dev-*` 调试通路只在 Debug 构建存在 | 全部包在 `#if DEBUG` 里，Release 不解析、不写隔离目录以外的任何东西。理由：调试通路不得进发布产物。见 `15-testing.md` §9.9 |
-| S51 | 调试实例不隔离 AppKit 全局偏好 | `NSNavLastRootDirectory`、`~/Library/Saved Application State/` 等由 AppKit 自己写，改造成本远超收益；窗口 frame 自动保存这一项已用 autosave 名后缀隔离。见 `15-testing.md` §9.1 |
+| S50 | `--dev-*` 调试通路只在 Debug 构建存在 | 全部包在 `#if DEBUG` 里，Release 不解析、不写隔离目录以外的任何东西。理由：调试通路不得进发布产物；与 `--bench-scroll` 共用的 `DevStateProbe` 是例外（不调用时无行为）。见 `15-testing.md` §9 |
+| S51 | 调试实例不隔离 AppKit 全局偏好 | `NSNavLastRootDirectory`、`~/Library/Saved Application State/` 等由 AppKit 自己写，改造成本远超收益；窗口 frame 自动保存这一项已用 autosave 名后缀隔离，`tl.sh reset` 会清掉这个键。见 `15-testing.md` §9.1 |
 | S52 | 不新增统一日志 sink | SQL 与服务器错误走 Console Log 落盘，存储层走 OSLog，原语轨迹走 stdout；由 `tl.sh logs` 合并三源。再加一条调试专用日志通道只会多一处维护。见 `15-testing.md` §9.6 |
 
 ## 2. 已知限制

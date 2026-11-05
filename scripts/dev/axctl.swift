@@ -16,15 +16,16 @@ import Foundation
 
 // MARK: - 输出
 
-func emit(_ object: [String: Any]) -> Never {
+func emit(_ object: [String: Any], status: Int32 = 0) -> Never {
     let data = (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data("{}".utf8)
     FileHandle.standardOutput.write(data)
     FileHandle.standardOutput.write(Data("\n".utf8))
-    exit(0)
+    exit(status)
 }
 
+/// 失败一律 `exit 1`：脚本用退出码判断成败（selftest 的断言依赖这一点）。
 func fail(_ message: String) -> Never {
-    emit(["ok": false, "error": message])
+    emit(["ok": false, "error": message], status: 1)
 }
 
 // MARK: - 参数
@@ -33,22 +34,33 @@ struct Args {
     var command: String
     var positionals: [String]
     var flags: [String: String]
+    /// 真正带值的 flag：`--text true` 里的 `true` 也是值，不能按字符串猜。
+    var valued: Set<String>
 
     static func parse(_ argv: [String]) -> Args {
         var positionals: [String] = []
         var flags: [String: String] = [:]
+        var valued: Set<String> = []
         var command = ""
         var index = 1
         while index < argv.count {
             let item = argv[index]
             if item.hasPrefix("--") {
-                let name = String(item.dropFirst(2))
-                if index + 1 < argv.count, !argv[index + 1].hasPrefix("--") {
-                    flags[name] = argv[index + 1]
-                    index += 2
-                } else {
-                    flags[name] = "true"
+                if let equals = item.firstIndex(of: "=") {
+                    let name = String(item[item.index(item.startIndex, offsetBy: 2)..<equals])
+                    flags[name] = String(item[item.index(after: equals)...])
+                    valued.insert(name)
                     index += 1
+                } else {
+                    let name = String(item.dropFirst(2))
+                    if index + 1 < argv.count, !argv[index + 1].hasPrefix("--") {
+                        flags[name] = argv[index + 1]
+                        valued.insert(name)
+                        index += 2
+                    } else {
+                        flags[name] = "true"
+                        index += 1
+                    }
                 }
             } else if command.isEmpty {
                 command = item
@@ -58,12 +70,11 @@ struct Args {
                 index += 1
             }
         }
-        return Args(command: command, positionals: positionals, flags: flags)
+        return Args(command: command, positionals: positionals, flags: flags, valued: valued)
     }
 
     func flag(_ name: String) -> String? {
-        guard let value = flags[name], value != "true" else { return nil }
-        return value
+        valued.contains(name) ? flags[name] : nil
     }
 
     func bool(_ name: String) -> Bool {
@@ -80,7 +91,9 @@ let pid: pid_t = {
     if let value = args.flag("pid").flatMap(pid_t.init) { return value }
     // 没给 --pid 时读调试实例的 PID 文件（tl.sh 会传，这里兜底）。
     let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-    let pidFile = root.appendingPathComponent(".build/dev-data/app.pid")
+    let devDir = ProcessInfo.processInfo.environment["TL_DEV_DIR"].map { URL(fileURLWithPath: $0) }
+        ?? root.appendingPathComponent(".build/dev-data")
+    let pidFile = devDir.appendingPathComponent("app.pid")
     if let text = try? String(contentsOf: pidFile, encoding: .utf8),
        let value = pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)) {
         return value
@@ -462,15 +475,22 @@ case "doctor":
 
 case "window":
     let list = (CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]]) ?? []
-    let windows = list.compactMap { info -> [String: Any]? in
+    var windows = list.compactMap { info -> [String: Any]? in
         guard (info[kCGWindowOwnerPID as String] as? pid_t) == pid,
               (info[kCGWindowLayer as String] as? Int) == 0 else { return nil }
         var result: [String: Any] = [:]
         result["id"] = info[kCGWindowNumber as String] ?? 0
         result["name"] = info[kCGWindowName as String] ?? ""
-        if let bounds = info[kCGWindowBounds as String] as? [String: Any] { result["frame"] = bounds }
+        if let bounds = info[kCGWindowBounds as String] as? [String: Any] {
+            result["frame"] = bounds
+            let width = (bounds["Width"] as? Double) ?? 0
+            let height = (bounds["Height"] as? Double) ?? 0
+            result["area"] = width * height
+        }
         return result
     }
+    // 主窗口在前：sheet / 确认框的 layer 也是 0，按面积排序避免截到弹窗。
+    windows.sort { (($0["area"] as? Double) ?? 0) > (($1["area"] as? Double) ?? 0) }
     emit(["ok": true, "pid": pid, "windows": windows])
 
 case "dump":
@@ -495,6 +515,7 @@ case "dump":
 
 case "find":
     let selector = selectorFrom(args)
+    guard !selector.isEmpty else { fail("find 需要 --id / --role / --title / --desc 之一") }
     let root = rootForSearch(args, selector: selector)
     var inner = selector
     inner.within = nil
@@ -549,8 +570,11 @@ case "press":
 case "set-value":
     guard let text = args.flag("text") ?? args.positionals.first else { fail("set-value 需要 --text <值>") }
     let element = resolve(args, verb: "set-value")
+    // 与 type 同一个坑：SwiftUI TextField 不在焦点上时，写 AXValue 不会进入 Binding。
+    AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+    usleep(80_000)
     let result = AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, text as CFString)
-    emit(["ok": result == .success, "element": elementDescription(element)])
+    emit(["ok": result == .success, "element": elementDescription(element)], status: result == .success ? 0 : 1)
 
 case "cell":
     guard let row = args.int("row"), let column = args.flag("column") ?? args.positionals.first else {

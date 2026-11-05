@@ -399,6 +399,7 @@ private struct ConnectionPasswordPromptView: View {
                 Button("取消") { onCancel() }
                     .keyboardShortcut(.cancelAction)
                 Button("连接") { onSubmit(password, remember) }
+                    .accessibilityIdentifier("sheet.password.connect")
                     .keyboardShortcut(.defaultAction)
             }
         }

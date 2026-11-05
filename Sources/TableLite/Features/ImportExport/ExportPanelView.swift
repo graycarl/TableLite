@@ -147,6 +147,7 @@ struct ExportPanelView: View {
                     if model.phase.isRunning { model.cancel() }
                     dismiss()
                 }
+                .accessibilityIdentifier("sheet.export.cancel")
                 .keyboardShortcut(.cancelAction)
                 Spacer()
                 Button("导出") { model.start() }

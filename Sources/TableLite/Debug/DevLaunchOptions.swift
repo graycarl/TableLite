@@ -76,6 +76,7 @@ enum DevLaunchError: Error, Equatable, CustomStringConvertible {
     case dangerousDataDirectory(String)
     case inappropriateDefaultsSuite(String)
     case unknownScenario(String)
+    case conflictingMode(String)
 
     var description: String {
         switch self {
@@ -91,6 +92,8 @@ enum DevLaunchError: Error, Equatable, CustomStringConvertible {
             return "--dev-defaults-suite 「\(suite)」与主偏好域相同，拒绝使用"
         case .unknownScenario(let name):
             return "未知的场景「\(name)」（见 DevScenarioRegistry）"
+        case .conflictingMode(let flag):
+            return "调试启动参数不能与 \(flag) 同时使用（两者都会往 stdout 输出并退出）"
         }
     }
 }
@@ -178,7 +181,19 @@ extension DevLaunchOptions {
                 throw DevLaunchError.unknownFlag(argument)
             }
         }
-        // `--dev-scenario` 的注册表在运行期才可查；这里只做「写了名字」的形式检查。
+        // 与已有的无头/基准模式互斥：两边都会往 stdout 打 JSON 并 exit，组合起来行为未定义。
+        let conflicting = ["--bench-scroll", "--smoke", "--query-smoke", "--filter-smoke", "--edit-smoke"]
+        if !options.isEmpty, let clash = arguments.first(where: { conflicting.contains($0) }) {
+            throw DevLaunchError.conflictingMode(clash)
+        }
+        // 具名场景在解析阶段就校验（注册表是编译期静态列表）：拼错立刻失败，不等连库开表。
+        if let scenario = options.scenario, DevScenarioRegistry.scenario(named: scenario) == nil {
+            throw DevLaunchError.unknownScenario(scenario)
+        }
+        // 只给数据目录时自动补一个 dev suite，避免偏好落回标准域（S51 例外的成因）。
+        if options.dataDirectory != nil, options.defaultsSuite == nil {
+            options.defaultsSuite = mainDefaultsSuite + ".dev"
+        }
         return options
     }
 
@@ -187,8 +202,9 @@ extension DevLaunchOptions {
         do {
             return try parse(
                 arguments: CommandLine.arguments,
-                liveRoot: liveRootURL(),
-                homeDirectory: FileManager.default.homeDirectoryForCurrentUser
+                liveRoot: (try? LiveFileSystemLocator.rootURL()) ?? liveRootFallback(),
+                homeDirectory: FileManager.default.homeDirectoryForCurrentUser,
+                mainDefaultsSuite: Bundle.main.bundleIdentifier ?? "com.graycarl.tablelite"
             )
         } catch {
             let message = (error as? DevLaunchError)?.description ?? String(describing: error)
@@ -197,34 +213,41 @@ extension DevLaunchOptions {
         }
     }
 
-    /// 真实存储根（`Application Support/TableLite`），不创建目录。
-    static func liveRootURL() -> URL {
-        let base = (try? FileManager.default.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: false
-        )) ?? FileManager.default.homeDirectoryForCurrentUser
+    /// 解析真实存储根失败时的兜底（只用于把「拒绝路径」这条校验做完，不写任何东西）。
+    static func liveRootFallback() -> URL {
+        FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support", isDirectory: true)
-        return base.appendingPathComponent(LiveFileSystemLocator.directoryName, isDirectory: true)
+            .appendingPathComponent(LiveFileSystemLocator.directoryName, isDirectory: true)
     }
 
     // MARK: 单个参数
 
     /// 数据目录校验（硬约束，见 `15-testing.md` §9.1）：
-    /// 拒绝真实根、真实根的祖先、`$HOME`、`$HOME` 的祖先（含 `/`）与空路径。
+    /// 拒绝空路径、`/`、`$HOME` 及其祖先、真实根及其祖先、以及真实根的**后代**（同样是真实数据区）。
+    /// 展开 `~` 并解析符号链接，避免 `~/x` 或指向 `$HOME` 的链接绕过检查。
     static func validateDataDirectory(_ path: String, liveRoot: URL, homeDirectory: URL) throws -> URL {
-        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = (path.trimmingCharacters(in: .whitespacesAndNewlines) as NSString).expandingTildeInPath
         guard !trimmed.isEmpty else {
             throw DevLaunchError.invalidValue(flag: "--dev-data-dir", value: path, expectation: "非空路径")
         }
-        let candidate = URL(fileURLWithPath: trimmed, isDirectory: true).standardizedFileURL
-        let live = liveRoot.standardizedFileURL
-        let home = homeDirectory.standardizedFileURL
+        let candidate = URL(fileURLWithPath: trimmed, isDirectory: true)
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+        let live = liveRoot.standardizedFileURL.resolvingSymlinksInPath()
+        let home = homeDirectory.standardizedFileURL.resolvingSymlinksInPath()
+
+        /// 按路径分量比较：直接用 `hasPrefix("/")` 在根路径上会退化成 `"//"`，漏掉 `/`。
         func isAncestor(_ ancestor: URL, of target: URL) -> Bool {
-            target.path == ancestor.path || target.path.hasPrefix(ancestor.path + "/")
+            let ancestorParts = ancestor.pathComponents
+            let targetParts = target.pathComponents
+            guard ancestorParts.count <= targetParts.count else { return false }
+            return Array(targetParts.prefix(ancestorParts.count)) == ancestorParts
         }
         guard !isAncestor(candidate, of: live), !isAncestor(candidate, of: home) else {
+            throw DevLaunchError.dangerousDataDirectory(candidate.path)
+        }
+        // 真实根的后代（如 `…/TableLite/dev`）仍然在真实数据目录里。
+        guard !isAncestor(live, of: candidate) else {
             throw DevLaunchError.dangerousDataDirectory(candidate.path)
         }
         return candidate
@@ -245,7 +268,19 @@ extension DevLaunchOptions {
             throw DevLaunchError.invalidValue(flag: flag, value: raw, expectation: "<host>:<port>/<db>")
         }
         let database = parts.count > 1 ? String(parts[1]) : ""
-        let hostAndPort = hostPart.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+        var hostAndPort = hostPart.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+        // `[::1]:3306`：方括号形式的 IPv6，先剥括号再切端口。
+        if hostPart.hasPrefix("["), let close = hostPart.firstIndex(of: "]") {
+            let host = String(hostPart[hostPart.index(after: hostPart.startIndex)..<close])
+            let rest = hostPart[hostPart.index(after: close)...]
+            if rest.isEmpty {
+                hostAndPort = [Substring(host)]
+            } else if rest.hasPrefix(":") {
+                hostAndPort = [Substring(host), rest.dropFirst()]
+            } else {
+                throw DevLaunchError.invalidValue(flag: flag, value: raw, expectation: "<host>:<port>/<db>")
+            }
+        }
         let host = String(hostAndPort[0])
         var port = 3306
         if hostAndPort.count > 1 {

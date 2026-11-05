@@ -53,6 +53,12 @@ wait_cell_text() {
     fail "cell ${row},${column} 期望「${expected}」，实际「${value}」"
 }
 
+# 后面两步依赖 dev 库里的种子数据（tablelite_dev.orders）。
+if ! nc -G 1 -z "${MYSQL_HOST:-127.0.0.1}" "${MYSQL_PORT:-13307}" 2>/dev/null; then
+    echo "  ✗ dev MySQL 不可达：先 make db（127.0.0.1:13307）" >&2
+    exit 1
+fi
+
 echo "== 1/3 连接列表：隔离 profile 干净启动 =="
 "$TL" reset >/dev/null
 "$TL" run >/dev/null
@@ -83,5 +89,9 @@ echo "  ✓ 过滤生效（第 1 行 status = refunded）"
 "$TL" shot /tmp/tablelite-selftest-3.png --width 1000 >/dev/null
 echo "  截图：/tmp/tablelite-selftest-3.png"
 
+# 自检同样要收尾：不留占着窗口的调试实例。
+"$TL" quit >/dev/null 2>&1 || true
+
 echo
 echo "自检通过：3 个状态、关键 identifier、单元格寻址、过滤交互。"
+echo "（截图留在 /tmp/tablelite-selftest-{1,2,3}.png）"

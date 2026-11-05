@@ -62,7 +62,7 @@ cmd_run() {
     done
     profile_ensure_app
     profile_ensure_seed
-    profile_quit
+    profile_quit || true
     rm -f "$PROFILE_READY"
     : > "$PROFILE_LOG"
 
@@ -91,6 +91,7 @@ cmd_run() {
         if ! kill -0 "$pid" 2>/dev/null; then
             echo "错误：调试实例启动后退出了，最近日志：" >&2
             tail -n 40 "$PROFILE_LOG" >&2
+            profile_quit || true
             return 1
         fi
         sleep 0.25
@@ -98,6 +99,7 @@ cmd_run() {
     done
     echo "错误：等待 ready 超时（90s），最近日志：" >&2
     tail -n 40 "$PROFILE_LOG" >&2
+    profile_quit || true
     return 1
 }
 
@@ -106,17 +108,25 @@ cmd_reset() {
 }
 
 cmd_quit() {
-    profile_quit
-    echo "调试实例已退出（真实实例不受影响）"
+    if profile_quit; then
+        echo "调试实例已退出（真实实例不受影响）"
+    else
+        echo "没有在跑的调试实例"
+    fi
 }
 
 cmd_shot() {
-    local out="/tmp/tablelite-dev.png"
+    local out="/tmp/tablelite-shot.png"
     local width=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --width) width="$2"; shift 2 ;;
-            *) out="$1"; shift ;;
+            --width)
+                [[ $# -ge 2 ]] || profile_die "--width 需要像素值"
+                width="$2"; shift 2 ;;
+            -*)
+                profile_die "未知参数 $1" ;;
+            *)
+                out="$1"; shift ;;
         esac
     done
     local pid
@@ -137,9 +147,10 @@ cmd_ax() {
 
 cmd_cell() {
     local spec="${1:-}"
-    [[ -n "$spec" ]] || profile_die "用法：tl.sh cell <行>,<列>"
+    [[ "$spec" == *,* ]] || profile_die "用法：tl.sh cell <行>,<列>（行号 1-based，列名）"
     local row="${spec%%,*}"
     local column="${spec#*,}"
+    [[ -n "$row" && -n "$column" ]] || profile_die "用法：tl.sh cell <行>,<列>（两段都不能为空）"
     axctl_run cell --row "$row" --column "$column"
 }
 
@@ -148,8 +159,12 @@ cmd_logs() {
     local pattern=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --since) since="$2"; shift 2 ;;
-            --grep) pattern="$2"; shift 2 ;;
+            --since)
+                [[ $# -ge 2 ]] || profile_die "--since 需要时长（如 2m / 1h）"
+                since="$2"; shift 2 ;;
+            --grep)
+                [[ $# -ge 2 ]] || profile_die "--grep 需要正则"
+                pattern="$2"; shift 2 ;;
             *) profile_die "未知参数 $1" ;;
         esac
     done
@@ -211,8 +226,8 @@ cmd_doctor() {
     fi
 
     local shot
-    shot="$(mktemp -t tl-doctor).png"
-    if screencapture -x "$shot" 2>/dev/null && [[ -s "$shot" ]]; then
+    shot="$(mktemp -t tl-doctor)"
+    if screencapture -x -t png "$shot" 2>/dev/null && [[ -s "$shot" ]]; then
         echo "  $mark_ok 屏幕录制权限"
     else
         echo "  $mark_bad 缺少屏幕录制权限（系统设置 → 隐私与安全性 → 屏幕录制）"

@@ -5,6 +5,21 @@ import Observation
 ///
 /// 状态归属见 `docs/tech-designs/06-ui-layer.md` §2：`AppEnvironment` 在启动时创建并注入，
 /// 持有偏好、连接仓库、历史仓库、Console Log 与 `SessionManager`；没有全局单例。
+/// 调试 profile 的装配错误（`15-testing.md` §9.1）。
+public enum AppEnvironmentError: Error, CustomStringConvertible {
+    case incompleteDevProfile
+    case invalidDefaultsSuite(String)
+
+    public var description: String {
+        switch self {
+        case .incompleteDevProfile:
+            return "调试 profile 必须同时指定数据目录与偏好 suite"
+        case .invalidDefaultsSuite(let suite):
+            return "无法创建 UserDefaults suite「\(suite)」"
+        }
+    }
+}
+
 @MainActor
 @Observable
 public final class AppEnvironment {
@@ -96,8 +111,13 @@ public final class AppEnvironment {
 
     /// 真实运行环境的可覆盖版本：把存储根与偏好域指向别处。
     ///
-    /// 只供 Debug 调试 profile 使用（`15-testing.md` §9.1）；`nil` 等价于 `live()`。
+    /// 只供 Debug 调试 profile 使用（`15-testing.md` §9.1）；两者都 `nil` 等价于 `live()`。
+    /// **参数必须成组给**：只覆盖数据目录、偏好仍写标准域的话，调试会污染真实偏好（S51 例外）。
+    /// suite 无法创建时抛错，**不静默回落到标准域**——否则 agent 会以为自己在隔离环境里。
     public static func live(dataDirectory: URL?, defaultsSuite: String?) throws -> AppEnvironment {
+        guard (dataDirectory == nil) == (defaultsSuite == nil) else {
+            throw AppEnvironmentError.incompleteDevProfile
+        }
         let layout: AppStorageLayout
         if let dataDirectory {
             try AtomicFileWriter.ensureDirectory(dataDirectory)
@@ -106,7 +126,12 @@ public final class AppEnvironment {
             layout = try AppStorageLayout.live()
         }
         let keyValue: KeyValueStore
-        if let defaultsSuite, let defaults = UserDefaults(suiteName: defaultsSuite) {
+        if let defaultsSuite {
+            // 空 suite 在 `UserDefaults(suiteName:)` 上是未定义行为（可能回落标准域），显式拒绝。
+            guard !defaultsSuite.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  let defaults = UserDefaults(suiteName: defaultsSuite) else {
+                throw AppEnvironmentError.invalidDefaultsSuite(defaultsSuite)
+            }
             keyValue = UserDefaultsKeyValueStore(defaults: defaults)
         } else {
             keyValue = UserDefaultsKeyValueStore()
