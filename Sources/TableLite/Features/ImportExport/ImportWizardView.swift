@@ -91,20 +91,24 @@ struct ImportWizardView: View {
             switch model.step {
             case .pickFile:
                 Button("取消") { dismiss() }
+                    .accessibilityIdentifier("sheet.import.cancel")
                     .keyboardShortcut(.cancelAction)
                 Spacer()
                 Button("下一步") {
                     Task { await model.goToMapping() }
                 }
+                .accessibilityIdentifier("sheet.import.next")
                 .keyboardShortcut(.defaultAction)
                 .disabled(!model.canProceedFromPicker() || session.isReadOnly)
 
             case .mapping:
                 Button("上一步") { model.goBackToFilePicker() }
+                    .accessibilityIdentifier("sheet.import.back")
                 Spacer()
                 Text("预计导入：\(model.plannedRowCount) 行")
                     .foregroundStyle(.secondary)
                 Button("开始导入") { model.startImport() }
+                    .accessibilityIdentifier("sheet.import.start")
                     .keyboardShortcut(.defaultAction)
                     .disabled(!model.canProceedToExecute)
 
@@ -114,6 +118,7 @@ struct ImportWizardView: View {
                         .keyboardShortcut(.cancelAction)
                 } else {
                     Button("完成") { dismiss() }
+                        .accessibilityIdentifier("sheet.import.done")
                         .keyboardShortcut(.defaultAction)
                 }
                 Spacer()

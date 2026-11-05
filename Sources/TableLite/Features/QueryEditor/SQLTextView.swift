@@ -41,6 +41,7 @@ struct SQLTextView: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let textView = SQLTextEditorView()
+        textView.setAccessibilityIdentifier("editor.text")
         textView.delegate = context.coordinator
         textView.isRichText = false
         textView.isEditable = isEditable

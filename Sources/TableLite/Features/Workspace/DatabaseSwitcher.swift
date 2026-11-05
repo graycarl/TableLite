@@ -34,6 +34,7 @@ struct DatabaseSwitcher: View {
                     label
                 }
                 .menuStyle(.borderlessButton)
+                .accessibilityIdentifier("sidebar.db-switcher")
                 .disabled(session.databases.isEmpty)
             }
 

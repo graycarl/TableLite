@@ -22,6 +22,18 @@ public struct LiveFileSystemLocator: FileSystemLocator {
 
     public init() {}
 
+    /// 真实存储根（不创建目录）。**这是解析 Application Support 的唯一入口**，
+    /// 其它地方（包括 Debug 启动参数里的路径校验）都调它，避免两份路径实现漂移。
+    public static func rootURL(fileManager: FileManager = .default) throws -> URL {
+        let base = try fileManager.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: false
+        )
+        return base.appendingPathComponent(directoryName, isDirectory: true)
+    }
+
     public func storageRoot() throws -> URL {
         do {
             let base = try FileManager.default.url(

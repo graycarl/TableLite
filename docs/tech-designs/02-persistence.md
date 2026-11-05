@@ -14,6 +14,9 @@
 
 **约束**：目录用 `FileManager` 解析，不硬编码路径。
 
+**调试覆盖（Debug-only）**：`--dev-data-dir` 可把根目录指到别处、`--dev-defaults-suite` 可把偏好切到独立 suite，
+用于 agent 自测时隔离真实数据。校验规则与默认路径见 `15-testing.md` §9.1；Release 构建不解析这两个参数（S50）。
+
 ## 2. 连接元数据
 
 - 存 `connections.json`，带 `schemaVersion` 字段（版本与迁移策略见 §9）。

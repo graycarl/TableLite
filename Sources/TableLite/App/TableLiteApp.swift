@@ -17,7 +17,15 @@ struct TableLiteApp: App {
         // 隐藏的编辑 / 过滤 / 查询链路端到端模式（`--edit-smoke` / `--filter-smoke` / `--query-smoke`）：
         // 不碰真实数据目录，也不在 init 里阻塞等待。
         let isHeadlessSmoke = EditSmokeRunner.isRequested || FilterSmokeRunner.isRequested || QuerySmokeRunner.isRequested
-        let environment = isHeadlessSmoke ? AppEnvironment.makeFallback() : AppEnvironment.makeLiveOrFallback()
+        // Agent 自测的 Debug 启动参数（`docs/tech-designs/15-testing.md` §9）：
+        // 只在 Debug 构建里解析，Release 完全不看这些参数（S50）。
+        let environment: AppEnvironment
+        #if DEBUG
+        let devOptions = DevLaunchOptions.parseFromProcess()
+        environment = Self.makeEnvironment(devOptions: devOptions, isHeadlessSmoke: isHeadlessSmoke)
+        #else
+        environment = isHeadlessSmoke ? AppEnvironment.makeFallback() : AppEnvironment.makeLiveOrFallback()
+        #endif
         _environment = State(initialValue: environment)
         // 外观偏好尽早套到 `NSApp` 上，避免启动瞬间先按系统外观闪一下
         // （`specs/11-preferences.md` §6、`docs/tech-designs/06-ui-layer.md` §9）。
@@ -27,7 +35,29 @@ struct TableLiteApp: App {
         QuerySmokeRunner.scheduleIfRequested()
         // 应用内滚动基准（`--bench-scroll`）：不是无头模式，要真实窗口，用 live 环境。
         BenchScrollRunner.scheduleIfRequested(environment: environment)
+        #if DEBUG
+        DevLaunchRunner.scheduleIfRequested(environment: environment, options: devOptions)
+        #endif
     }
+
+    #if DEBUG
+    /// 调试 profile 的装配。隔离目录不可用时**直接失败**，不静默回退到临时目录——
+    /// 否则 agent 会以为自己在隔离环境里，实际写到别处（`15-testing.md` §9.1）。
+    private static func makeEnvironment(devOptions: DevLaunchOptions, isHeadlessSmoke: Bool) -> AppEnvironment {
+        guard !devOptions.isEmpty else {
+            return isHeadlessSmoke ? AppEnvironment.makeFallback() : AppEnvironment.makeLiveOrFallback()
+        }
+        do {
+            return try AppEnvironment.live(
+                dataDirectory: devOptions.dataDirectory,
+                defaultsSuite: devOptions.defaultsSuite
+            )
+        } catch {
+            DevLaunchOutput.printFailure("调试 profile 初始化失败：\(error)")
+            exit(2)
+        }
+    }
+    #endif
 
     var body: some Scene {
         WindowGroup {

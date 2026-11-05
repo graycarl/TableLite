@@ -147,9 +147,11 @@ struct ExportPanelView: View {
                     if model.phase.isRunning { model.cancel() }
                     dismiss()
                 }
+                .accessibilityIdentifier("sheet.export.cancel")
                 .keyboardShortcut(.cancelAction)
                 Spacer()
                 Button("导出") { model.start() }
+                    .accessibilityIdentifier("sheet.export.start")
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.phase.isRunning || model.destinationURL == nil)
 
@@ -164,6 +166,7 @@ struct ExportPanelView: View {
                 }
                 Spacer()
                 Button("关闭") { dismiss() }
+                    .accessibilityIdentifier("sheet.export.close")
                     .keyboardShortcut(.defaultAction)
             }
         }

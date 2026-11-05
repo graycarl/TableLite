@@ -34,7 +34,7 @@ struct RootView: View {
             NSApplication.shared.appearance = mode.nsAppearance
         }
         .background(
-            WindowConfigurator(autosaveName: WorkspaceStateStore.windowFrameAutosaveName)
+            WindowConfigurator(autosaveName: environment.windowFrameAutosaveName)
                 .frame(width: 0, height: 0)
         )
         .sheet(isPresented: $showConnectionList) {

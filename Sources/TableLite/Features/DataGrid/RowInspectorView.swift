@@ -18,6 +18,8 @@ struct RowInspectorView: View {
             content
         }
         .background(Color(nsColor: .controlBackgroundColor))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("inspector.panel")
     }
 
     // MARK: 顶部
@@ -28,6 +30,7 @@ struct RowInspectorView: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
                 TextField("搜索字段", text: $searchText)
+                    .accessibilityIdentifier("inspector.search")
                     .textFieldStyle(.plain)
                 Text(countText)
                     .font(.caption)

@@ -86,6 +86,7 @@ struct FilterBarView: View {
                     .font(.system(.callout, design: .monospaced))
                     .foregroundStyle(.secondary)
                 TextField("id IN (1, 2, 3) AND status <> 'deleted'", text: rawWhereBinding, axis: .vertical)
+                    .accessibilityIdentifier("filter.raw-input")
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1...4)
                     .font(.system(.callout, design: .monospaced))
@@ -110,6 +111,7 @@ struct FilterBarView: View {
         HStack(spacing: 10) {
             if viewModel.filterDraft.isRawMode {
                 Button("切换回条件行") { viewModel.switchFilterToConditionsMode() }
+                    .accessibilityIdentifier("filter.mode-conditions")
                     .buttonStyle(.subtle)
             } else {
                 Picker("组合方式", selection: combinationBinding) {
@@ -122,12 +124,15 @@ struct FilterBarView: View {
                 .frame(maxWidth: 220)
 
                 Button("高级 / 直接写条件") { viewModel.switchFilterToRawMode() }
+                    .accessibilityIdentifier("filter.mode-raw")
                     .buttonStyle(.subtle)
             }
             Spacer()
             Button("重置") { viewModel.resetFilter() }
+                .accessibilityIdentifier("filter.reset")
                 .buttonStyle(.subtle)
             Button("应用") { viewModel.applyFilter() }
+                .accessibilityIdentifier("filter.apply")
                 .buttonStyle(.borderedProminent)
         }
     }

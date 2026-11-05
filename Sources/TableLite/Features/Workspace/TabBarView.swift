@@ -43,10 +43,12 @@ struct TabBarView: View {
                 }
                 .buttonStyle(.subtle)
                 .help("新建查询（⌘T）")
+                .accessibilityIdentifier("tabs.new")
             }
             .padding(.horizontal, AppSpacing.xs)
         }
         .frame(height: 30)
+        .accessibilityIdentifier("tabs.bar")
         .background(.bar)
         .overlay(alignment: .bottom) { Divider() }
         .alert("重命名标签", isPresented: renamePresented) {
@@ -119,10 +121,13 @@ private struct TabItemView: View {
                 }
                 .buttonStyle(.plain)
                 .help("关闭标签")
+                .accessibilityIdentifier("tabs.close")
             }
         }
         .padding(.horizontal, AppSpacing.m)
         .padding(.vertical, 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tabs.item")
         .background(
             RoundedRectangle(cornerRadius: AppRadius.m)
                 .fill(backgroundColor)

@@ -32,6 +32,7 @@ struct WorkspaceToolbar: ToolbarContent {
                     .labelStyle(.titleAndIcon)
             }
             .disabled(session.objects.isEmpty)
+            .accessibilityIdentifier("toolbar.open-table")
         }
 
         ToolbarItem(placement: .primaryAction) {
@@ -54,6 +55,7 @@ private struct WorkspaceNavigationButtons: View {
                 Image(systemName: "chevron.backward")
             }
             .help("上一个标签")
+            .accessibilityIdentifier("toolbar.back")
             .disabled(session.tabs.isEmpty)
 
             Button {
@@ -62,6 +64,7 @@ private struct WorkspaceNavigationButtons: View {
                 Image(systemName: "chevron.forward")
             }
             .help("下一个标签")
+            .accessibilityIdentifier("toolbar.forward")
             .disabled(session.tabs.isEmpty)
         }
     }
@@ -78,10 +81,13 @@ private struct WorkspaceChangeButtons: View {
     var body: some View {
         HStack(spacing: AppSpacing.xs) {
             Button("放弃") { activeTableViewModel?.requestDiscard() }
+                .accessibilityIdentifier("toolbar.discard")
                 .disabled(!changeButtonsEnabled)
             Button("预览(\(pendingCount))") { activeTableViewModel?.presentPreview() }
+                .accessibilityIdentifier("toolbar.preview")
                 .disabled(!changeButtonsEnabled)
             Button("提交(\(pendingCount))") { activeTableViewModel?.requestSubmit() }
+                .accessibilityIdentifier("toolbar.submit")
                 .disabled(!changeButtonsEnabled || session.isReadOnly)
                 .help(submitHint)
 
@@ -93,6 +99,7 @@ private struct WorkspaceChangeButtons: View {
                 Image(systemName: "sidebar.right")
             }
             .help("显示 / 隐藏右侧字段栏")
+            .accessibilityIdentifier("toolbar.inspector-toggle")
             .disabled(!isTableDataTab)
         }
     }

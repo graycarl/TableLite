@@ -181,6 +181,7 @@ private struct ConnectionListContent: View {
 
     private var searchField: some View {
         TextField("搜索连接…", text: $viewModel.searchText)
+            .accessibilityIdentifier("connections.search")
             .textFieldStyle(.roundedBorder)
             .padding(.horizontal, 20)
             .padding(.bottom, 8)
@@ -248,11 +249,13 @@ private struct ConnectionListContent: View {
                 Label("新建连接", systemImage: "plus")
             }
             .keyboardShortcut("n", modifiers: .command)
+            .accessibilityIdentifier("connections.new")
 
             Button("连接") {
                 guard let connection = selectedConnection else { return }
                 Task { await viewModel.connect(connection) }
             }
+            .accessibilityIdentifier("connections.connect")
             .disabled(selectedConnection == nil)
 
             Spacer()
@@ -396,6 +399,7 @@ private struct ConnectionPasswordPromptView: View {
                 Button("取消") { onCancel() }
                     .keyboardShortcut(.cancelAction)
                 Button("连接") { onSubmit(password, remember) }
+                    .accessibilityIdentifier("sheet.password.connect")
                     .keyboardShortcut(.defaultAction)
             }
         }

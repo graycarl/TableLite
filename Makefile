@@ -23,7 +23,7 @@ TEST_PARALLEL_FLAGS := -parallel-testing-enabled YES -parallel-testing-worker-co
 TEST_MODE := $(WORKERS) 路并行
 endif
 
-.PHONY: help deps gen gen-force build run test smoke dist dist-install clean distclean doctor signing db db-reset db-stop db-shell
+.PHONY: help deps gen gen-force build run test smoke dist dist-install clean distclean doctor signing db db-reset db-stop db-shell bench dev dev-reset dev-selftest
 
 help: ## 显示可用目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -114,6 +114,15 @@ test: gen ## 跑单元测试（默认 4 路并行；PARALLEL=0 串行，WORKERS=
 
 smoke: build ## 访问层端到端冒烟验证（自动起 Docker MySQL）
 	@./scripts/smoke/run.sh
+
+dev: ## 隔离调试实例（scripts/dev/tl.sh run；ARGS="--dev-…" 传启动原语）
+	@./scripts/dev/tl.sh run $(ARGS)
+
+dev-reset: ## 清空隔离调试 profile（数据目录 + dev 偏好 suite）
+	@./scripts/dev/tl.sh reset
+
+dev-selftest: ## 调试基建自检（identifier / 网格寻址 / 截图 / AX）
+	@./scripts/dev/tl.sh selftest
 
 db: ## 起一个常驻的 Docker MySQL 供手工测试（首次自动灌示例数据）
 	@./scripts/dev/db.sh up

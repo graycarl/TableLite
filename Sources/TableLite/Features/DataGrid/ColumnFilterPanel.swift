@@ -47,8 +47,10 @@ struct ColumnFilterPanel: View {
 
             HStack(spacing: 8) {
                 TextField("搜索列…", text: $search)
+                    .accessibilityIdentifier("columns.search")
                     .textFieldStyle(.roundedBorder)
                 Button("全选") { workingHidden.removeAll() }
+                    .accessibilityIdentifier("columns.all")
                     .controlSize(.small)
                 Button("全不选") {
                     // 至少保留一列可见。
@@ -103,8 +105,10 @@ struct ColumnFilterPanel: View {
                 }
                 Spacer()
                 Button("取消") { onCancel() }
+                    .accessibilityIdentifier("columns.cancel")
                     .keyboardShortcut(.cancelAction)
                 Button("应用") { onApply(workingHidden) }
+                    .accessibilityIdentifier("columns.apply")
                     .buttonStyle(.borderedProminent)
                     .disabled(!canApply)
             }
