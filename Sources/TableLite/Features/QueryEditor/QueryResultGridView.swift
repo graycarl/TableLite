@@ -45,9 +45,8 @@ struct QueryResultGridView: NSViewRepresentable {
         tableView.backgroundColor = .textBackgroundColor
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.style = .plain
-        // 不画竖线；横线与表数据网格保持一致（`docs/tech-designs/07-data-grid.md` §4）。
-        tableView.gridStyleMask = [.solidHorizontalGridLineMask]
-        tableView.gridColor = NSColor.separatorColor.withDynamicAlpha(0.35)
+        // 不画网格线：分行靠数据行的隔行底色（`docs/tech-designs/07-data-grid.md` §4）。
+        tableView.gridStyleMask = []
         tableView.intercellSpacing = NSSize(width: 0, height: 1)
         tableView.rowHeight = coordinator.rowHeight
         tableView.target = coordinator
@@ -134,9 +133,14 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
 
     /// 只给有数据的行画交替底色；空白区域由 `textBackgroundColor` 保持干净。
     private var lastAlternateRowColors: Bool?
+    private var lastFontSize: Double?
 
     func sync() {
         guard let tableView else { return }
+        if lastFontSize != fontSize {
+            lastFontSize = fontSize
+            tableView.reloadData()
+        }
         if lastAlternateRowColors != alternateRowColors {
             lastAlternateRowColors = alternateRowColors
             tableView.reloadData()

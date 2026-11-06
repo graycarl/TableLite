@@ -52,7 +52,7 @@ SwiftUI 的 `Table` 不支持十万行级稳定滚动、冻结列、细粒度列
 - 外键列追加 `↗`，点击在新标签打开被引用表并定位到该行。
 - 主键列表头加粗 + 钥匙图标（SF Symbol `key.fill`，不用 emoji，保持与系统色一致）；Commit 失败行红底 + 感叹号。
 
-网格**不画竖线**：`gridStyleMask = []`，分行靠 1px 横线 + 仅数据行的隔行底色（偏好可关）。**空白区域不画斑马纹**：`usesAlternatingRowBackgroundColors = false`，由 `NSTableRowView` 只给有数据的行填交替色。行高 = max(26pt, 网格字号 + 13)（默认 26pt）。
+网格**不画网格线**：`gridStyleMask = []`，分行靠仅数据行的隔行底色（偏好可关）。**空白区域不画斑马纹、不画横线**：`usesAlternatingRowBackgroundColors = false`，由 `NSTableRowView` 只给有数据的行填交替色。行高 = max(26pt, 网格字号 + 13)（默认 26pt）；关闭交替行底色后行间没有分隔线，这是有意的简化（靠行高与 hover 定位）。
 
 行号列固定最左；已修改 / 已删除的行在行号上加标记，新增行的行号列显示 `+`。
 

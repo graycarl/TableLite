@@ -14,6 +14,8 @@ struct QueryEditorView: View {
     @Environment(ExportRequestCenter.self) private var exportCenter
     @State private var viewModel: QueryEditorViewModel?
     @State private var quickLook: QuickLookPanelController?
+    /// 运行开始后短暂延迟才允许点「停止」，避免双击「执行」的第二次点击把查询取消。
+    @State private var stopArmed = false
 
     var body: some View {
         Group {
@@ -105,69 +107,98 @@ struct QueryEditorView: View {
         }
         .overlay(alignment: .top) { noticeOverlay(viewModel) }
         .overlay(alignment: .topTrailing) { largeResultOverlay(viewModel) }
+        .task(id: viewModel.isRunning) {
+            guard viewModel.isRunning else {
+                stopArmed = false
+                return
+            }
+            stopArmed = false
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            if !Task.isCancelled { stopArmed = true }
+        }
     }
 
     // MARK: 工具栏
 
     private func toolbar(_ viewModel: QueryEditorViewModel) -> some View {
         HStack(spacing: AppSpacing.xs) {
-            Button {
-                viewModel.executeDefault()
-            } label: {
-                Label("执行", systemImage: "play.fill")
+            if viewModel.isRunning {
+                Button {
+                    viewModel.stop()
+                } label: {
+                    Label("停止", systemImage: "stop.fill")
+                }
+                .buttonStyle(.bordered)
+                .help("停止当前查询（⌘.）")
+                .accessibilityIdentifier("editor.stop")
+                .disabled(!stopArmed || viewModel.isStopping)
+            } else {
+                HStack(spacing: 0) {
+                    Button {
+                        viewModel.executeDefault()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "play.fill")
+                            Text("执行")
+                            Text("⌘↩")
+                                .font(.system(size: 9.5))
+                                .opacity(0.75)
+                        }
+                        .padding(.horizontal, 2)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .help("\(viewModel.defaultScope.displayName)（⌘↩）")
+                    .accessibilityIdentifier("editor.run")
+
+                    Menu {
+                        Button("执行全部") { viewModel.executeAll() }
+                            .accessibilityIdentifier("editor.run-all")
+
+                        Divider()
+
+                        Toggle("默认执行当前语句", isOn: Binding(
+                            get: { environment.preferences.defaultExecutionScope == .currentStatement },
+                            set: { if $0 { environment.preferences.defaultExecutionScope = .currentStatement } }
+                        ))
+                        Toggle("默认执行全部", isOn: Binding(
+                            get: { environment.preferences.defaultExecutionScope == .allStatements },
+                            set: { if $0 { environment.preferences.defaultExecutionScope = .allStatements } }
+                        ))
+                    } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .semibold))
+                            .frame(width: 18)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .help("执行范围：\(viewModel.defaultScope.displayName)")
+                    .accessibilityLabel("执行范围")
+                    .accessibilityValue(viewModel.defaultScope.displayName)
+                    .accessibilityIdentifier("editor.scope")
+                }
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.m))
+                .shadow(color: .black.opacity(0.16), radius: 1, y: 1)
             }
-            .buttonStyle(.borderedProminent)
-            .help("\(viewModel.defaultScope.displayName)（⌘↩）")
-            .accessibilityIdentifier("editor.run")
-            .disabled(viewModel.isRunning)
-
-            Menu {
-                Button("执行当前语句") { environment.preferences.defaultExecutionScope = .currentStatement }
-                Button("执行全部") { environment.preferences.defaultExecutionScope = .allStatements }
-            } label: {
-                Image(systemName: "chevron.down")
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .frame(width: 24)
-            .help("默认执行范围：\(viewModel.defaultScope.displayName)")
-            .accessibilityIdentifier("editor.scope")
-
-            Button {
-                viewModel.executeAll()
-            } label: {
-                Label("执行全部", systemImage: "forward.end.fill")
-            }
-            .buttonStyle(.subtle)
-            .help("执行全部（⇧⌘↩）")
-            .accessibilityIdentifier("editor.run-all")
-            .disabled(viewModel.isRunning)
-
-            Button {
-                viewModel.stop()
-            } label: {
-                Label("停止", systemImage: "stop.fill")
-            }
-            .buttonStyle(.subtle)
-            .help("停止（⌘.）")
-            .accessibilityIdentifier("editor.stop")
-            .disabled(!viewModel.isRunning || viewModel.isStopping)
-
-            Divider().frame(height: 18)
-
-            Button("打开") { openScript() }
-                .accessibilityIdentifier("editor.open")
-                .buttonStyle(.subtle)
-            Button("另存为") { _ = viewModel.saveScriptAs() }
-                .accessibilityIdentifier("editor.save")
-                .buttonStyle(.subtle)
 
             Spacer()
 
-            if !viewModel.text.isEmpty {
+            Menu {
+                Button("打开…") { openScript() }
+                    .accessibilityIdentifier("editor.open")
+                Button("另存为…") { _ = viewModel.saveScriptAs() }
+                    .accessibilityIdentifier("editor.save")
+                Divider()
                 Button("清空") { viewModel.textChanged("") }
-                    .buttonStyle(.subtle)
+                    .disabled(viewModel.text.isEmpty)
+                    .accessibilityIdentifier("editor.clear")
+            } label: {
+                Label("更多", systemImage: "ellipsis")
             }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("更多操作")
+            .accessibilityIdentifier("editor.more")
         }
         .padding(.horizontal, AppSpacing.m)
         .padding(.vertical, AppSpacing.xs)
