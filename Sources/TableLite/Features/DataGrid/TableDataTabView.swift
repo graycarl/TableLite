@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 表数据标签的内容视图。
 ///
-/// 组合：过滤栏占位（T10）→ 数据网格（AppKit）→ 插入行脚 → 显示条数栏。
+/// 组合：过滤栏 → 数据网格（AppKit）→ 插入行脚 → 上下文变更条 → 底部「概况 + 操作」条。
 /// 右侧字段栏由 `WorkspaceView` 渲染，读的是 `tab.content` 里的同一个 ViewModel。
 /// T9 在这里挂上预览 / 提交失败 / 放弃确认 / 快速查看的呈现。
 struct TableDataTabView: View {
@@ -29,7 +29,7 @@ struct TableDataTabView: View {
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(nsColor: .textBackgroundColor))
+                .background(AppColor.content)
             }
         }
         .onAppear(perform: startIfNeeded)
@@ -95,6 +95,8 @@ struct TableDataTabView: View {
                     viewModel.beginInsert()
                 }
             }
+
+            PendingChangesBar(viewModel: viewModel)
 
             GridStatusBarView(viewModel: viewModel) {
                 exportCenter.present(viewModel.exportSource)
@@ -334,7 +336,7 @@ private struct GridSkeletonView: View {
         }
         .padding(.horizontal, 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
     }
 
     private func skeletonRow(emphasized: Bool) -> some View {

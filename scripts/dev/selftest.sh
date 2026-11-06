@@ -69,7 +69,7 @@ echo "  截图：/tmp/tablelite-selftest-1.png"
 echo "== 2/3 工作区：打开表、选中单元格 =="
 "$TL" run --dev-open-connection demo --dev-open-table tablelite_dev.orders \
     --dev-select-cell 2,status >/dev/null
-for id in grid.table grid.statusbar.filter toolbar.submit tabs.bar sidebar.tree; do
+for id in grid.table grid.statusbar.filter grid.statusbar.row-limit tabs.bar sidebar.tree toolbar.connection-switcher toolbar.quick-open toolbar.refresh toolbar.inspector-toggle; do
     expect_id "$id"
 done
 

@@ -73,13 +73,13 @@ struct WorkspaceView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(minWidth: 860, minHeight: 560)
+        .frame(minWidth: 1000, minHeight: 640)
         .toolbar {
             // 与系统标题栏合一的窗口工具栏（`06-ui-layer.md` §10）。
             WorkspaceToolbar(
                 session: session,
-                onNavigate: { previous in navigate(previous: previous) },
-                onOpenTable: { showOpenTable = true },
+                onQuickOpen: { showOpenTable = true },
+                onRefresh: { Task { await refresh() } },
                 onToggleInspector: { environment.preferences.showInspector.toggle() },
                 onShowConnections: { showConnectionList = true }
             )
@@ -242,50 +242,31 @@ struct WorkspaceView: View {
     // MARK: 右侧字段栏
 
     private var showsInspector: Bool {
-        environment.preferences.showInspector && (session.activeTab?.kind.isTableData ?? false)
+        guard environment.preferences.showInspector,
+              session.activeTab?.kind.isTableData == true,
+              let viewModel = session.activeTab?.content as? TableDataViewModel else { return false }
+        return viewModel.focusedRowID != nil || !viewModel.insertionRows.isEmpty
     }
 
-    /// 字段栏是表数据网格选区的 SwiftUI 投影（`14-row-inspector.md` §2）。
-    /// 本阶段只读；T9 在同一位置换成可编辑版本。
+    /// 字段栏是表数据网格选区的 SwiftUI 投影（`14-row-inspector.md` §2），
+    /// 有选中行 / 新增行时才出现。
     @ViewBuilder
     private var inspector: some View {
         if let viewModel = session.activeTab?.content as? TableDataViewModel {
             RowInspectorView(viewModel: viewModel)
-        } else {
-            inspectorPlaceholder
         }
-    }
-
-    /// 字段栏未就绪时的占位（标签尚未装配 ViewModel）。
-    private var inspectorPlaceholder: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "sidebar.right")
-                .font(.system(size: 26))
-                .foregroundStyle(.tertiary)
-            Text("选中一行以查看和编辑它的字段")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Text("右侧字段栏待 W3/W4 实现")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .controlBackgroundColor))
     }
 
     // MARK: 标题
 
     private var windowTitle: String {
-        var title = session.connection.name
-        if session.isReadOnly {
-            title += "（只读）"
+        guard let tab = session.activeTab else {
+            return session.selectedDatabase ?? session.connection.name
         }
         if let database = session.selectedDatabase {
-            title += " — \(database)"
+            return "\(database) / \(tab.title)"
         }
-        return title
+        return tab.title
     }
 
     // MARK: 动作
@@ -448,6 +429,7 @@ struct WorkspaceView: View {
         }
         return WorkspaceActions(
             newQuery: newQuery,
+            quickOpen: { showOpenTable = true },
             closeTab: closeActiveTab,
             importCSV: { importRequest = ImportRequest(database: session.selectedDatabase, table: nil) },
             exportData: {

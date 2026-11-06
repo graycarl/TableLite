@@ -108,7 +108,7 @@ final class TableDataViewModelTests: XCTestCase {
         await harness.mysql.setResponses([pageResponse(rowCount: 300)])
         await viewModel.start()
 
-        let text = viewModel.rowCountBarText
+        let text = viewModel.compactRowCountText
         XCTAssertTrue(text.hasPrefix("300 / 约 12,480 行"))
     }
 
@@ -416,7 +416,7 @@ final class TableDataViewModelTests: XCTestCase {
         await viewModel.start()
 
         XCTAssertEqual(viewModel.largeFieldSizeSummary, "content 1.2 MB")
-        XCTAssertTrue(viewModel.rowCountBarText.contains("content 1.2 MB"))
+        XCTAssertEqual(viewModel.largeFieldSizeSummary, "content 1.2 MB")
     }
 
     func testStatusBarHasNoLargeFieldSummaryWithoutTruncation() async throws {
@@ -427,10 +427,10 @@ final class TableDataViewModelTests: XCTestCase {
         await viewModel.start()
 
         XCTAssertNil(viewModel.largeFieldSizeSummary)
-        XCTAssertFalse(viewModel.rowCountBarText.contains("MB"))
+        XCTAssertNil(viewModel.largeFieldSizeSummary)
     }
 
-    /// 耗时阈值口径在 `WorkspaceStatusText.tableDataSummary`，`rowCountBarText` 不再拼接耗时
+    /// 耗时阈值口径在 `WorkspaceStatusText.tableDataSummary`，`compactRowCountText` 不再拼接耗时
     /// （`specs/12-feedback.md` §6）。
     func testStatusBarTextOmitsQueryDuration() async throws {
         harness.preferences.lazyLargeColumns = false
@@ -439,7 +439,7 @@ final class TableDataViewModelTests: XCTestCase {
         await harness.mysql.setResponses([pageResponse(rowCount: 3)])
         await viewModel.start()
 
-        XCTAssertFalse(viewModel.rowCountBarText.contains(" ms"))
+        XCTAssertFalse(viewModel.compactRowCountText.contains(" ms"))
     }
 
     func testHasActiveFilterTracksAppliedFilter() async throws {

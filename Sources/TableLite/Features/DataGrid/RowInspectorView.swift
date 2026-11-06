@@ -17,7 +17,7 @@ struct RowInspectorView: View {
             Divider()
             content
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(AppColor.inspector)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("inspector.panel")
     }

@@ -106,7 +106,7 @@ enum WorkspaceStatusText {
     /// 表数据网格底部条左侧摘要：基础文本 + 超时耗时。
     ///
     /// 耗时只在 **> 1 秒** 时追加，避免每次重新加载都闪一个「12 ms」
-    /// （`specs/12-feedback.md` §6）。基础文本由 `TableDataViewModel.rowCountBarText`
+    /// （`specs/12-feedback.md` §6）。基础文本由 `TableDataViewModel.compactRowCountText`
     /// 提供，耗时口径统一在这里，不在 ViewModel 里重复拼接。
     static func tableDataSummary(base: String, elapsedMilliseconds: Int?) -> String {
         guard let milliseconds = elapsedMilliseconds,

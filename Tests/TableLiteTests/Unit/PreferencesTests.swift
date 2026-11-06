@@ -27,7 +27,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.nullDisplayText, "NULL")
         XCTAssertFalse(preferences.tinyintAsCheckbox)
         XCTAssertTrue(preferences.showInspector)
-        XCTAssertEqual(preferences.inspectorWidth, 320)
+        XCTAssertEqual(preferences.inspectorWidth, 300)
         XCTAssertTrue(preferences.rememberColumnLayout)
         XCTAssertTrue(preferences.rememberFilters)
         // 编辑器
@@ -48,7 +48,7 @@ final class PreferencesTests: XCTestCase {
         // 界面
         XCTAssertFalse(preferences.showSystemDatabases)
         XCTAssertEqual(preferences.sidebarWidth, 220)
-        XCTAssertEqual(preferences.editorResultSplitRatio, 0.5, accuracy: 0.0001)
+        XCTAssertEqual(preferences.editorResultSplitRatio, 0.4, accuracy: 0.0001)
         XCTAssertEqual(preferences.language, .chinese)
         // Console Log
         XCTAssertEqual(preferences.consoleLogCapacity, 5000)

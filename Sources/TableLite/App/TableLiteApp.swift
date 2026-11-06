@@ -72,6 +72,7 @@ struct TableLiteApp: App {
         // 窗口工具栏与系统标题栏合一（`06-ui-layer.md` §10）。
         .windowToolbarStyle(.unified)
         .windowResizability(.contentMinSize)
+        .defaultSize(width: 1280, height: 820)
         .commands {
             // 单窗口应用：不要「新建窗口」；其余菜单见 `TableLiteCommands`。
             TableLiteCommands()

@@ -32,6 +32,7 @@ private struct AppActionsKey: FocusedValueKey {
 struct WorkspaceActions {
     // 文件
     var newQuery: @MainActor () -> Void
+    var quickOpen: @MainActor () -> Void
     var closeTab: @MainActor () -> Void
     var importCSV: @MainActor () -> Void
     var exportData: @MainActor () -> Void
@@ -142,6 +143,10 @@ struct TableLiteCommands: Commands {
 
             Button("新建查询") { workspace?.newQuery() }
                 .keyboardShortcut("t", modifiers: .command)
+                .disabled(workspace == nil)
+
+            Button("快速打开…") { workspace?.quickOpen() }
+                .keyboardShortcut("p", modifiers: .command)
                 .disabled(workspace == nil)
 
             Button("关闭标签") { workspace?.closeTab() }

@@ -34,7 +34,7 @@ struct DataGridView: NSViewRepresentable {
         tableView.allowsColumnResizing = true
         tableView.allowsMultipleSelection = true
         tableView.allowsEmptySelection = true
-        tableView.usesAlternatingRowBackgroundColors = preferences.alternateRowColors
+        tableView.usesAlternatingRowBackgroundColors = false
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.style = .plain
         // 不画网格线：分行靠隔行变色（`docs/tech-designs/07-data-grid.md` §4）。
@@ -98,6 +98,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
 
     private var lastDataRevision = -1
     private var lastFontSize = -1
+    private var lastAlternateRowColors: Bool?
     private var lastColumnSignature = ""
     private var didEstimateWidths = false
     private var isApplyingSelection = false
@@ -161,7 +162,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     }
 
     var rowHeight: CGFloat {
-        max(20, CGFloat(preferences.gridFontSize) + 8)
+        max(AppMetrics.tableRowHeight, CGFloat(preferences.gridFontSize) + 13)
     }
 
     // MARK: 同步
@@ -169,11 +170,16 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     func sync() {
         guard let tableView else { return }
         tableView.enclosingScrollView?.autohidesScrollers = preferences.autoHideScrollers
-        tableView.usesAlternatingRowBackgroundColors = preferences.alternateRowColors
+        tableView.usesAlternatingRowBackgroundColors = false
 
         if lastFontSize != preferences.gridFontSize {
             lastFontSize = preferences.gridFontSize
             tableView.rowHeight = rowHeight
+            tableView.reloadData()
+        }
+
+        if lastAlternateRowColors != preferences.alternateRowColors {
+            lastAlternateRowColors = preferences.alternateRowColors
             tableView.reloadData()
         }
 
@@ -447,8 +453,16 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
                 made.identifier = identifier
                 return made
             }()
-        rowView.backgroundColor = rowBackgroundColor(for: row) ?? .clear
+        rowView.backgroundColor = rowBackgroundColor(for: row)
+            ?? zebraBackground(for: row)
+            ?? .clear
         return rowView
+    }
+
+    /// 只给有数据的行画交替底色；空白区域由 `textBackgroundColor` 保持干净。
+    private func zebraBackground(for row: Int) -> NSColor? {
+        guard preferences.alternateRowColors, row >= 0, row < rowsSnapshot.count else { return nil }
+        return row.isMultiple(of: 2) ? nil : NSColor.labelColor.withDynamicAlpha(0.03)
     }
 
     /// 新增 / 修改 / 删除行的整行底色（`specs/03-data-browsing.md` §4、`specs/04-data-editing.md` §3）。

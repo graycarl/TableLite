@@ -41,11 +41,13 @@ struct QueryResultGridView: NSViewRepresentable {
         tableView.allowsColumnResizing = true
         tableView.allowsMultipleSelection = true
         tableView.allowsEmptySelection = true
-        tableView.usesAlternatingRowBackgroundColors = alternateRowColors
+        tableView.usesAlternatingRowBackgroundColors = false
+        tableView.backgroundColor = .textBackgroundColor
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.style = .plain
-        // 不画网格线：分行靠隔行变色（`docs/tech-designs/07-data-grid.md` §4）。
-        tableView.gridStyleMask = []
+        // 不画竖线；横线与表数据网格保持一致（`docs/tech-designs/07-data-grid.md` §4）。
+        tableView.gridStyleMask = [.solidHorizontalGridLineMask]
+        tableView.gridColor = NSColor.separatorColor.withDynamicAlpha(0.35)
         tableView.intercellSpacing = NSSize(width: 0, height: 1)
         tableView.rowHeight = coordinator.rowHeight
         tableView.target = coordinator
@@ -73,6 +75,8 @@ struct QueryResultGridView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.onQuickLook = onQuickLook
         context.coordinator.onExport = onExport
+        context.coordinator.alternateRowColors = alternateRowColors
+        context.coordinator.fontSize = fontSize
         context.coordinator.sync()
     }
 }
@@ -125,16 +129,36 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
     }
 
     var rowHeight: CGFloat {
-        max(20, CGFloat(fontSize) + 8)
+        max(AppMetrics.tableRowHeight, CGFloat(fontSize) + 13)
     }
+
+    /// 只给有数据的行画交替底色；空白区域由 `textBackgroundColor` 保持干净。
+    private var lastAlternateRowColors: Bool?
 
     func sync() {
         guard let tableView else { return }
-        tableView.usesAlternatingRowBackgroundColors = alternateRowColors
+        if lastAlternateRowColors != alternateRowColors {
+            lastAlternateRowColors = alternateRowColors
+            tableView.reloadData()
+        }
         if abs(tableView.rowHeight - rowHeight) > 0.5 {
             tableView.rowHeight = rowHeight
             tableView.reloadData()
         }
+    }
+
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        let identifier = NSUserInterfaceItemIdentifier("ResultRowView")
+        let rowView = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableRowView
+            ?? {
+                let made = NSTableRowView()
+                made.identifier = identifier
+                return made
+            }()
+        rowView.backgroundColor = (alternateRowColors && !row.isMultiple(of: 2))
+            ? NSColor.labelColor.withDynamicAlpha(0.03)
+            : .clear
+        return rowView
     }
 
     func reloadData() {

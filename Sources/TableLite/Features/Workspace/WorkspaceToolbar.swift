@@ -5,13 +5,13 @@ import SwiftUI
 /// 与系统标题栏合一（`docs/tech-designs/06-ui-layer.md` §10）：挂在 `WorkspaceView` 的
 /// `.toolbar` 上，按钮样式由系统 toolbar 统一处理，不再自绘一条 `.bar` 横条。
 ///
-/// 从左到右：连接切换器 → 标签前进/后退 → `打开表…` →
-/// 变更操作组 → 右侧字段栏开关。
+/// 从左到右：连接切换器 → 窗口标题（库 / 标签）→ 快速打开 / 刷新 / 字段栏开关。
+/// 变更操作不在这里，见 `PendingChangesBar`。
 struct WorkspaceToolbar: ToolbarContent {
 
     let session: ConnectionSession
-    var onNavigate: (Bool) -> Void
-    var onOpenTable: () -> Void
+    var onQuickOpen: () -> Void
+    var onRefresh: () -> Void
     var onToggleInspector: () -> Void
     var onShowConnections: () -> Void
 
@@ -20,109 +20,39 @@ struct WorkspaceToolbar: ToolbarContent {
             ConnectionSwitcher(session: session, onShowConnections: onShowConnections)
         }
 
-        ToolbarItem {
-            WorkspaceNavigationButtons(session: session, onNavigate: onNavigate)
-        }
-
-        ToolbarItem(placement: .principal) {
-            Button {
-                onOpenTable()
-            } label: {
-                Label("打开表…", systemImage: "magnifyingglass")
-                    .labelStyle(.titleAndIcon)
-            }
-            .disabled(session.objects.isEmpty)
-            .accessibilityIdentifier("toolbar.open-table")
-        }
-
         ToolbarItem(placement: .primaryAction) {
-            WorkspaceChangeButtons(session: session, onToggleInspector: onToggleInspector)
-        }
-    }
-}
+            HStack(spacing: 2) {
+                Button {
+                    onQuickOpen()
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+                .help("快速打开表 / 视图（⌘P）")
+                .accessibilityLabel("快速打开")
+                .accessibilityIdentifier("toolbar.quick-open")
+                .disabled(session.objects.isEmpty)
 
-/// 标签前进 / 后退（`⌘[` / `⌘]`）。
-private struct WorkspaceNavigationButtons: View {
+                Button {
+                    onRefresh()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .help("刷新（⌘R）")
+                .accessibilityLabel("刷新")
+                .accessibilityIdentifier("toolbar.refresh")
+                .disabled(!session.state.isConnected)
 
-    let session: ConnectionSession
-    var onNavigate: (Bool) -> Void
-
-    var body: some View {
-        HStack(spacing: 2) {
-            Button {
-                onNavigate(true)
-            } label: {
-                Image(systemName: "chevron.backward")
+                Button {
+                    onToggleInspector()
+                } label: {
+                    Image(systemName: "sidebar.right")
+                }
+                .help("显示 / 隐藏右侧字段栏")
+                .accessibilityLabel("右侧字段栏")
+                .accessibilityIdentifier("toolbar.inspector-toggle")
+                .disabled(session.activeTab?.kind.isTableData != true)
             }
-            .help("上一个标签")
-            .accessibilityIdentifier("toolbar.back")
-            .disabled(session.tabs.isEmpty)
-
-            Button {
-                onNavigate(false)
-            } label: {
-                Image(systemName: "chevron.forward")
-            }
-            .help("下一个标签")
-            .accessibilityIdentifier("toolbar.forward")
-            .disabled(session.tabs.isEmpty)
         }
-    }
-}
-
-/// 变更操作组（`specs/02-workspace.md` §2）+ 右侧字段栏开关。
-///
-/// 变更操作组：放弃 / 预览(N) / 提交(N)。条数为 0 时整体禁用；只读连接上「提交」始终禁用并说明原因。
-private struct WorkspaceChangeButtons: View {
-
-    let session: ConnectionSession
-    var onToggleInspector: () -> Void
-
-    var body: some View {
-        HStack(spacing: AppSpacing.xs) {
-            Button("放弃") { activeTableViewModel?.requestDiscard() }
-                .accessibilityIdentifier("toolbar.discard")
-                .disabled(!changeButtonsEnabled)
-            Button("预览(\(pendingCount))") { activeTableViewModel?.presentPreview() }
-                .accessibilityIdentifier("toolbar.preview")
-                .disabled(!changeButtonsEnabled)
-            Button("提交(\(pendingCount))") { activeTableViewModel?.requestSubmit() }
-                .accessibilityIdentifier("toolbar.submit")
-                .disabled(!changeButtonsEnabled || session.isReadOnly)
-                .help(submitHint)
-
-            Divider().frame(height: 18)
-
-            Button {
-                onToggleInspector()
-            } label: {
-                Image(systemName: "sidebar.right")
-            }
-            .help("显示 / 隐藏右侧字段栏")
-            .accessibilityIdentifier("toolbar.inspector-toggle")
-            .disabled(!isTableDataTab)
-        }
-    }
-
-    private var isTableDataTab: Bool {
-        session.activeTab?.kind.isTableData ?? false
-    }
-
-    private var activeTableViewModel: TableDataViewModel? {
-        session.activeTab?.content as? TableDataViewModel
-    }
-
-    private var pendingCount: Int {
-        activeTableViewModel?.pendingCount ?? 0
-    }
-
-    private var changeButtonsEnabled: Bool {
-        isTableDataTab && pendingCount > 0
-    }
-
-    private var submitHint: String {
-        if session.isReadOnly { return "该连接处于只读模式，无法提交修改" }
-        return pendingCount == 0 ? "暂无未提交的修改" : "提交修改（⌘↩）"
     }
 }
 
@@ -136,54 +66,96 @@ struct ConnectionSwitcher: View {
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(PendingChangesCoordinator.self) private var pendingChanges
+    @State private var isPresented = false
 
     var body: some View {
-        Menu {
-            ForEach(environment.sessionManager.sessions) { candidate in
-                Button {
-                    environment.sessionManager.activeSessionID = candidate.id
-                } label: {
-                    HStack {
-                        SessionStatusDot(state: candidate.state)
-                        if candidate.connection.isReadOnly {
-                            Image(systemName: "lock.fill")
-                        }
-                        Text(candidate.connection.name)
-                        Spacer()
-                        if let database = candidate.selectedDatabase {
-                            Text(database)
-                        }
-                        if candidate.id == session.id {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-            }
-
-            Divider()
-
-            Button("新建连接…") { onShowConnections() }
-            Button("编辑当前连接…") { onShowConnections() }
-            Button("重新连接") { reconnect() }
-            Button("断开") { disconnect() }
+        Button {
+            isPresented.toggle()
         } label: {
             HStack(spacing: 6) {
                 SessionStatusDot(state: session.state)
                 if session.isReadOnly {
                     Image(systemName: "lock.fill")
-                        .font(.caption)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
                 Text(session.connection.name)
+                    .font(AppFont.body)
+                    .fontWeight(.medium)
                     .lineLimit(1)
                 Image(systemName: "chevron.down")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(.tertiary)
             }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
+        .buttonStyle(.plain)
+        .controlSize(.small)
         .fixedSize()
         .help(connectionHelp)
+        .accessibilityIdentifier("toolbar.connection-switcher")
+        .popover(isPresented: $isPresented, arrowEdge: .top) {
+            connectionMenu
+                .frame(width: 300)
+        }
+    }
+
+    private var connectionMenu: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("切换连接")
+                .font(AppFont.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.top, 6)
+                .padding(.bottom, 3)
+
+            ForEach(environment.sessionManager.sessions) { candidate in
+                Button {
+                    environment.sessionManager.activeSessionID = candidate.id
+                    isPresented = false
+                } label: {
+                    HStack(spacing: 8) {
+                        SessionStatusDot(state: candidate.state)
+                        if candidate.connection.isReadOnly {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(candidate.connection.name)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        if let database = candidate.selectedDatabase {
+                            Text(database)
+                                .font(AppFont.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        if candidate.id == session.id {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.tint)
+                        }
+                    }
+                    .font(AppFont.body)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            Divider().padding(.vertical, 3)
+
+            Button("新建连接…") { dismissAnd { onShowConnections() } }
+            Button("编辑当前连接…") { dismissAnd { onShowConnections() } }
+            Button("重新连接") { isPresented = false; reconnect() }
+            Button("断开连接") { isPresented = false; disconnect() }
+        }
+        .font(AppFont.body)
+        .buttonStyle(.plain)
+        .padding(6)
     }
 
     /// 工具栏连接切换器的悬停详情：连接信息 + 只读标记 + SSH 隧道本地端口
@@ -201,6 +173,11 @@ struct ConnectionSwitcher: View {
                 WorkspaceStatusText.tunnelDetailLine(host: $0.host, port: $0.port)
             }
         )
+    }
+
+    private func dismissAnd(_ action: @escaping () -> Void) {
+        isPresented = false
+        DispatchQueue.main.async(execute: action)
     }
 
     private func reconnect() {

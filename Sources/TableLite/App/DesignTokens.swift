@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// 全局设计系统（`docs/tech-designs/06-ui-layer.md` §10）。
 ///
@@ -21,6 +22,26 @@ enum AppRadius {
     static let s: CGFloat = 4
     static let m: CGFloat = 6
     static let l: CGFloat = 8
+}
+
+
+/// 字号刻度：正文 13 / 次要 12 / 说明 11 / 标题 15。
+enum AppFont {
+    static let body = Font.system(size: 13)
+    static let secondary = Font.system(size: 12)
+    static let caption = Font.system(size: 11)
+}
+
+/// 表面层级：侧栏 / 内容 / 字段栏 / 横条。全部走动态语义色，自动跟随外观。
+enum AppColor {
+    static let sidebar = Color(nsColor: .windowBackgroundColor)
+    static let content = Color(nsColor: .textBackgroundColor)
+    static let inspector = Color(nsColor: .controlBackgroundColor)
+}
+
+/// 尺寸刻度：表格行高、侧栏行高、工具栏控件高度。
+enum AppMetrics {
+    static let tableRowHeight: CGFloat = 26
 }
 
 /// 次级操作按钮（按钮第三档，`06-ui-layer.md` §10）。

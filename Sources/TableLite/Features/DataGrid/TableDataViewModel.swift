@@ -280,23 +280,10 @@ public final class TableDataViewModel {
         return columns.first { $0.name == focusedColumn }
     }
 
-    /// 网格底部条的行数文案：`300 / 约 12,480 行 · content 1.2 MB`。
-    ///
-    /// 不管加载状态如何都给出一个可读的行数（首屏加载时显示 `0 / 约 12,480 行`）。
-    /// 耗时不在里拼接：阈值判断统一在 `WorkspaceStatusText.tableDataSummary`
-    /// （`specs/12-feedback.md` §6，只在 > 1 s 时显示）。
-    public var rowCountBarText: String {
-        var text = rowLimitState.statusText(visibleCount: rows.count)
-        if let summary = largeFieldSizeSummary {
-            text += " · \(summary)"
-        }
-        return text
-    }
-
     /// 当前加载里被延迟加载的大字段实际大小摘要，例如 `content 1.2 MB`。
     ///
     /// 每个截断列取本次加载出现的最大字节数（`specs/03-data-browsing.md` §4）；
-    /// 没有任何截断列时返回 nil，状态栏不追加内容。
+    /// 没有任何截断列时返回 nil，状态栏不显示这个 chip。
     public var largeFieldSizeSummary: String? {
         var totals: [String: Int] = [:]
         for row in rows {
@@ -312,6 +299,11 @@ public final class TableDataViewModel {
             .sorted { $0.key < $1.key }
             .map { "\($0.key) \(ByteSize.format($0.value))" }
             .joined(separator: " · ")
+    }
+
+    /// 底部条左侧的紧凑行数：全部加载完时只写 `4 行`，被截断时写 `300 / 约 12,480 行`。
+    public var compactRowCountText: String {
+        rowLimitState.compactStatusText(visibleCount: rows.count)
     }
 
     public var editability: Editability {
