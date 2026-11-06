@@ -10,6 +10,7 @@ struct RowInspectorView: View {
     let viewModel: TableDataViewModel
 
     @State private var searchText = ""
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,18 +26,45 @@ struct RowInspectorView: View {
     // MARK: 顶部
 
     private var header: some View {
-        VStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("搜索字段", text: $searchText)
-                    .accessibilityIdentifier("inspector.search")
-                    .textFieldStyle(.plain)
+                Text("字段")
+                    .font(AppFont.body)
+                    .fontWeight(.semibold)
                 Text(countText)
-                    .font(.caption)
+                    .font(AppFont.caption)
                     .foregroundStyle(.secondary)
-                    .monospacedDigit()
+                Spacer()
             }
+
+            if showsSearch {
+                HStack(spacing: 5) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    TextField("搜索字段", text: $searchText)
+                        .accessibilityIdentifier("inspector.search")
+                        .textFieldStyle(.plain)
+                        .font(AppFont.caption)
+                        .focused($searchFocused)
+                    if !searchText.isEmpty {
+                        Button {
+                            searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("清除搜索")
+                        .accessibilityIdentifier("inspector.search.clear")
+                    }
+                }
+                .padding(.horizontal, AppSpacing.xs)
+                .padding(.vertical, AppSpacing.xxs)
+                .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.s))
+            }
+
             if let reason = readOnlyReason {
                 HStack(spacing: 6) {
                     Image(systemName: "lock")
@@ -44,7 +72,7 @@ struct RowInspectorView: View {
                         .lineLimit(2)
                     Spacer()
                 }
-                .font(.caption)
+                .font(AppFont.caption)
                 .foregroundStyle(.orange)
             }
         }
@@ -52,9 +80,14 @@ struct RowInspectorView: View {
         .padding(.vertical, 8)
     }
 
+    /// 字段少的时候不摆搜索框；开始搜索后即使字段不多也保留输入框，避免搜到一半消失。
+    private var showsSearch: Bool {
+        viewModel.columns.count > 10 || !searchText.isEmpty || searchFocused
+    }
+
     private var countText: String {
         if searchText.isEmpty {
-            return "\(viewModel.columns.count) 个字段"
+            return "\(viewModel.columns.count) 个"
         }
         return "显示 \(filteredColumns.count) / \(viewModel.columns.count)"
     }
@@ -107,7 +140,6 @@ struct RowInspectorView: View {
                     ForEach(filteredColumns) { column in
                         InspectorFieldRow(viewModel: viewModel, row: row, column: column)
                             .id("\(row.id)#\(column.name)")
-                        Divider()
                     }
                 }
             }
@@ -198,6 +230,7 @@ struct InspectorFieldRow: View {
     @State private var isExpanded = false
     /// L29：大窗口里的查找请求计数。
     @State private var findToken = 0
+    @State private var isHovering = false
     @FocusState private var isFocused: Bool
 
     private var editorKind: FieldEditorKind {
@@ -242,9 +275,16 @@ struct InspectorFieldRow: View {
                     .foregroundStyle(.red)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(isEdited ? Color.orange.opacity(0.16) : Color.clear)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            isEdited
+                ? Color.orange.opacity(0.14)
+                : (isHovering && isEditable ? Color.primary.opacity(0.05) : Color.clear)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: AppRadius.s))
+        .onHover { isHovering = $0 }
+        .onDisappear { isHovering = false }
         .overlay(alignment: .topLeading) {
             if isEdited {
                 Image(systemName: "arrowtriangle.up.left.fill")
@@ -313,9 +353,30 @@ struct InspectorFieldRow: View {
 
     private var singleLineEditor: some View {
         TextField("", text: $draft)
-            .textFieldStyle(.roundedBorder)
+            .textFieldStyle(.plain)
             .font(.system(size: 12, design: editorKind == .number ? .monospaced : .default))
             .multilineTextAlignment(editorKind == .number ? .trailing : .leading)
+            .padding(.horizontal, AppSpacing.xs)
+            .padding(.vertical, AppSpacing.xxs)
+            .background(fieldBackground, in: RoundedRectangle(cornerRadius: AppRadius.s))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.s)
+                    .stroke(fieldBorder, lineWidth: 1)
+                    .allowsHitTesting(false)
+            )
+            .overlay(alignment: .leading) {
+                if isNullValue && draft.isEmpty {
+                    Text("NULL")
+                        .font(.system(size: 12, design: .monospaced))
+                        .italic()
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, AppSpacing.xs)
+                        .allowsHitTesting(false)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { if isEditable { isFocused = true } }
+            .foregroundStyle(isEditable ? Color.primary : Color.secondary)
             .disabled(!isEditable)
             .focused($isFocused)
             .onSubmit(commitDraft)
@@ -323,6 +384,21 @@ struct InspectorFieldRow: View {
                 if oldValue, !newValue { commitDraft() }
             }
             .help(column.gridTypeTooltip)
+    }
+
+    private var fieldBackground: Color {
+        guard isEditable else { return .clear }
+        if isFocused { return Color(nsColor: .textBackgroundColor) }
+        if isHovering { return Color.primary.opacity(0.05) }
+        return .clear
+    }
+
+    private var fieldBorder: Color {
+        guard isEditable else { return .clear }
+        if errorMessage != nil { return .red }
+        if isFocused { return .accentColor }
+        if isHovering { return Color(nsColor: .separatorColor) }
+        return .clear
     }
 
     private var multilineEditor: some View {
@@ -335,9 +411,16 @@ struct InspectorFieldRow: View {
                 onCommit: commitDraft,
                 onCancel: cancelEdit
             )
-            .frame(minHeight: 56, maxHeight: 120)
-            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 5))
-            .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color(nsColor: .separatorColor)))
+            .frame(minHeight: 52, maxHeight: 120)
+            .background(
+                (isHovering || isFocused) ? Color(nsColor: .textBackgroundColor) : Color.clear,
+                in: RoundedRectangle(cornerRadius: AppRadius.s)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.s)
+                    .stroke((isHovering || isFocused) ? Color(nsColor: .separatorColor) : Color.clear)
+                    .allowsHitTesting(false)
+            )
             .disabled(!isEditable)
 
             HStack(spacing: 6) {
@@ -382,8 +465,15 @@ struct InspectorFieldRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
-                .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 5))
-                .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color(nsColor: .separatorColor)))
+                .background(
+                    (isHovering || isFocused) ? Color(nsColor: .textBackgroundColor) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: AppRadius.s)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppRadius.s)
+                        .stroke((isHovering || isFocused) ? Color(nsColor: .separatorColor) : Color.clear)
+                        .allowsHitTesting(false)
+                )
 
             HStack(spacing: 6) {
                 Button("查看") { viewModel.requestQuickLook(rowID: row.id, column: column.name) }
@@ -405,6 +495,9 @@ struct InspectorFieldRow: View {
         .buttonStyle(.bordered)
         .tint(isNullValue ? Color.accentColor : Color.secondary)
         .controlSize(.small)
+        .opacity(isHovering || isFocused || isNullValue ? 1 : 0)
+        .allowsHitTesting(isHovering || isFocused || isNullValue)
+        .accessibilityHidden(!(isHovering || isFocused || isNullValue))
         .disabled(!isEditable)
         .help(isNullValue ? "恢复为上一个非 NULL 值" : "设为 NULL")
     }
