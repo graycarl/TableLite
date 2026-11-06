@@ -58,7 +58,7 @@ struct DataGridView: NSViewRepresentable {
         scrollView.autohidesScrollers = preferences.autoHideScrollers
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
-        scrollView.backgroundColor = .textBackgroundColor
+        scrollView.backgroundColor = AppNSColor.content
         // 横向滚动 / 窗口缩放要重算列窗口（见 §10.2 的水平列虚拟化）。
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(
@@ -449,7 +449,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         let identifier = NSUserInterfaceItemIdentifier("GridRowView")
         let rowView = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableRowView
             ?? {
-                let made = NSTableRowView()
+                let made = TableRowView()
                 made.identifier = identifier
                 return made
             }()
@@ -462,7 +462,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     /// 只给有数据的行画交替底色；空白区域由 `textBackgroundColor` 保持干净。
     private func zebraBackground(for row: Int) -> NSColor? {
         guard preferences.alternateRowColors, row >= 0, row < rowsSnapshot.count else { return nil }
-        return row.isMultiple(of: 2) ? nil : NSColor.labelColor.withDynamicAlpha(0.03)
+        return row.isMultiple(of: 2) ? nil : AppNSColor.rowAlternate
     }
 
     /// 新增 / 修改 / 删除行的整行底色（`specs/03-data-browsing.md` §4、`specs/04-data-editing.md` §3）。
@@ -1085,9 +1085,25 @@ final class DataGridTableView: NSTableView {
 
 // MARK: - 表头子类（点击排序 + 右键列菜单）
 
+/// 只给有数据的行画底部 1px 分隔线；空白区域不会被 NSTableView 画线。
+final class TableRowView: NSTableRowView {
+
+    override func drawBackground(in dirtyRect: NSRect) {
+        super.drawBackground(in: dirtyRect)
+        AppNSColor.rowSeparator.setFill()
+        NSRect(x: 0, y: bounds.maxY - 1, width: bounds.width, height: 1).fill()
+    }
+}
+
 final class GridHeaderView: NSTableHeaderView {
 
     weak var coordinator: DataGridCoordinator?
+
+    override func draw(_ dirtyRect: NSRect) {
+        AppNSColor.gridHeader.setFill()
+        dirtyRect.fill()
+        super.draw(dirtyRect)
+    }
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)

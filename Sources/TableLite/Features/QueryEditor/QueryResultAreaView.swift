@@ -18,7 +18,7 @@ struct QueryResultAreaView: View {
             Divider()
             content
         }
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
     }
 
     // MARK: 标签栏
@@ -49,7 +49,7 @@ struct QueryResultAreaView: View {
             summary
         }
         .frame(height: tabBarHeight)
-        .background(.bar)
+        .background(AppColor.bar)
     }
 
     /// 结果标签不超过一个（含尚未产生结果）时压成细条，把高度让给结果网格；

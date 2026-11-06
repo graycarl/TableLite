@@ -180,7 +180,7 @@ struct TableDataTabView: View {
         case .loading:
             // 切换显示条数 / 排序 / 过滤：保留旧数据，叠一层半透明加载遮罩。
             ZStack {
-                Color(nsColor: .textBackgroundColor).opacity(0.45)
+                AppColor.content.opacity(0.45)
                 ProgressView()
                     .controlSize(.small)
             }

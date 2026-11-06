@@ -27,7 +27,7 @@ struct TableStructureTabView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
         .onAppear(perform: startIfNeeded)
         .onDisappear {
             viewModel?.cancelInFlight()
@@ -73,7 +73,7 @@ struct TableStructureTabView: View {
                 }
                 .padding(.horizontal, 10)
                 .frame(height: 24)
-                .background(.bar)
+                .background(AppColor.bar)
             }
         }
         .overlay(alignment: .top) {

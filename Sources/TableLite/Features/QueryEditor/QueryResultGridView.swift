@@ -42,7 +42,7 @@ struct QueryResultGridView: NSViewRepresentable {
         tableView.allowsMultipleSelection = true
         tableView.allowsEmptySelection = true
         tableView.usesAlternatingRowBackgroundColors = false
-        tableView.backgroundColor = .textBackgroundColor
+        tableView.backgroundColor = AppNSColor.content
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.style = .plain
         // 不画网格线：分行靠数据行的隔行底色（`docs/tech-designs/07-data-grid.md` §4）。
@@ -65,7 +65,7 @@ struct QueryResultGridView: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
-        scrollView.backgroundColor = .textBackgroundColor
+        scrollView.backgroundColor = AppNSColor.content
 
         coordinator.rebuildColumns()
         coordinator.reloadData()
@@ -156,12 +156,12 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         let identifier = NSUserInterfaceItemIdentifier("ResultRowView")
         let rowView = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableRowView
             ?? {
-                let made = NSTableRowView()
+                let made = TableRowView()
                 made.identifier = identifier
                 return made
             }()
         rowView.backgroundColor = (alternateRowColors && !row.isMultiple(of: 2))
-            ? NSColor.labelColor.withDynamicAlpha(0.03)
+            ? AppNSColor.rowAlternate
             : .clear
         return rowView
     }
@@ -499,6 +499,12 @@ final class QueryResultTableView: NSTableView {
 final class ResultGridHeaderView: NSTableHeaderView {
 
     weak var coordinator: QueryResultGridCoordinator?
+
+    override func draw(_ dirtyRect: NSRect) {
+        AppNSColor.gridHeader.setFill()
+        dirtyRect.fill()
+        super.draw(dirtyRect)
+    }
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)

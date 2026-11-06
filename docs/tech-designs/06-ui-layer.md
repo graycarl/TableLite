@@ -81,7 +81,7 @@
 
 - **间距刻度**：只用 4 / 6 / 8 / 10 / 12 / 16 / 20 七档（`AppSpacing`）；圆角只用 4 / 6 / 8 三档（`AppRadius`）。新视图不允许出现刻度外的魔法数。
 - **字号**：正文 13 / 次要 12 / 说明 11 / 标题 15；SQL 与数字用 SF Mono 12–13。默认不再用 `.body` / `.callout` 各自飘。
-- **背景层级**：工具栏与横条 `.bar`；侧栏用 `windowBackgroundColor`；字段栏用 `controlBackgroundColor`；内容区（编辑器、网格、结构页）用 `textBackgroundColor`；活动选中块用 `Color.primary.opacity(0.08)`。
+- **背景层级**：`AppNSColor` 显式给浅 / 深两份值，不再直接拿 `windowBackgroundColor` / `controlBackgroundColor` 当层级（浅色下它们几乎同白）。侧栏 `#F2F2F4` / `#18181A`；内容 `#FFFFFF` / `#1E1E21`；字段栏 `#F7F7F8` / `#202023`；横条 `#F2F2F4` / `#252529`；表头 `#F6F6F8` / `#26262A`；数据行隔行 `#F4F4F6` / `#252529`；行分隔线 `#E6E6EA` / `#2D2D31`。活动选中块用 `Color.primary.opacity(0.08)`。
 - **语义色**：强调色只给主操作、焦点与选中；未提交用橙色；危险操作用红色；成功用绿色。其余文字/图标一律 `primary` / `secondary` / `tertiary`。
 - **行高**：表格 26pt（字号 13 + 13），侧栏 27pt，工具栏控件 26–28pt。
 - **按钮只有三档**（新代码只允许从这三档里选）：

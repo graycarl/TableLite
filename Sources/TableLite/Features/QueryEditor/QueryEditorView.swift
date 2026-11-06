@@ -24,7 +24,7 @@ struct QueryEditorView: View {
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(nsColor: .textBackgroundColor))
+                    .background(AppColor.content)
             }
         }
         .onAppear(perform: startIfNeeded)
@@ -81,7 +81,7 @@ struct QueryEditorView: View {
                         onSelectionChange: { viewModel.selectionChanged($0) }
                     )
                     .frame(height: editorHeight(in: geometry.size.height))
-                    .background(Color(nsColor: .textBackgroundColor))
+                    .background(AppColor.content)
 
                     VerticalResizeHandle { delta in
                         adjustSplit(delta: delta, totalHeight: geometry.size.height)
@@ -202,7 +202,7 @@ struct QueryEditorView: View {
         }
         .padding(.horizontal, AppSpacing.m)
         .padding(.vertical, AppSpacing.xs)
-        .background(.bar)
+        .background(AppColor.bar)
         .overlay(alignment: .bottom) { Divider() }
     }
 
@@ -254,7 +254,7 @@ struct QueryEditorView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
         .frame(height: 26)
-        .background(.bar)
+        .background(AppColor.bar)
         .overlay(alignment: .top) { Divider() }
     }
 
@@ -357,7 +357,7 @@ struct VerticalResizeHandle: View {
                     .fill(Color.secondary.opacity(0.4))
                     .frame(width: 40, height: 3)
             )
-            .background(.bar)
+            .background(AppColor.bar)
             .contentShape(Rectangle())
             .onHover { hovering in
                 if hovering {

@@ -108,7 +108,7 @@ struct QuickLookContentView: View {
             Divider()
             footer
         }
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
     }
 
     private var header: some View {

@@ -154,7 +154,7 @@ struct ExportPanelView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
-                    .background(Color(nsColor: .textBackgroundColor))
+                    .background(AppColor.content)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 Button("选择…") { model.chooseDestination() }
                     .disabled(model.phase.isRunning)

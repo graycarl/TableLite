@@ -48,7 +48,7 @@ struct TabBarView: View {
         }
         .frame(height: 30)
         .accessibilityIdentifier("tabs.bar")
-        .background(.bar)
+        .background(AppColor.bar)
         .overlay(alignment: .bottom) { Divider() }
         .alert("重命名标签", isPresented: renamePresented) {
             TextField("标签名", text: $renameText)

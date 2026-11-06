@@ -59,7 +59,7 @@ struct TabContainerView: View {
             Button("新建查询") { onNewQuery() }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
     }
 
     /// 已断开 / 已回收 / 连接失败时盖一层遮罩（`specs/02-workspace.md` §10）。

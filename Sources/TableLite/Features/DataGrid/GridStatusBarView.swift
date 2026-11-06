@@ -88,7 +88,7 @@ struct GridStatusBarView: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 30)
-        .background(.bar)
+        .background(AppColor.bar)
     }
 
     private var filterBinding: Binding<Bool> {

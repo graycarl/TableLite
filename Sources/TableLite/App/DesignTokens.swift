@@ -32,11 +32,46 @@ enum AppFont {
     static let caption = Font.system(size: 11)
 }
 
-/// 表面层级：侧栏 / 内容 / 字段栏 / 横条。全部走动态语义色，自动跟随外观。
+/// 表面层级：侧栏 / 内容 / 字段栏 / 横条 / 表头 / 行分隔线。
+///
+/// 不用 `windowBackgroundColor` / `textBackgroundColor` 直接当层级——浅色下它们几乎都是白色，
+/// 侧栏、网格、字段栏会黏成一片。这里显式给出浅色/深色两份值，切换外观时动态解析。
+enum AppNSColor {
+    static let sidebar = NSColor.dynamic(
+        light: NSColor(srgbRed: 0.949, green: 0.949, blue: 0.961, alpha: 1),
+        dark: NSColor(srgbRed: 0.094, green: 0.094, blue: 0.102, alpha: 1)
+    )
+    static let content = NSColor.dynamic(
+        light: NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 1),
+        dark: NSColor(srgbRed: 0.118, green: 0.118, blue: 0.129, alpha: 1)
+    )
+    static let inspector = NSColor.dynamic(
+        light: NSColor(srgbRed: 0.969, green: 0.969, blue: 0.976, alpha: 1),
+        dark: NSColor(srgbRed: 0.125, green: 0.125, blue: 0.137, alpha: 1)
+    )
+    static let bar = NSColor.dynamic(
+        light: NSColor(srgbRed: 0.949, green: 0.949, blue: 0.957, alpha: 1),
+        dark: NSColor(srgbRed: 0.145, green: 0.145, blue: 0.157, alpha: 1)
+    )
+    static let gridHeader = NSColor.dynamic(
+        light: NSColor(srgbRed: 0.965, green: 0.965, blue: 0.973, alpha: 1),
+        dark: NSColor(srgbRed: 0.149, green: 0.149, blue: 0.161, alpha: 1)
+    )
+    static let rowAlternate = NSColor.dynamic(
+        light: NSColor(srgbRed: 0.957, green: 0.957, blue: 0.965, alpha: 1),
+        dark: NSColor(srgbRed: 0.145, green: 0.145, blue: 0.157, alpha: 1)
+    )
+    static let rowSeparator = NSColor.dynamic(
+        light: NSColor(srgbRed: 0.902, green: 0.902, blue: 0.914, alpha: 1),
+        dark: NSColor(srgbRed: 0.176, green: 0.176, blue: 0.192, alpha: 1)
+    )
+}
+
 enum AppColor {
-    static let sidebar = Color(nsColor: .windowBackgroundColor)
-    static let content = Color(nsColor: .textBackgroundColor)
-    static let inspector = Color(nsColor: .controlBackgroundColor)
+    static let sidebar = Color(nsColor: AppNSColor.sidebar)
+    static let content = Color(nsColor: AppNSColor.content)
+    static let inspector = Color(nsColor: AppNSColor.inspector)
+    static let bar = Color(nsColor: AppNSColor.bar)
 }
 
 /// 尺寸刻度：表格行高、侧栏行高、工具栏控件高度。

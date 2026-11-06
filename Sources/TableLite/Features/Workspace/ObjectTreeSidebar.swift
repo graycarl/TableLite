@@ -85,7 +85,7 @@ struct ObjectTreeSidebar: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 

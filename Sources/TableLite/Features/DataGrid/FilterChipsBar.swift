@@ -53,7 +53,7 @@ struct FilterChipsBar: View {
             }
             .padding(.horizontal, 10)
             .frame(height: 34)
-            .background(.bar)
+            .background(AppColor.bar)
             .overlay(alignment: .bottom) { Divider() }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("grid.filter.chips")
