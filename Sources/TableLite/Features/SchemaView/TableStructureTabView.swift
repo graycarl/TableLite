@@ -49,14 +49,14 @@ struct TableStructureTabView: View {
                 Divider()
             }
 
-            if viewModel.pages.count > 1 {
-                SchemaPageTabBar(
-                    pages: viewModel.pages,
-                    selection: pageSelection(viewModel),
-                    title: { viewModel.pageTitle($0) }
-                )
-                Divider()
-            }
+            SchemaPageTabBar(
+                pages: viewModel.pages,
+                selection: pageSelection(viewModel),
+                title: { viewModel.pageTitle($0) },
+                onCopyDDL: { viewModel.copyDefinition() },
+                copyDisabled: viewModel.isEmptyDefinition
+            )
+            Divider()
 
             pageBody(viewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
