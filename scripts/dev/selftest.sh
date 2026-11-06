@@ -79,7 +79,7 @@ echo "  ✓ cell 2,status = ${text}"
 "$TL" shot /tmp/tablelite-selftest-2.png --width 1000 >/dev/null
 echo "  截图：/tmp/tablelite-selftest-2.png"
 
-echo "== 3/3 交互：打开筛选面板、输入条件并应用 =="
+echo "== 3/4 交互：打开筛选面板、输入条件并应用 =="
 ensure_filter_panel
 ensure_raw_mode
 "$TL" ax type --id filter.raw-input --text "status = 'refunded'" >/dev/null
@@ -90,9 +90,18 @@ echo "  ✓ 过滤生效（第 1 行 status = refunded）"
 "$TL" shot /tmp/tablelite-selftest-3.png --width 1000 >/dev/null
 echo "  截图：/tmp/tablelite-selftest-3.png"
 
+echo "== 4/4 查询编辑器：新建查询、执行、结果网格出现 =="
+"$TL" ax click --id tabs.new >/dev/null
+expect_id editor.text
+"$TL" ax type --id editor.text --text "SELECT id, status FROM orders LIMIT 3;" >/dev/null
+"$TL" ax key --combo cmd+return >/dev/null
+expect_id result.table
+"$TL" shot /tmp/tablelite-selftest-4.png --width 1000 >/dev/null
+echo "  截图：/tmp/tablelite-selftest-4.png"
+
 # 自检同样要收尾：不留占着窗口的调试实例。
 "$TL" quit >/dev/null 2>&1 || true
 
 echo
-echo "自检通过：3 个状态、关键 identifier、单元格寻址、过滤交互。"
-echo "（截图留在 /tmp/tablelite-selftest-{1,2,3}.png）"
+echo "自检通过：4 个状态、关键 identifier、单元格寻址、过滤与查询交互。"
+echo "（截图留在 /tmp/tablelite-selftest-{1,2,3,4}.png）"

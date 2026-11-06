@@ -556,6 +556,9 @@ public final class TableDataViewModel {
         filterDraft = FilterState()
         filterError = nil
         filterErrorConditionIDs = []
+        if hasPendingChanges {
+            showToast("切换过滤条件会重新加载数据，你的修改会保留在暂存区")
+        }
         persistFilter()
         syncTab()
         bumpRevision()

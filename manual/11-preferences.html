@@ -119,9 +119,10 @@
 <table>
 <thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
 <tbody>
+<tr><td>外观</td><td>跟随系统</td><td>亮色 / 暗色 / 跟随系统，三选一（分段控件）。改完立刻生效</td></tr>
 <tr><td>恢复上次的脚本内容</td><td>开</td><td>重新打开查询标签（含连接后还原出来的标签）时恢复上次的编辑内容</td></tr>
 <tr><td>空闲自动断开连接</td><td>开</td><td>空闲 5 分钟且没有标签引用时自动断开</td></tr>
-
+<tr><td>显示系统数据库</td><td>关</td><td>打开后对象树里显示 <code>information_schema</code> 等系统库</td></tr>
 </tbody>
 </table>
 
@@ -236,7 +237,7 @@
 <tr><td>字号</td><td>13</td><td>网格正文的文字大小</td></tr>
 <tr><td>交替行底色</td><td>开</td><td>只作用于有数据的行；空白区域不加斑马纹</td></tr>
 <tr><td>自动隐藏滚动条</td><td>开</td><td></td></tr>
-<tr><td>超长内容截断阈值</td><td>4096 字节</td><td>超过该长度的文本 / 二进制列会延迟加载</td></tr>
+<tr><td>超长内容延迟加载</td><td>开</td><td>超长文本 / 二进制列先取截断值，需要时再加载完整内容</td></tr>
 <tr><td><code>NULL</code> 的显示文本</td><td><code>NULL</code></td><td>可改为 <code>(null)</code>、<code>&lt;空&gt;</code> 等</td></tr>
 <tr><td>把 <code>tinyint(1)</code> 显示为复选框</td><td>关</td><td>打开后该类型以三态复选框呈现</td></tr>
 <tr><td>显示右侧字段栏</td><td>开</td><td>关闭后选中行也不显示字段栏，可用工具栏按钮再打开</td></tr>
@@ -331,16 +332,10 @@
 
 <h2>高级 · CSV 与导出默认值</h2>
 
-<table>
-<thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
-<tbody>
-<tr><td>默认分隔符</td><td>逗号</td><td>逗号 / 制表符 / 分号</td></tr>
-<tr><td>默认换行符</td><td>LF</td><td>LF / CRLF</td></tr>
-<tr><td>导出时包含表头</td><td>开</td><td></td></tr>
-<tr><td>导出文本编码</td><td>UTF-8</td><td>UTF-8 / UTF-8 BOM（用 Excel 打开时选带 BOM 的）</td></tr>
-<tr><td><code>NULL</code> 的导出形式</td><td>空字符串</td><td>空字符串 / <code>NULL</code> 字面量</td></tr>
-</tbody>
-</table>
+<p>
+  这一组选项已经移到<b>导出面板</b>的「CSV 选项」里：分隔符 / 换行符 / 包含表头 / 文本编码 / <code>NULL</code> 形式。
+  展开修改后立刻记住，下次导出沿用。
+</p>
 
 <div class="callout tip">
   <span class="tag">用 Excel 打开 CSV 乱码怎么办</span>
@@ -352,63 +347,10 @@
 
 <h2>高级 · 界面与其他</h2>
 
-<figure>
-<svg viewBox="0 0 1000 440" role="img" aria-label="界面偏好页">
-  <title>界面偏好</title>
-
-  <text class="b" x="20" y="30">界面</text>
-  <line class="ln" x1="20" y1="46" x2="980" y2="46"/>
-
-  <text x="20" y="79">外观</text>
-  <rect class="s-field ln2" x="240" y="60" width="340" height="28" rx="6"/>
-  <rect class="s-soft" x="442" y="62" width="136" height="24" rx="5"/>
-  <line class="ln" x1="340" y1="66" x2="340" y2="82"/>
-  <line class="ln" x1="440" y1="66" x2="440" y2="82"/>
-  <text class="mut" x="290" y="79" text-anchor="middle">亮色</text>
-  <text class="mut" x="390" y="79" text-anchor="middle">暗色</text>
-  <text x="510" y="79" text-anchor="middle">跟随系统</text>
-  <text class="fnt s" x="600" y="79">改完立刻生效，系统外观变了也实时跟上</text>
-
-  <rect class="s-accent" x="240" y="110" width="16" height="16" rx="4"/>
-  <path d="M243 117 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
-  <text x="264" y="122">显示系统数据库</text>
-  <text class="fnt s" x="600" y="122">打开后对象树里显示 information_schema 等</text>
-
-  <text x="20" y="168">左侧栏宽度</text>
-  <line class="ln2" x1="240" y1="164" x2="400" y2="164"/>
-  <circle class="s-accent" cx="320" cy="164" r="7"/>
-  <text class="fnt s" x="600" y="168">拖动后自动记住</text>
-
-  <text x="20" y="214">编辑器 / 结果区分割比例</text>
-  <line class="ln2" x1="240" y1="210" x2="400" y2="210"/>
-  <circle class="s-accent" cx="300" cy="210" r="7"/>
-  <text class="fnt s" x="600" y="214">拖动后自动记住</text>
-
-  <text x="20" y="260">界面语言</text>
-  <text class="mut" x="240" y="260">中文</text>
-  <text class="fnt s" x="600" y="260">当前仅中文</text>
-
-  <line class="lnD" x1="20" y1="296" x2="980" y2="296"/>
-
-  <text class="b s" x="20" y="322">关于「外观」</text>
-  <text class="s" x="20" y="348">亮色 / 暗色 / 跟随系统 三选一，默认跟随系统。</text>
-  <text class="s" x="20" y="372">切换后主窗口、网格、编辑器、快速查看面板一起变，不用重启；</text>
-  <text class="s" x="20" y="396">macOS 自己在浅色 / 深色之间切换时也会实时跟上。</text>
-  <text class="fnt s" x="20" y="422">只改整体外观，不做语法配色自定义、不做主题包。</text>
-</svg>
-<figcaption><b>图 11-4</b>　界面偏好页。</figcaption>
-</figure>
-
-<table>
-<thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
-<tbody>
-<tr><td>外观</td><td>跟随系统</td><td>亮色 / 暗色 / 跟随系统，三选一（分段控件）。改完立刻生效</td></tr>
-<tr><td>显示系统数据库</td><td>关</td><td>打开后对象树里显示 <code>information_schema</code>、<code>performance_schema</code>、<code>mysql</code>、<code>sys</code></td></tr>
-<tr><td>左侧栏宽度</td><td>记忆</td><td>拖动后自动记住</td></tr>
-<tr><td>编辑器 / 结果区分割比例</td><td>记忆</td><td>拖动后自动记住</td></tr>
-<tr><td>界面语言</td><td>中文</td><td>当前仅中文</td></tr>
-</tbody>
-</table>
+<p>
+  「外观」与「显示系统数据库」已归入<b>通用</b>；「编辑器 / 结果区分割比例」归入<b>高级</b>。
+  左侧栏宽度拖动后自动记住，不再单独列一项；界面语言只有中文，不再显示。
+</p>
 
 <h2>高级 · Console Log</h2>
 
@@ -420,6 +362,8 @@
 <tr><td>打开时自动滚到底部</td><td>开</td><td></td></tr>
 </tbody>
 </table>
+
+<p class="fnt s">这三个选项也可以在日志标签工具栏的齿轮菜单里直接改。</p>
 
 <h2>明确不做</h2>
 

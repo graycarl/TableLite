@@ -200,6 +200,8 @@ struct OpenTableSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
+    @State private var selectedIndex = 0
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -208,6 +210,11 @@ struct OpenTableSheet: View {
                     .foregroundStyle(.secondary)
                 TextField("搜索表、视图…", text: $search)
                     .textFieldStyle(.plain)
+                    .focused($searchFocused)
+                    .onSubmit(openSelected)
+                    .onKeyPress(.upArrow) { moveSelection(-1); return .handled }
+                    .onKeyPress(.downArrow) { moveSelection(1); return .handled }
+                    .accessibilityIdentifier("open-table.search")
             }
             .padding(10)
 
@@ -219,32 +226,78 @@ struct OpenTableSheet: View {
                     .foregroundStyle(.secondary)
                 Spacer()
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(filtered) { object in
-                            Button {
-                                open(object)
-                                dismiss()
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: object.kind == .view ? "eye" : "tablecells")
-                                        .font(.caption)
-                                        .foregroundStyle(object.kind == .view ? .purple : .secondary)
-                                        .frame(width: 14)
-                                    Text(object.name).lineLimit(1)
-                                    Spacer()
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(filtered.enumerated()), id: \.element.id) { index, object in
+                                Button {
+                                    open(object)
+                                    dismiss()
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: object.kind == .view ? "eye" : "tablecells")
+                                            .font(.caption)
+                                            .foregroundStyle(object.kind == .view ? .purple : .secondary)
+                                            .frame(width: 14)
+                                        Text(object.name).lineLimit(1)
+                                        Spacer()
+                                    }
+                                    .contentShape(Rectangle())
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 5)
+                                    .background(
+                                        index == selectedIndex
+                                            ? Color.accentColor.opacity(0.14)
+                                            : Color.clear,
+                                        in: RoundedRectangle(cornerRadius: AppRadius.s)
+                                    )
                                 }
-                                .contentShape(Rectangle())
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 4)
+                                .buttonStyle(.plain)
+                                .id(object.id)
                             }
-                            .buttonStyle(.plain)
                         }
+                        .padding(.vertical, 4)
+                    }
+                    .onChange(of: selectedIndex) { _, newValue in
+                        guard filtered.indices.contains(newValue) else { return }
+                        proxy.scrollTo(filtered[newValue].id, anchor: .center)
                     }
                 }
             }
+
+            Divider()
+            HStack(spacing: 10) {
+                Text("↑↓ 选择 · ↩ 打开 · Esc 关闭")
+                    .font(AppFont.caption)
+                    .foregroundStyle(.tertiary)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
         }
-        .frame(width: 360, height: 420)
+        .frame(width: 380, height: 420)
+        .defaultFocus($searchFocused, true)
+        .onAppear {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                searchFocused = true
+            }
+        }
+        .onChange(of: search) { _, _ in selectedIndex = 0 }
+        .onChange(of: filtered.count) { _, newValue in
+            if selectedIndex >= newValue { selectedIndex = max(0, newValue - 1) }
+        }
+    }
+
+    private func moveSelection(_ delta: Int) {
+        guard !filtered.isEmpty else { return }
+        selectedIndex = min(max(selectedIndex + delta, 0), filtered.count - 1)
+    }
+
+    private func openSelected() {
+        guard filtered.indices.contains(selectedIndex) else { return }
+        open(filtered[selectedIndex])
+        dismiss()
     }
 
     private var filtered: [TableInfo] {

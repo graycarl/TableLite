@@ -52,6 +52,7 @@ struct QueryResultGridView: NSViewRepresentable {
         tableView.target = coordinator
         tableView.doubleAction = #selector(QueryResultGridCoordinator.tableViewDoubleClicked(_:))
         tableView.setAccessibilityLabel("查询结果网格")
+        tableView.setAccessibilityIdentifier("result.table")
 
         let headerView = ResultGridHeaderView()
         headerView.coordinator = coordinator

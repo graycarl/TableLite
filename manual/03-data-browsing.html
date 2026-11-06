@@ -517,18 +517,18 @@
   <g class="hot" data-hot="3"><circle cx="575" cy="24" r="11"/><text x="575" y="24">3</text></g>
   <g class="hot" data-hot="4"><circle cx="860" cy="24" r="11"/><text x="860" y="24">4</text></g>
 </svg>
-<figcaption><b>图 3-3</b>　网格下方条。左边是行数与显示条数，右边是筛选 / 列 / 导出。行数是估算的，所以前面写「约」。</figcaption>
+<figcaption><b>图 3-3</b>　网格下方条（线框为旧版）。改版后行数本身是菜单（显示条数 + 精确统计），大字段大小是单独的 chip；右侧仍是筛选 / 列 / 导出。</figcaption>
 </figure>
 
 <table class="controls">
 <thead><tr><th>#</th><th>控件</th><th>作用</th></tr></thead>
 <tbody>
 <tr data-hot="1"><td class="num">1</td><td class="wide">行数</td>
-  <td>写成 <code>已加载 / 总数</code>。总数是<b>估算值</b>，靠读取表的统计信息，很快但可能不准，所以前面标了「约」。估不出来时显示 <code>300 / 约 0 行（估算不可靠）</code>。加载超过 1 秒时后面会追加耗时（如 <code>· 4800 ms</code>），超过 10 秒再附带一个「取消」按钮。</td></tr>
-<tr data-hot="2"><td class="num">2</td><td class="wide">显示条数</td>
-  <td>一个下拉按钮，标签上就是当前上限（如 <code>300 ▾</code>）。下拉里可选 <code>100 / 300 / 1000 / 5000</code> 档位，或选「自定义…」手动填一个数，上限 10000。改完立即从头重新加载。</td></tr>
-<tr data-hot="3"><td class="num">3</td><td class="wide">统计</td>
-  <td>点它才真正执行一次 <code>COUNT(*)</code>，把「约 N 行」换成精确的总行数。大表可能很慢，期间可以取消。<b>打开表时绝不会自动做精确计数</b>。</td></tr>
+  <td>全部行已加载时只写 <code>4 行</code>；被显示条数截断时写 <code>300 / 约 12,480 行</code>。总数是<b>估算值</b>，所以前面标了「约」。加载超过 1 秒时后面会追加耗时，超过 10 秒再附带「取消」。</td></tr>
+<tr data-hot="2"><td class="num">2</td><td class="wide">行数菜单</td>
+  <td>点行数打开菜单：显示条数 <code>100 / 300 / 1000 / 5000</code> +「自定义…」（上限 10000），以及「精确统计」。切换条数立即从头重新加载。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">精确统计</td>
+  <td>在行数菜单里执行一次 <code>COUNT(*)</code>，把「约 N 行」换成精确总行数。大表可能很慢，期间行数旁出现进度与「取消」。<b>打开表时绝不会自动做精确计数</b>。</td></tr>
 <tr data-hot="4"><td class="num">4</td><td class="wide">筛选 / 列 / 导出</td>
   <td>分别打开行过滤器（<kbd>⌘F</kbd>）、列过滤器（<kbd>⌥⌘F</kbd>）和导出面板（<kbd>⇧⌘E</kbd>）。导出的永远是<b>当前过滤条件下</b>的全部数据。</td></tr>
 </tbody>
@@ -813,7 +813,7 @@
 
 <ul>
   <li><kbd>⌘R</kbd> 重新加载当前数据。</li>
-  <li>刷新<b>不会</b>丢弃未提交的改动，也不会打断你：暂存原样保留，改动数只体现在标签标题的橙点与工具栏「提交修改 · N」的数字上。</li>
+  <li>刷新<b>不会</b>丢弃未提交的改动，也不会打断你：暂存原样保留，改动数只体现在标签标题的橙点与网格下方变更条上的待提交条数。</li>
   <li>唯一会没的是大字段的临时缓存——之前点开看过的完整内容会重新变回截断状态。</li>
 </ul>
 

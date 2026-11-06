@@ -172,7 +172,7 @@
     <line class="ln" x1="250" y1="222" x2="788" y2="222"/>
     <text class="s" x="262" y="239">300 / 约 12,480 行</text>
     <text class="fnt s" x="400" y="239">300 ▾</text>
-    <text class="fnt s" x="452" y="239">统计</text>
+    <text class="fnt s" x="445" y="239">精确统计</text>
     <text class="acc s" x="690" y="239">筛选</text>
     <text class="acc s" x="724" y="239">列</text>
     <text class="acc s" x="754" y="239">导出</text>
@@ -359,7 +359,7 @@
   <g class="hot" data-hot="8"><circle cx="968" cy="16" r="11"/><text x="968" y="16">8</text></g>
   <path class="leader" d="M968 27 L968 47"/>
 </svg>
-<figcaption><b>图 2-2</b>　工具栏（与系统标题栏合一，红绿灯按钮与窗口标题也在这一行）。左半边是「我在哪」，右半边是「改了什么、要不要提交」。</figcaption>
+<figcaption><b>图 2-2</b>　工具栏（线框为旧版）。改版后左侧是连接切换器 + 库/标签标题，右侧是快速打开 / 刷新 / 字段栏开关；变更操作移到网格下方，仅在有过改动时出现。</figcaption>
 </figure>
 
 <table class="controls">
@@ -369,6 +369,8 @@
   <td>点开是连接列表（见下图）。左边的小圆点是这个连接的状态：灰=未连接，转圈=连接中，绿=正常，红=异常。</td><td>—</td></tr>
 <tr data-hot="2"><td class="num">2</td><td class="wide">快速打开</td>
   <td>在当前库里搜索表 / 视图并打开。替代原来标题栏中间的大搜索框。</td><td><kbd>⌘P</kbd></td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">刷新</td>
+  <td>刷新对象树与当前标签的数据；与菜单「连接 → 刷新」一致。</td><td><kbd>⌘R</kbd></td></tr>
 <tr data-hot="4"><td class="num">4</td><td class="wide">上下文变更条</td>
   <td>表格有未提交改动时出现在网格下方：<b>预览 SQL / 放弃 / 提交</b>。没有改动时整条不出现，不再占工具栏。</td><td><kbd>⇧⌘P</kbd> / <kbd>⇧⌘⌫</kbd> / <kbd>⌘S</kbd></td></tr>
 <tr data-hot="7"><td class="num">7</td><td class="wide">连接颜色带</td>
@@ -377,6 +379,14 @@
   <td>整体开启 / 关闭右侧字段栏。只在<b>表数据标签</b>里可用，其它标签上是灰的。没有选中行时字段栏本来就会收起；它<b>没有快捷键</b>。</td><td>—</td></tr>
 </tbody>
 </table>
+
+<div class="callout warn">
+  <span class="tag">图 2-2 是旧版线框</span>
+  <p>
+    当前工具栏只有：连接切换器 + 库/标签标题、快速打开、刷新、右侧字段栏开关。
+    图中的「前进 / 后退」「打开表…」「预览 / 提交」已经是旧版；变更操作现在在网格下方。
+  </p>
+</div>
 
 <div class="callout warn">
   <span class="tag">变更操作现在在哪</span>
@@ -786,7 +796,7 @@
 <tr><td>进入只读连接</td><td>顶部轻提示：<code>该连接处于只读模式，所有写操作已被禁用。</code></td><td><a href="09-readonly.html">第 9 章</a></td></tr>
 <tr><td>不可编辑的原因</td><td>网格底部条上方的一条提示，例如 <code>该表没有主键，行顺序不保证，且不可编辑</code></td><td><a href="03-data-browsing.html">第 3 章</a>、<a href="04-data-editing.html">第 4 章</a></td></tr>
 <tr><td>表结构概况</td><td>表结构标签底部：<code>11 列 · 3 索引 · 1 外键 · 0 触发器</code></td><td><a href="07-schema-view.html">第 7 章</a></td></tr>
-<tr><td>有未提交的改动</td><td>标签标题的橙点 + 工具栏「提交修改 · N」上的数字</td><td><a href="04-data-editing.html">第 4 章</a></td></tr>
+<tr><td>有未提交的改动</td><td>标签标题的橙点 + 网格下方变更条上的待提交条数</td><td><a href="04-data-editing.html">第 4 章</a></td></tr>
 </tbody>
 </table>
 

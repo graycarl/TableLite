@@ -42,6 +42,7 @@ private struct ConnectionListContent: View {
     @Bindable var viewModel: ConnectionListViewModel
     var presentsAsSheet: Bool
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -53,6 +54,20 @@ private struct ConnectionListContent: View {
             content
             Divider()
             bottomBar
+        }
+        .background {
+            Group {
+                Button("查找连接") { searchFocused = true }
+                    .keyboardShortcut("f", modifiers: .command)
+                Button("编辑选中的连接") {
+                    guard let connection = selectedConnection else { return }
+                    Task { await viewModel.beginEdit(connection) }
+                }
+                .keyboardShortcut("e", modifiers: .command)
+                .disabled(selectedConnection == nil)
+            }
+            .opacity(0)
+            .accessibilityHidden(true)
         }
         .sheet(isPresented: $viewModel.isFormPresented) {
             ConnectionFormView(form: $viewModel.formState, viewModel: viewModel)
@@ -205,6 +220,7 @@ private struct ConnectionListContent: View {
                 .accessibilityIdentifier("connections.search")
                 .textFieldStyle(.plain)
                 .font(AppFont.body)
+                .focused($searchFocused)
             if !viewModel.searchText.isEmpty {
                 Button {
                     viewModel.searchText = ""
@@ -295,28 +311,34 @@ private struct ConnectionListContent: View {
     }
 
     private var bottomBar: some View {
-        HStack {
+        HStack(spacing: 8) {
             Button {
                 viewModel.beginCreate()
             } label: {
                 Label("新建连接", systemImage: "plus")
             }
+            .buttonStyle(.subtle)
             .keyboardShortcut("n", modifiers: .command)
             .accessibilityIdentifier("connections.new")
+
+            Spacer()
+
+            if viewModel.hasReconnectableSessions {
+                Button("恢复全部") { Task { await viewModel.reconnectAll() } }
+                    .buttonStyle(.subtle)
+            }
 
             Button("连接") {
                 guard let connection = selectedConnection else { return }
                 Task { await viewModel.connect(connection) }
             }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.defaultAction)
             .accessibilityIdentifier("connections.connect")
             .disabled(selectedConnection == nil)
-
-            Spacer()
-            if viewModel.hasReconnectableSessions {
-                Button("恢复全部") { Task { await viewModel.reconnectAll() } }
-            }
         }
-        .padding(16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
     private var selectedConnection: Connection? {

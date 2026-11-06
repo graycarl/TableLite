@@ -237,7 +237,7 @@
   <path class="leader" d="M595 320 L601 320"/>
   <g class="hot" data-hot="7"><circle cx="584" cy="320" r="11"/><text x="584" y="320">7</text></g>
 </svg>
-<figcaption><b>图 4-1</b>　右侧字段栏。左边是只读的数据网格，右边是这一行所有字段的编辑器。</figcaption>
+<figcaption><b>图 4-1</b>　右侧字段栏（线框为旧版）。改版后字段 ≤10 个时不显示搜索框；值默认无边框，悬停/聚焦才出背景与描边；<code>∅</code> 只对 NULL 字段常驻。</figcaption>
 </figure>
 
 <table class="controls">
@@ -256,7 +256,7 @@
 <tr data-hot="6"><td class="num">6</td><td class="wide">∅ 按钮</td>
   <td>点一下把这个字段设为 <code>NULL</code>，再点一下恢复原来的值。值本来就是 <code>NULL</code> 时按钮呈按下状态。</td></tr>
 <tr data-hot="7"><td class="num">7</td><td class="wide">拖拽把手</td>
-  <td>拖它调整字段栏的宽度，范围 <b>260–560pt</b>（默认 320pt），全局记住。</td></tr>
+  <td>拖它调整字段栏的宽度，范围 <b>260–560pt</b>（默认 300pt），全局记住。</td></tr>
 </tbody>
 </table>
 
@@ -925,7 +925,7 @@
 
 <h2>提交</h2>
 
-<p>按 <kbd>⌘S</kbd> 或点工具栏「提交」。提交过程是这样的：</p>
+<p>按 <kbd>⌘S</kbd> 或点网格下方变更条里的「提交」。提交过程是这样的：</p>
 
 <ol class="steps">
   <li>界面锁定编辑，网格上盖一层遮罩显示 <code>正在提交 3/7…</code></li>
@@ -1002,7 +1002,7 @@
 <h2>放弃</h2>
 
 <ul>
-  <li><kbd>⇧⌘⌫</kbd> 或点工具栏「放弃」：清空整个暂存区并重新加载当前页。</li>
+  <li><kbd>⇧⌘⌫</kbd> 或点网格下方变更条里的「放弃」：清空整个暂存区并重新加载当前页。</li>
   <li>改动超过 5 条，或者包含删除 / 新增时，会先弹窗确认。</li>
   <li>只想回退一行：右键那一行 → <code>撤销该行的修改</code>。</li>
   <li>放弃后表格恢复成服务器上的真实数据。</li>

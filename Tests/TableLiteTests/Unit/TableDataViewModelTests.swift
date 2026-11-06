@@ -416,7 +416,7 @@ final class TableDataViewModelTests: XCTestCase {
         await viewModel.start()
 
         XCTAssertEqual(viewModel.largeFieldSizeSummary, "content 1.2 MB")
-        XCTAssertEqual(viewModel.largeFieldSizeSummary, "content 1.2 MB")
+        XCTAssertFalse(viewModel.compactRowCountText.contains("MB"))
     }
 
     func testStatusBarHasNoLargeFieldSummaryWithoutTruncation() async throws {
@@ -427,7 +427,7 @@ final class TableDataViewModelTests: XCTestCase {
         await viewModel.start()
 
         XCTAssertNil(viewModel.largeFieldSizeSummary)
-        XCTAssertNil(viewModel.largeFieldSizeSummary)
+        XCTAssertFalse(viewModel.compactRowCountText.contains("MB"))
     }
 
     /// 耗时阈值口径在 `WorkspaceStatusText.tableDataSummary`，`compactRowCountText` 不再拼接耗时

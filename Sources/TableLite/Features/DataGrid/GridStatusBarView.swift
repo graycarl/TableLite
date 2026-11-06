@@ -168,6 +168,8 @@ struct GridStatusBarView: View {
             Text(summary)
                 .font(.system(size: 10.5))
                 .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 260, alignment: .leading)
         }
         .foregroundStyle(.secondary)
         .padding(.horizontal, 6)
