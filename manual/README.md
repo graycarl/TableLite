@@ -34,7 +34,7 @@ open manual/index.html
 | `08-import-export.html` | 导出面板、CSV 导入向导三步、从 CSV 建表 |
 | `09-readonly.html` | 只读标识、被禁止的操作、语句拦截规则 |
 | `10-ssh-tunnel.html` | 三种认证方式、指纹警告、错误提示、清理要求 |
-| `11-preferences.html` | 七个偏好分类的全部选项 |
+| `11-preferences.html` | 四个偏好分类的全部选项 |
 | `12-shortcuts.html` | 快捷键速查表 |
 | `13-feedback.html` | 四种反馈形态、错误面板结构、文案规范 |
 

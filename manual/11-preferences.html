@@ -99,14 +99,14 @@
   <g class="hot" data-hot="2"><circle cx="260" cy="116" r="11"/><text x="260" y="116">2</text></g>
   <g class="hot" data-hot="3"><circle cx="950" cy="80" r="11"/><text x="950" y="80">3</text></g>
 </svg>
-<figcaption><b>图 11-1</b>　偏好设置窗口。左边七个分类，右边是选项。</figcaption>
+<figcaption><b>图 11-1</b>　偏好设置窗口（线框为旧版七分类）。改版后合并为四个分类：通用 / SQL 编辑器 / 表数据 / 高级；分类变少，选项内容不变。</figcaption>
 </figure>
 
 <table class="controls">
 <thead><tr><th>#</th><th>元素</th><th>说明</th></tr></thead>
 <tbody>
 <tr data-hot="1"><td class="num">1</td><td class="wide">分类列表</td>
-  <td>通用 / 连接 / 表数据 / SQL 编辑器 / CSV 与导出 / 界面 / Console Log。当前分类高亮。</td></tr>
+  <td>通用 / SQL 编辑器 / 表数据 / 高级。当前分类高亮。CSV 与 Console Log 的默认值分别收进导出面板和日志标签菜单。</td></tr>
 <tr data-hot="2"><td class="num">2</td><td class="wide">开关与输入框</td>
   <td>所有选项即时生效。灰字是对这个选项的一句话解释。</td></tr>
 <tr data-hot="3"><td class="num">3</td><td class="wide">分类标题</td>
@@ -121,7 +121,7 @@
 <tbody>
 <tr><td>恢复上次的脚本内容</td><td>开</td><td>重新打开查询标签（含连接后还原出来的标签）时恢复上次的编辑内容</td></tr>
 <tr><td>空闲自动断开连接</td><td>开</td><td>空闲 5 分钟且没有标签引用时自动断开</td></tr>
-<tr><td>报告崩溃</td><td>关</td><td>不做崩溃上报，此项目前不出现</td></tr>
+
 </tbody>
 </table>
 
@@ -129,7 +129,7 @@
   启动行为不在这个面板里：每次启动都显示连接列表，连上某个连接之后才还原它的标签现场（见第 1 章）。
 </p>
 
-<h2>连接</h2>
+<h2>高级 · 连接默认值</h2>
 
 <table>
 <thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
@@ -191,7 +191,7 @@
 
   <text x="20" y="334">右侧字段栏宽度</text>
   <rect class="s-field ln2" x="280" y="320" width="90" height="28" rx="6"/>
-  <text x="292" y="334">320</text>
+  <text x="292" y="334">300</text>
   <text class="mut" x="378" y="334">pt</text>
   <text class="fnt s" x="440" y="334">可拖拽，260–560pt，全局记住</text>
 
@@ -234,13 +234,13 @@
 <tbody>
 <tr><td>默认显示行数</td><td>300</td><td>可选 100 / 300 / 1000 / 5000</td></tr>
 <tr><td>字号</td><td>13</td><td>网格正文的文字大小</td></tr>
-<tr><td>交替行底色</td><td>开</td><td>关闭后所有行同色</td></tr>
+<tr><td>交替行底色</td><td>开</td><td>只作用于有数据的行；空白区域不加斑马纹</td></tr>
 <tr><td>自动隐藏滚动条</td><td>开</td><td></td></tr>
 <tr><td>超长内容截断阈值</td><td>4096 字节</td><td>超过该长度的文本 / 二进制列会延迟加载</td></tr>
 <tr><td><code>NULL</code> 的显示文本</td><td><code>NULL</code></td><td>可改为 <code>(null)</code>、<code>&lt;空&gt;</code> 等</td></tr>
 <tr><td>把 <code>tinyint(1)</code> 显示为复选框</td><td>关</td><td>打开后该类型以三态复选框呈现</td></tr>
-<tr><td>显示右侧字段栏</td><td>开</td><td>关闭后打开表时不显示字段栏，可用工具栏按钮再打开</td></tr>
-<tr><td>右侧字段栏宽度</td><td>全局记忆</td><td>可拖拽，260–560pt，默认 320pt</td></tr>
+<tr><td>显示右侧字段栏</td><td>开</td><td>关闭后选中行也不显示字段栏，可用工具栏按钮再打开</td></tr>
+<tr><td>右侧字段栏宽度</td><td>全局记忆</td><td>可拖拽，260–560pt，默认 300pt；未选中行时字段栏收起</td></tr>
 <tr><td>记住每张表的列宽与列显隐</td><td>开</td><td></td></tr>
 <tr><td>记住每张表的过滤条件</td><td>开</td><td></td></tr>
 </tbody>
@@ -329,7 +329,7 @@
 </tbody>
 </table>
 
-<h2>CSV 与导出</h2>
+<h2>高级 · CSV 与导出默认值</h2>
 
 <table>
 <thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>
@@ -350,7 +350,7 @@
   </p>
 </div>
 
-<h2>界面</h2>
+<h2>高级 · 界面与其他</h2>
 
 <figure>
 <svg viewBox="0 0 1000 440" role="img" aria-label="界面偏好页">
@@ -410,7 +410,7 @@
 </tbody>
 </table>
 
-<h2>Console Log</h2>
+<h2>高级 · Console Log</h2>
 
 <table>
 <thead><tr><th>选项</th><th>默认</th><th>说明</th></tr></thead>

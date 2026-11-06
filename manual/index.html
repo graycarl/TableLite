@@ -116,14 +116,14 @@
     <line class="ln" x1="410" y1="16" x2="410" y2="44"/>
 
     <rect class="s-field ln2" x="540" y="17" width="104" height="26" rx="6"/>
-    <text class="c" x="592" y="31">+ 打开表…</text>
+    <text class="c" x="540" y="31">⌘P 快速打开</text>
 
     <rect class="s-field ln2" x="676" y="17" width="64" height="26" rx="6"/>
     <text class="c mut" x="708" y="31">放弃</text>
     <rect class="s-field ln2" x="748" y="17" width="64" height="26" rx="6"/>
     <text class="c mut" x="780" y="31">预览</text>
     <rect class="s-accent" x="820" y="17" width="110" height="26" rx="6"/>
-    <text class="c" x="875" y="31" fill="#fff">提交修改 · 7</text>
+    <text class="c" x="875" y="31" fill="#fff">提交 · 7</text>
     <rect class="s-field ln2" x="938" y="17" width="44" height="26" rx="6"/>
     <text class="c" x="960" y="31">▤</text>
 
@@ -299,7 +299,7 @@
     <g class="hot" data-hot="10"><circle cx="980" cy="452" r="11"/><text x="980" y="452">10</text></g>
   </g>
 </svg>
-<figcaption><b>图 0-1</b>　主窗口整体布局。数字编号对应下面的控件说明表。</figcaption>
+<figcaption><b>图 0-1</b>（线框为旧版工具栏；改版后「打开表…」收成 `⌘P`，变更操作移到网格下方）　主窗口整体布局。数字编号对应下面的控件说明表。</figcaption>
 </figure>
 
 <table class="controls">
@@ -309,10 +309,10 @@
 <tbody>
 <tr data-hot="1"><td class="num">1</td><td class="wide">连接切换器</td>
   <td>显示当前连接与所在库。点开可以切换到别的连接、编辑连接、重新连接或断开。切换连接不会断开之前那个连接，只是换一组标签来看。</td><td><kbd>⌘K</kbd> 切换库</td></tr>
-<tr data-hot="2"><td class="num">2</td><td class="wide">打开表…</td>
+<tr data-hot="2"><td class="num">2</td><td class="wide">快速打开 / 上下文变更条</td>
   <td>弹出一个表名搜索框，不用去左侧栏翻。左边紧挨着的 <b>‹ ›</b> 是标签的历史前进后退。</td><td><kbd>⌘[</kbd> <kbd>⌘]</kbd></td></tr>
 <tr data-hot="3"><td class="num">3</td><td class="wide">变更操作组</td>
-  <td><b>放弃</b>丢掉全部未提交修改；<b>预览</b>列出将要执行的 SQL；<b>提交</b>真的写库。按钮上的数字是待提交条数，为 0 时整组变灰。</td><td><kbd>⇧⌘⌫</kbd> <kbd>⇧⌘P</kbd> <kbd>⌘S</kbd></td></tr>
+  <td>标题栏的 <code>⌘P</code> 用来在当前库快速打开表 / 视图。变更操作不再常驻工具栏：有未提交改动时，网格下方出现上下文变更条，<b>预览 SQL / 放弃 / 提交</b> 都在那里，并显示待提交条数。</td><td><kbd>⇧⌘⌫</kbd> <kbd>⇧⌘P</kbd> <kbd>⌘S</kbd></td></tr>
 <tr data-hot="4"><td class="num">4</td><td class="wide">连接颜色带</td>
   <td>一条 2pt 的细带，用连接配置里的颜色着色。给生产库配红色，一眼就能看出当前在哪个环境。</td><td>—</td></tr>
 <tr data-hot="5"><td class="num">5</td><td class="wide">库切换器与搜索框</td>
@@ -322,7 +322,7 @@
 <tr data-hot="7"><td class="num">7</td><td class="wide">查询历史 / Console Log</td>
   <td>左侧栏底部两个入口，<b>只显示图标</b>（时钟 / 终端），鼠标悬停时显示名称。<b>查询历史</b>记录你在编辑器里跑过的语句；<b>Console Log</b> 记录所有发给服务器的语句，包括客户端自动发的元数据查询。</td><td><kbd>⇧⌘C</kbd></td></tr>
 <tr data-hot="8"><td class="num">8</td><td class="wide">标签栏</td>
-  <td>当前连接打开的所有东西：表数据、表结构、查询、历史、日志。当前标签用圆角底色块突出，顶边是连接颜色线。标题右边的橙点表示这个标签有未提交的改动。中键点击关闭标签。</td><td><kbd>⌘W</kbd> <kbd>⌘[</kbd> <kbd>⌘]</kbd> <kbd>⌘1</kbd>…<kbd>⌘9</kbd></td></tr>
+  <td>当前连接打开的所有东西：表数据、表结构、查询、历史、日志。每个标签标题前有类型图标，当前标签用圆角底色块突出；标题右边的橙点表示这个标签有未提交的改动。中键点击关闭标签。</td><td><kbd>⌘W</kbd> <kbd>⌘[</kbd> <kbd>⌘]</kbd> <kbd>⌘1</kbd>…<kbd>⌘9</kbd></td></tr>
 <tr data-hot="9"><td class="num">9</td><td class="wide">标签内容区（数据网格）</td>
   <td>占窗口最大的部分。表数据标签里是<b>只读</b>的数据网格：能选、能排序、能复制，但不能在格子里改值。查询标签里是编辑器加只读结果区，结构标签里是只读的列表。</td><td>—</td></tr>
 <tr data-hot="10"><td class="num">10</td><td class="wide">右侧字段栏</td>

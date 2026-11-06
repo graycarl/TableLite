@@ -65,8 +65,8 @@
 <div class="callout">
   <span class="tag">按钮上的数字</span>
   <p>
-    工具栏「提交修改」按钮右边始终显示待提交的改动条数。它是 0 的时候整个按钮组是灰的，
-    所以「现在有没有没提交的东西」这个问题，扫一眼工具栏就知道。
+    有未提交改动时，网格下方会出现一条上下文变更条，显示待提交的改动条数，并给出「预览 SQL / 放弃 / 提交」。
+    没有改动时整条不出现，工具栏保持安静。
   </p>
 </div>
 
@@ -122,7 +122,7 @@
   <rect class="s-field ln2" x="36" y="27" width="96" height="20" rx="6"/>
   <text class="s c" x="84" y="37">users</text>
   <text class="fnt s" x="146" y="37">行 2 · 已选 1 行 · 没有未提交的改动</text>
-  <text class="fnt s r" x="912" y="37">放弃　预览　提交修改</text>
+  <text class="fnt s r" x="820" y="37">2 处未提交　预览　放弃　提交</text>
   <rect class="s-soft" x="940" y="26" width="28" height="22" rx="6"/>
   <rect class="lnA" x="940" y="26" width="28" height="22" rx="6"/>
   <text class="acc c" x="954" y="37">▤</text>
@@ -866,7 +866,7 @@
 
 <h2>预览</h2>
 
-<p>按 <kbd>⇧⌘P</kbd> 或点工具栏「预览」，看看将要执行什么。</p>
+<p>按 <kbd>⇧⌘P</kbd> 或点网格下方变更条里的「预览 SQL」，看看将要执行什么。</p>
 
 <figure>
 <svg viewBox="0 0 1000 420" role="img" aria-label="预览将要执行的 SQL 面板">
