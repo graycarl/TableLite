@@ -67,6 +67,8 @@ struct ConnectionSwitcher: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(PendingChangesCoordinator.self) private var pendingChanges
     @State private var isPresented = false
+    /// 先关 popover，下一帧再呈现连接管理 sheet；不把非 Sendable 闭包丢进 DispatchQueue。
+    @State private var pendingAction: (() -> Void)?
 
     var body: some View {
         Button {
@@ -99,6 +101,11 @@ struct ConnectionSwitcher: View {
         .popover(isPresented: $isPresented, arrowEdge: .top) {
             connectionMenu
                 .frame(width: 300)
+        }
+        .onChange(of: isPresented) { _, presented in
+            guard !presented, let action = pendingAction else { return }
+            pendingAction = nil
+            action()
         }
     }
 
@@ -176,8 +183,8 @@ struct ConnectionSwitcher: View {
     }
 
     private func dismissAnd(_ action: @escaping () -> Void) {
+        pendingAction = action
         isPresented = false
-        DispatchQueue.main.async(execute: action)
     }
 
     private func reconnect() {
