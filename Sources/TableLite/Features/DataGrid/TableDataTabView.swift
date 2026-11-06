@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 表数据标签的内容视图。
 ///
-/// 组合：过滤栏 → 数据网格（AppKit）→ 插入行脚 → 上下文变更条 → 底部「概况 + 操作」条。
+/// 组合：生效过滤 chips → 数据网格（AppKit）→ 插入行脚 → 上下文变更条 → 底部「概况 + 操作」条。
 /// 右侧字段栏由 `WorkspaceView` 渲染，读的是 `tab.content` 里的同一个 ViewModel。
 /// T9 在这里挂上预览 / 提交失败 / 放弃确认 / 快速查看的呈现。
 struct TableDataTabView: View {
@@ -46,7 +46,9 @@ struct TableDataTabView: View {
 
     private func content(_ viewModel: TableDataViewModel) -> some View {
         VStack(spacing: 0) {
-            FilterBarView(viewModel: viewModel)
+            FilterChipsBar(viewModel: viewModel) {
+                viewModel.setFilterVisible(true)
+            }
 
             ZStack {
                 DataGridView(

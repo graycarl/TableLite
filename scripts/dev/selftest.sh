@@ -84,6 +84,7 @@ ensure_filter_panel
 ensure_raw_mode
 "$TL" ax type --id filter.raw-input --text "status = 'refunded'" >/dev/null
 "$TL" ax click --id filter.apply >/dev/null
+expect_id grid.filter.chips
 wait_cell_text 1 status refunded
 echo "  ✓ 过滤生效（第 1 行 status = refunded）"
 "$TL" shot /tmp/tablelite-selftest-3.png --width 1000 >/dev/null

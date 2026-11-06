@@ -64,6 +64,9 @@ struct GridStatusBarView: View {
             .controlSize(.small)
             .help("打开或关闭行过滤器（⌘F）")
             .accessibilityIdentifier("grid.statusbar.filter")
+            .popover(isPresented: filterBinding, arrowEdge: .bottom) {
+                FilterBarView(viewModel: viewModel)
+            }
 
             Button {
                 viewModel.presentColumnFilter()
@@ -86,6 +89,13 @@ struct GridStatusBarView: View {
         .padding(.horizontal, 10)
         .frame(height: 30)
         .background(.bar)
+    }
+
+    private var filterBinding: Binding<Bool> {
+        Binding(
+            get: { viewModel.isFilterVisible },
+            set: { viewModel.setFilterVisible($0) }
+        )
     }
 
     /// 行数 + 显示条数 + 精确统计合并成一个菜单，避免三个控件抢底部条宽度。

@@ -187,6 +187,10 @@ public final class TableDataViewModel {
             self.filterDraft = rememberedFilter ?? FilterState()
         }
         self.columnWidths = session.tableLayout(database: self.database, table: self.table)?.columnWidths ?? [:]
+        // 卡片是临时浮层：从标签现场 / 按表记住的状态恢复时保持关闭，只有主动点「筛选」
+        // 或快捷筛选动作才打开（条件本身照常生效，chips 负责摘要）。
+        self.filter?.isVisible = false
+        self.filterDraft.isVisible = false
     }
 
     // MARK: 生命周期
@@ -528,6 +532,36 @@ public final class TableDataViewModel {
         startQuery()
     }
 
+    /// chips 上的 `×`：只改**已应用**的过滤，不把卡片里未应用的草稿带进来。
+    public func removeAppliedFilterCondition(id: UUID) {
+        guard var applied = filter else { return }
+        applied.conditions.removeAll { $0.id == id }
+        applied.isVisible = false
+        filter = applied
+        filterDraft = applied
+        filterError = nil
+        filterErrorConditionIDs = []
+        if hasPendingChanges {
+            showToast("切换过滤条件会重新加载数据，你的修改会保留在暂存区")
+        }
+        persistFilter()
+        syncTab()
+        bumpRevision()
+        startQuery()
+    }
+
+    /// chips 上的「清除」：清空已应用的过滤并关闭卡片，不保留草稿。
+    public func clearAppliedFilter() {
+        filter = nil
+        filterDraft = FilterState()
+        filterError = nil
+        filterErrorConditionIDs = []
+        persistFilter()
+        syncTab()
+        bumpRevision()
+        startQuery()
+    }
+
     /// 点「重置」：清空全部条件并重新加载。
     public func resetFilter() {
         filterDraft.reset()
@@ -713,7 +747,8 @@ public final class TableDataViewModel {
         var condition = FilterCondition(column: column, op: op, value: value)
         applyColumnInfo(to: &condition)
         filterDraft.conditions.append(condition)
-        filterDraft.isVisible = true
+        // 按值 / 排除只落到 chips，不弹筛选卡片。
+        filterDraft.isVisible = false
         filterError = nil
         filterErrorConditionIDs = []
         filter = filterDraft
@@ -1358,7 +1393,7 @@ public final class TableDataViewModel {
     /// 把过滤器草稿写回 WorkspaceStateStore（偏好关闭时自然被 `saveTableFilter` 忽略）。
     private func persistFilter() {
         // 外键 `↗` 带入的条件不是用户对该表的记忆，未改动前不写回，避免污染「按表记住的过滤」。
-        if let navigationFilter, navigationFilter == filterDraft { return }
+        if let navigationFilter, navigationFilter.hasSameCriteria(as: filterDraft) { return }
         let hasContent = filterDraft.isActive || filterDraft.isVisible
         session.saveTableFilter(database: database, table: table, filter: hasContent ? filterDraft : nil)
     }
