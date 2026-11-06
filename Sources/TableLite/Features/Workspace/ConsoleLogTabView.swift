@@ -34,7 +34,8 @@ struct ConsoleLogTabView: View {
     }
 
     private var toolbar: some View {
-        HStack(spacing: 8) {
+        @Bindable var preferences = environment.preferences
+        return HStack(spacing: 8) {
             Picker("类别", selection: $filter) {
                 ForEach(ConsoleLogFilter.allCases) { option in
                     Text(option.title).tag(option)
@@ -66,6 +67,38 @@ struct ConsoleLogTabView: View {
             Button("清空") { showClearConfirmation = true }
                 .buttonStyle(.subtle)
                 .disabled(environment.consoleLog.entries.isEmpty)
+
+            Divider()
+                .frame(height: 16)
+
+            Menu {
+                Menu("保留条数") {
+                    Button("当前 \(preferences.consoleLogCapacity) 条") {}
+                        .disabled(true)
+                    Divider()
+                    ForEach([1000, 5000, 10_000, 50_000], id: \.self) { size in
+                        Button {
+                            preferences.consoleLogCapacity = size
+                        } label: {
+                            if preferences.consoleLogCapacity == size {
+                                Label("\(size) 条", systemImage: "checkmark")
+                            } else {
+                                Text("\(size) 条")
+                            }
+                        }
+                    }
+                }
+                Toggle("写入日志文件", isOn: $preferences.consoleLogWriteToFile)
+                Toggle("打开时自动滚到底部", isOn: $preferences.consoleLogScrollToBottom)
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Console Log 设置")
+            .accessibilityLabel("Console Log 设置")
+            .accessibilityIdentifier("console.log.settings")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

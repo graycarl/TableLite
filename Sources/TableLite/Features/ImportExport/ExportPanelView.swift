@@ -43,6 +43,7 @@ struct ExportPanelView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
     @State private var model: ExportViewModel?
+    @State private var showOptions = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -60,18 +61,7 @@ struct ExportPanelView: View {
             Divider()
 
             if let model {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        sourceSection(model)
-                        ExportOptionsSection(model: model)
-                        destinationSection(model)
-                        ProgressSection(model: model)
-                    }
-                    .padding(18)
-                }
-
-                Divider()
-                footer(model)
+                panelContent(model)
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -88,6 +78,42 @@ struct ExportPanelView: View {
                 model?.onFinish = onFinish
             }
         }
+        .onChange(of: model?.delimiter) { _, _ in model?.persistOptions() }
+        .onChange(of: model?.lineEnding) { _, _ in model?.persistOptions() }
+        .onChange(of: model?.includeHeader) { _, _ in model?.persistOptions() }
+        .onChange(of: model?.encoding) { _, _ in model?.persistOptions() }
+        .onChange(of: model?.nullRepresentation) { _, _ in model?.persistOptions() }
+    }
+
+
+    @ViewBuilder
+    private func panelContent(_ model: ExportViewModel) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                sourceSection(model)
+                csvOptions(model)
+                Toggle("后台导出，完成后通知我", isOn: Binding(
+                    get: { model.backgroundExport },
+                    set: { model.backgroundExport = $0 }
+                ))
+                .help("打开后可以切到别的标签继续工作")
+                destinationSection(model)
+                ProgressSection(model: model)
+            }
+            .padding(18)
+        }
+
+        Divider()
+        footer(model)
+    }
+
+    @ViewBuilder
+    private func csvOptions(_ model: ExportViewModel) -> some View {
+        DisclosureGroup("CSV 选项", isExpanded: $showOptions) {
+            ExportOptionsSection(model: model)
+                .padding(.top, 6)
+        }
+        .font(AppFont.body)
     }
 
     // MARK: 源
@@ -183,9 +209,6 @@ private struct ExportOptionsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("CSV 选项")
-                .font(.headline)
-
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 10) {
                 SwiftUI.GridRow {
                     Text("分隔符")
@@ -267,8 +290,6 @@ private struct ExportOptionsSection: View {
             }
 
             Toggle("包含表头", isOn: $model.includeHeader)
-            Toggle("后台导出，完成后通知我", isOn: $model.backgroundExport)
-                .help("打开后可以切到别的标签继续工作")
         }
     }
 }
