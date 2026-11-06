@@ -126,7 +126,7 @@ struct WorkspaceView: View {
             .frame(width: 320, height: 420)
         }
         .sheet(isPresented: $showConnectionList) {
-            ConnectionsView()
+            ConnectionsView(presentsAsSheet: true)
         }
         .sheet(item: $exportCenter.request) { request in
             ExportPanelView(

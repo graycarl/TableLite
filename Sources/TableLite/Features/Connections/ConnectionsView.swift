@@ -10,18 +10,22 @@ struct ConnectionsView: View {
 
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: ConnectionListViewModel?
+    var presentsAsSheet: Bool
 
-    init() {}
+    init(presentsAsSheet: Bool = false) {
+        self.presentsAsSheet = presentsAsSheet
+    }
 
     var body: some View {
         Group {
             if let viewModel {
-                ConnectionListContent(viewModel: viewModel)
+                ConnectionListContent(viewModel: viewModel, presentsAsSheet: presentsAsSheet)
             } else {
                 Color.clear
             }
         }
         .frame(minWidth: 560, minHeight: 420)
+        .navigationTitle("连接")
         .task {
             if viewModel == nil {
                 viewModel = ConnectionListViewModel(environment: environment)
@@ -36,10 +40,15 @@ struct ConnectionsView: View {
 private struct ConnectionListContent: View {
 
     @Bindable var viewModel: ConnectionListViewModel
+    var presentsAsSheet: Bool
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
+            if presentsAsSheet {
+                sheetHeader
+                Divider()
+            }
             banners
             content
             Divider()
@@ -115,18 +124,26 @@ private struct ConnectionListContent: View {
         }
     }
 
-    // MARK: 头部与提示
+    // MARK: 提示
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("TableLite")
-                .font(.title.bold())
-            Text("macOS 原生 MySQL 客户端")
-                .foregroundStyle(.secondary)
+    private var sheetHeader: some View {
+        HStack(spacing: 8) {
+            Text("连接")
+                .font(.headline)
+            Spacer()
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+            }
+            .buttonStyle(.plain)
+            .help("关闭")
+            .accessibilityLabel("关闭")
+            .accessibilityIdentifier("connections.sheet.close")
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
     @ViewBuilder
@@ -180,29 +197,56 @@ private struct ConnectionListContent: View {
     }
 
     private var searchField: some View {
-        TextField("搜索连接…", text: $viewModel.searchText)
-            .accessibilityIdentifier("connections.search")
-            .textFieldStyle(.roundedBorder)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 8)
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            TextField("搜索连接…", text: $viewModel.searchText)
+                .accessibilityIdentifier("connections.search")
+                .textFieldStyle(.plain)
+                .font(AppFont.body)
+            if !viewModel.searchText.isEmpty {
+                Button {
+                    viewModel.searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("清除搜索")
+                .accessibilityIdentifier("connections.search.clear")
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: AppRadius.m))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
     }
 
     private var emptyState: some View {
-        VStack {
-            Spacer()
-            Text("选择一个连接开始")
+        VStack(spacing: 8) {
+            Image(systemName: "cylinder.split.1x2")
+                .font(.system(size: 28))
+                .foregroundStyle(.tertiary)
+            Text("还没有连接")
+                .font(AppFont.body)
                 .foregroundStyle(.secondary)
-            Spacer()
+            Button("新建连接") { viewModel.beginCreate() }
+                .controlSize(.small)
+                .accessibilityIdentifier("connections.empty.new")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var noMatchesState: some View {
-        VStack {
-            Spacer()
+        VStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 22))
+                .foregroundStyle(.tertiary)
             Text("没有匹配的连接")
+                .font(AppFont.body)
                 .foregroundStyle(.secondary)
-            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -213,6 +257,8 @@ private struct ConnectionListContent: View {
                 ConnectionRowView(
                     connection: connection,
                     status: viewModel.status(for: connection),
+                    isSelected: connection.id == viewModel.selectedConnectionID,
+                    isCurrent: connection.id == viewModel.activeConnectionID,
                     onReconnect: { Task { await viewModel.reconnect(connection) } },
                     onDetails: {
                         guard case .failed(let failure) = viewModel.status(for: connection) else { return }
@@ -220,9 +266,15 @@ private struct ConnectionListContent: View {
                             failure: failure,
                             connection: connection
                         )
-                    }
+                    },
+                    onEdit: { Task { await viewModel.beginEdit(connection) } },
+                    onDuplicate: { Task { await viewModel.duplicate(connection) } },
+                    onDelete: { viewModel.requestDelete(connection) }
                 )
                 .tag(connection.id)
+                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
                 .simultaneousGesture(
                     TapGesture(count: 2).onEnded {
                         Task { await viewModel.connect(connection) }
@@ -238,7 +290,8 @@ private struct ConnectionListContent: View {
                 }
             }
         }
-        .listStyle(.inset)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 
     private var bottomBar: some View {
@@ -308,8 +361,15 @@ private struct ConnectionStatusIndicator: View {
 private struct ConnectionRowView: View {
     let connection: Connection
     let status: ConnectionListViewModel.RowStatus
+    let isSelected: Bool
+    let isCurrent: Bool
     let onReconnect: () -> Void
     let onDetails: () -> Void
+    let onEdit: () -> Void
+    let onDuplicate: () -> Void
+    let onDelete: () -> Void
+
+    @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -322,30 +382,97 @@ private struct ConnectionRowView: View {
                             .fill(connection.color.swatchColor)
                             .frame(width: 8, height: 8)
                     }
-                    if connection.isReadOnly {
-                        Image(systemName: "lock.fill")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
                     Text(connection.name)
-                        .font(.body.weight(.medium))
+                        .font(AppFont.body)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                    if isCurrent {
+                        badge("当前")
+                    }
+                    if connection.ssh.enabled {
+                        badge("SSH")
+                    }
+                    if connection.isReadOnly {
+                        HStack(spacing: 2) {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 8))
+                            Text("只读")
+                        }
+                        .font(.system(size: 9))
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(Color.orange.opacity(0.4))
+                        )
+                    }
                 }
-                Text(summary)
-                    .font(.callout)
+                Text(connection.summary)
+                    .font(AppFont.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
 
             Spacer(minLength: 8)
-            accessory
+
+            if isHovering, showsHoverActions {
+                HStack(spacing: 2) {
+                    iconButton("pencil", id: "connections.row.edit", help: "编辑", action: onEdit)
+                    iconButton("plus.square.on.square", id: "connections.row.duplicate", help: "复制为新连接", action: onDuplicate)
+                    iconButton("trash", id: "connections.row.delete", help: "删除", action: onDelete)
+                }
+                .transition(.opacity)
+            } else {
+                accessory
+            }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .frame(height: 54)
+        .background(
+            isSelected
+                ? Color.accentColor.opacity(0.12)
+                : (isHovering ? Color.primary.opacity(0.04) : Color.clear),
+            in: RoundedRectangle(cornerRadius: AppRadius.m)
+        )
         .contentShape(Rectangle())
+        .onHover { isHovering = $0 }
+        .animation(.easeOut(duration: 0.1), value: isHovering)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(connection.name)
+        .accessibilityValue(connection.summary)
     }
 
-    private var summary: String {
-        connection.isReadOnly ? "\(connection.summary) · 只读" : connection.summary
+    private var showsHoverActions: Bool {
+        switch status {
+        case .notConnected, .connected: return true
+        case .connecting, .failed, .needsReconnect: return false
+        }
+    }
+
+    private func badge(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(Color.secondary.opacity(0.3))
+            )
+    }
+
+    private func iconButton(_ symbol: String, id: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 11))
+        }
+        .buttonStyle(.subtle)
+        .controlSize(.small)
+        .help(help)
+        .accessibilityLabel(help)
+        .accessibilityIdentifier(id)
     }
 
     @ViewBuilder
@@ -353,12 +480,13 @@ private struct ConnectionRowView: View {
         switch status {
         case .connecting(let step):
             Text(step.progressText)
-                .font(.caption)
+                .font(AppFont.caption)
                 .foregroundStyle(.secondary)
         case .failed:
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Button("查看详情") { onDetails() }
                     .controlSize(.small)
+                    .buttonStyle(.subtle)
                 Button("重新连接") { onReconnect() }
                     .controlSize(.small)
             }

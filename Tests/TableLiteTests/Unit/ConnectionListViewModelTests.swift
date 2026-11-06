@@ -242,10 +242,20 @@ final class ConnectionListViewModelTests: XCTestCase {
         await viewModel.runCurrentFormTest()
 
         XCTAssertFalse(viewModel.isTesting)
-        XCTAssertTrue(viewModel.isTestPresented)
+        // 结果先内联显示在表单底部；详情面板由用户点「详情」再打开。
+        XCTAssertFalse(viewModel.isTestPresented)
         let report = try XCTUnwrap(viewModel.testReport)
         XCTAssertTrue(report.succeeded)
         XCTAssertEqual(report.steps.map(\.step), [.mysql, .serverInfo])
+
+        viewModel.cancelTest()
+        XCTAssertNotNil(viewModel.testReport)
+        XCTAssertFalse(viewModel.isTestPresented)
+
+        viewModel.invalidateTestResult()
+        XCTAssertNil(viewModel.testReport)
+        XCTAssertFalse(viewModel.isTesting)
+        XCTAssertFalse(viewModel.isTestPresented)
     }
 
     func testRunCurrentFormTestReportsMySQLFailure() async throws {

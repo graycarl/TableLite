@@ -83,6 +83,9 @@ final class ConnectionListViewModel {
 
     private var manager: SessionManager { environment.sessionManager }
 
+    /// 当前活动会话对应的连接 id；用于列表里的「当前」徽章。
+    var activeConnectionID: UUID? { manager.activeSession?.connection.id }
+
     // MARK: - 派生状态
 
     /// 搜索框过滤后的连接（按名称与摘要模糊匹配，见 `specs/01-connections.md` §1）。
@@ -388,7 +391,6 @@ final class ConnectionListViewModel {
         let password = formState.connectionPassword
         let sshSecrets = formState.connectionSSHPassword.map { SSHSecrets(password: $0) }
 
-        isTestPresented = true
         isTesting = true
         testReport = nil
 
@@ -402,13 +404,27 @@ final class ConnectionListViewModel {
     }
 
     /// 测试过程可以取消（`specs/01-connections.md` §3）。Core 的探测没有中断点，
-    /// 取消只丢弃结果并关掉面板；Core 仍会在结束后立即关掉测试用的连接。
+    /// 取消只丢弃结果；Core 仍会在结束后立即关掉测试用的连接。
+    /// 测试已经结束时，这里只关闭详情面板，保留报告给表单底部状态。
     func cancelTest() {
-        testTask?.cancel()
-        testTask = nil
+        if isTesting {
+            testTask?.cancel()
+            testTask = nil
+            isTesting = false
+            testReport = nil
+        }
         isTestPresented = false
-        isTesting = false
+    }
+
+    /// 表单改动后，旧的测试结果不再代表当前配置；正在跑的测试也一并取消。
+    func invalidateTestResult() {
+        if isTesting {
+            testTask?.cancel()
+            testTask = nil
+            isTesting = false
+        }
         testReport = nil
+        isTestPresented = false
     }
 
     private func resetTestState() {
