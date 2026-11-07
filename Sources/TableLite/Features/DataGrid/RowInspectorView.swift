@@ -245,7 +245,6 @@ struct InspectorFieldRow: View {
     @State private var isMultilineActive = false
     /// L29：大窗口里的查找请求计数。
     @State private var findToken = 0
-    @State private var isHovering = false
     @FocusState private var isFocused: Bool
 
     private var editorKind: FieldEditorKind {
@@ -288,8 +287,6 @@ struct InspectorFieldRow: View {
         .padding(.top, AppSpacing.xs)
         .padding(.bottom, AppSpacing.s)
         .background(rowBackground)
-        .onHover { isHovering = $0 }
-        .onDisappear { isHovering = false }
         .overlay(alignment: .topLeading) {
             if isEdited {
                 Image(systemName: "arrowtriangle.up.left.fill")
@@ -339,12 +336,10 @@ struct InspectorFieldRow: View {
         .padding(.leading, AppSpacing.xs)
     }
 
-    /// 悬停 / 已改的高亮是**分隔线之间的整条底色**，不做圆角卡片。
-    /// 聚焦不复制一份整条高亮，交给值编辑器自己的底色与描边。
+    /// 整条「面」的底色只表示「已修改」，字段行没有任何悬停底色（`14-row-inspector.md` §9）。
+    /// 不做圆角卡片，聚焦也不复制一份整条高亮，交给值编辑器自己的白底与描边。
     private var rowBackground: Color {
-        if isEdited { return Color.orange.opacity(0.14) }
-        if isHovering && isEditable { return Color.primary.opacity(0.04) }
-        return .clear
+        isEdited ? Color.orange.opacity(0.14) : .clear
     }
 
     // MARK: 编辑器
@@ -424,19 +419,16 @@ struct InspectorFieldRow: View {
             .help(column.gridTypeTooltip)
     }
 
+    /// 值只有**聚焦**才出输入框外观：悬停就摆出白底 + 描边，看着像已经进入编辑。
     private var fieldBackground: Color {
-        guard isEditable else { return .clear }
-        if isFocused { return Color(nsColor: .textBackgroundColor) }
-        if isHovering { return Color.primary.opacity(0.05) }
-        return .clear
+        guard isEditable, isFocused else { return .clear }
+        return Color(nsColor: .textBackgroundColor)
     }
 
     private var fieldBorder: Color {
         guard isEditable else { return .clear }
         if errorMessage != nil { return .red }
-        if isFocused { return .accentColor }
-        if isHovering { return Color(nsColor: .separatorColor) }
-        return .clear
+        return isFocused ? .accentColor : .clear
     }
 
     private var multilineEditor: some View {
@@ -452,12 +444,12 @@ struct InspectorFieldRow: View {
             )
             .frame(minHeight: 52, maxHeight: 120)
             .background(
-                (isHovering || isFocusedOrEditing) ? Color(nsColor: .textBackgroundColor) : Color.clear,
+                isFocusedOrEditing ? Color(nsColor: .textBackgroundColor) : Color.clear,
                 in: RoundedRectangle(cornerRadius: AppRadius.s)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: AppRadius.s)
-                    .stroke((isHovering || isFocusedOrEditing) ? Color(nsColor: .separatorColor) : Color.clear)
+                    .stroke(isFocusedOrEditing ? Color.accentColor : Color.clear, lineWidth: 1)
                     .allowsHitTesting(false)
             )
             .overlay(alignment: .topLeading) {
@@ -543,16 +535,16 @@ struct InspectorFieldRow: View {
         // `.plain` 不会自动变灰：只读行里不能看起来还能点。
         .opacity(nullButtonOpacity)
         .allowsHitTesting(nullButtonOpacity > 0)
-        // 不参与键盘焦点环：它只在悬停 / 聚焦时现身，否则按 Tab 会落在看不见的按钮上。
+        // 不参与键盘焦点环：它只在聚焦 / `NULL` 时现身，否则按 Tab 会落在看不见的按钮上。
         .focusable(false)
         .disabled(!isEditable)
         .accessibilityLabel(isNullValue ? "恢复为上一个非 NULL 值" : "设为 NULL")
         .help(isNullValue ? "恢复为上一个非 NULL 值" : "设为 NULL")
     }
 
-    /// 悬停 / 聚焦 / 本身是 `NULL` 才现身；只读行里现身也不该看起来可点。
+    /// 本字段有焦点、或字段本身就是 `NULL` 才现身；只读行里现身也不该看起来可点。
     private var nullButtonOpacity: Double {
-        guard isHovering || isFocusedOrEditing || isNullValue else { return 0 }
+        guard isFocusedOrEditing || isNullValue else { return 0 }
         return isEditable ? 1 : 0.35
     }
 
