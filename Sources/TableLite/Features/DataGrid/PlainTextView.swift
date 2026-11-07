@@ -12,6 +12,12 @@ struct PlainTextView: NSViewRepresentable {
     var isEditable: Bool
     var isMultiline: Bool
     var fontSize: Double
+    /// 是否用等宽字体（SQL 编辑器 / 展开窗口为真；字段栏里跟正文一致，避免左缘差 2pt）。
+    var usesMonospacedFont: Bool = true
+    /// 文本容器左右内边距；字段栏里由 SwiftUI 侧统一给，这里给 0。
+    var horizontalTextInset: CGFloat = 4
+    /// 是否显示纵向滚动条；字段栏的内联框不显示（换行滚动靠触控板），展开窗口才显示。
+    var showsVerticalScroller: Bool = true
     /// 失焦或提交键（单行 `↩` / 多行 `⌘↩`）时调用。
     var onCommit: () -> Void
     /// `Esc` 取消时调用。
@@ -30,10 +36,10 @@ struct PlainTextView: NSViewRepresentable {
         textView.isEditable = isEditable
         textView.isSelectable = true
         textView.allowsUndo = true
-        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        // 背景由外层 SwiftUI 管（字段栏里平时透明，悬停 / 聚焦才出底色）。
+        textView.font = Self.font(size: fontSize, monospaced: usesMonospacedFont)
+        // 背景由外层 SwiftUI 管（字段栏里平时透明，聚焦才出底色）。
         textView.drawsBackground = false
-        textView.textContainerInset = NSSize(width: 4, height: 4)
+        textView.textContainerInset = NSSize(width: horizontalTextInset, height: 4)
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
@@ -57,7 +63,7 @@ struct PlainTextView: NSViewRepresentable {
 
         let scrollView = NSScrollView()
         scrollView.documentView = textView
-        scrollView.hasVerticalScroller = true
+        scrollView.hasVerticalScroller = showsVerticalScroller
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
@@ -71,10 +77,18 @@ struct PlainTextView: NSViewRepresentable {
         textView.onCommit = onCommit
         textView.onCancel = onCancel
         textView.isMultiline = isMultiline
+        textView.font = Self.font(size: fontSize, monospaced: usesMonospacedFont)
+        textView.textContainerInset = NSSize(width: horizontalTextInset, height: 4)
         // 只在非编辑状态下同步，避免打断输入。
         if !textView.isEditing, textView.string != text {
             textView.string = text
         }
+    }
+
+    private static func font(size: Double, monospaced: Bool) -> NSFont {
+        monospaced
+            ? NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+            : NSFont.systemFont(ofSize: size)
     }
 
     @MainActor
