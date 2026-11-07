@@ -76,8 +76,8 @@ struct RowInspectorView: View {
                 .foregroundStyle(.orange)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.horizontal, InspectorMetrics.textInset)
+        .padding(.vertical, AppSpacing.xs)
     }
 
     /// 字段少的时候不摆搜索框；开始搜索后即使字段不多也保留输入框，避免搜到一半消失。
@@ -147,10 +147,10 @@ struct RowInspectorView: View {
 
                         // 字段之间的分隔线（`14-row-inspector.md` §9）：最后一个字段下面不画。
                         if index < columns.count - 1 {
+                            // 通栏（`14-row-inspector.md` §9）：和标题下面那条 `Divider()` 同宽。
                             Rectangle()
                                 .fill(AppColor.rowSeparator)
                                 .frame(height: 1)
-                                .padding(.horizontal, AppSpacing.m)
                         }
                     }
                 }
@@ -171,7 +171,7 @@ struct RowInspectorView: View {
             }
             .font(.caption)
             .foregroundStyle(.red)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, InspectorMetrics.textInset)
             .padding(.vertical, 5)
             .background(Color.red.opacity(0.08))
         } else if viewModel.isInsertionRow(rowID: row.id) {
@@ -184,7 +184,7 @@ struct RowInspectorView: View {
             }
             .font(.caption)
             .foregroundStyle(.green)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, InspectorMetrics.textInset)
             .padding(.vertical, 5)
             .background(Color.green.opacity(0.08))
         }
@@ -199,7 +199,7 @@ struct RowInspectorView: View {
         }
         .font(.caption)
         .foregroundStyle(tint)
-        .padding(.horizontal, 10)
+        .padding(.horizontal, InspectorMetrics.textInset)
         .padding(.vertical, 5)
         .background(tint.opacity(0.08))
     }
@@ -215,7 +215,7 @@ struct RowInspectorView: View {
                 .foregroundStyle(.secondary)
             Spacer()
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, InspectorMetrics.textInset)
         .padding(.vertical, 5)
         .background(Color.orange.opacity(0.08))
     }
@@ -229,6 +229,16 @@ struct RowInspectorView: View {
 
 // MARK: - 字段行
 
+/// 字段栏的左右基线（`14-row-inspector.md` §9）：文字统一落在 `textInset`，
+/// 编辑器胶囊外框落在 `rowInset`，两者之差就是编辑器内边距。
+private enum InspectorMetrics {
+    /// 文字（标题 / 字段名 / 值）离面板边缘的距离。
+    static let textInset = AppSpacing.l
+    /// 编辑器胶囊外框离面板边缘的距离；胶囊内边距 = textInset - rowInset。
+    static let rowInset = AppSpacing.xs
+    static let fieldPadding = textInset - rowInset
+}
+
 /// 一个字段行：上面是字段名行（字段名 + 右端的类型与 `∅`），下面是占满整宽的值行
 /// （`docs/tech-designs/14-row-inspector.md` §9）。
 struct InspectorFieldRow: View {
@@ -241,23 +251,39 @@ struct InspectorFieldRow: View {
     @State private var errorMessage: String?
     @State private var previousNonNull: SQLValue?
     @State private var isExpanded = false
+    /// 多行编辑器的实际可用宽度（`onGeometryChange` 量到）；高度按它算才不会多数 / 少算一行。
+    @State private var editorWidth: CGFloat = 0
     /// `NSTextView` 没有 `@FocusState`，多行编辑器的焦点由它自己回调（见 `PlainTextView`）。
     @State private var isMultilineActive = false
     /// L29：大窗口里的查找请求计数。
     @State private var findToken = 0
-    @State private var isHovering = false
     @FocusState private var isFocused: Bool
 
     private var editorKind: FieldEditorKind {
         FieldEditorResolver.kind(for: column, tinyintAsCheckbox: viewModel.cellDisplayContext.tinyintAsCheckbox)
     }
 
-    /// 值里数字与日期时间都用等宽字体（`specs/03-data-browsing.md` §7）。
-    private var usesMonospacedValue: Bool {
+    /// 数字 / 日期时间 / 二进制的数字串只开**等宽数字**：换 `design: .monospaced`（SF Mono）
+    /// 会让左边距比 SF Pro 多约 2pt，值和文本的左缘就对不齐（`specs/03-data-browsing.md` §7）。
+    private var usesTabularDigits: Bool {
         switch editorKind {
-        case .number, .temporal: return true
+        case .number, .temporal, .binary: return true
         default: return false
         }
+    }
+
+    private var valueFont: Font {
+        let base = AppFont.body
+        return usesTabularDigits ? base.monospacedDigit() : base
+    }
+
+    /// `NULL` 值统一走这一份占位：灰色斜体，所有类型（含二进制）都长一样。
+    private var nullPlaceholder: some View {
+        Text("NULL")
+            .font(AppFont.body)
+            .italic()
+            .foregroundStyle(.tertiary)
+            .allowsHitTesting(false)
     }
 
     private var currentValue: SQLValue {
@@ -272,7 +298,7 @@ struct InspectorFieldRow: View {
     private var isFocusedOrEditing: Bool { isFocused || isMultilineActive }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: AppSpacing.xxs) {
             labelLine
 
             editor
@@ -284,12 +310,10 @@ struct InspectorFieldRow: View {
                     .foregroundStyle(.red)
             }
         }
-        .padding(.horizontal, AppSpacing.m)
+        .padding(.horizontal, InspectorMetrics.rowInset)
         .padding(.top, AppSpacing.xs)
-        .padding(.bottom, AppSpacing.s)
+        .padding(.bottom, AppSpacing.xs)
         .background(rowBackground)
-        .onHover { isHovering = $0 }
-        .onDisappear { isHovering = false }
         .overlay(alignment: .topLeading) {
             if isEdited {
                 Image(systemName: "arrowtriangle.up.left.fill")
@@ -336,15 +360,13 @@ struct InspectorFieldRow: View {
                 .truncationMode(.middle)
             nullButton
         }
-        .padding(.leading, AppSpacing.xs)
+        .padding(.leading, InspectorMetrics.fieldPadding)
     }
 
-    /// 悬停 / 已改的高亮是**分隔线之间的整条底色**，不做圆角卡片。
-    /// 聚焦不复制一份整条高亮，交给值编辑器自己的底色与描边。
+    /// 整条「面」的底色只表示「已修改」，字段行没有任何悬停底色（`14-row-inspector.md` §9）。
+    /// 不做圆角卡片，聚焦也不复制一份整条高亮，交给值编辑器自己的白底与描边。
     private var rowBackground: Color {
-        if isEdited { return Color.orange.opacity(0.14) }
-        if isHovering && isEditable { return Color.primary.opacity(0.04) }
-        return .clear
+        isEdited ? Color.orange.opacity(0.14) : .clear
     }
 
     // MARK: 编辑器
@@ -362,6 +384,7 @@ struct InspectorFieldRow: View {
             ))
             .toggleStyle(.checkbox)
             .labelsHidden()
+            .padding(.horizontal, InspectorMetrics.fieldPadding)
             .disabled(!isEditable)
 
         case .enumeration(let values):
@@ -376,6 +399,7 @@ struct InspectorFieldRow: View {
                 ForEach(values, id: \.self) { Text($0).tag($0) }
             }
             .labelsHidden()
+            .padding(.horizontal, InspectorMetrics.fieldPadding)
             .disabled(!isEditable)
 
         case .set(let values):
@@ -392,9 +416,8 @@ struct InspectorFieldRow: View {
     private var singleLineEditor: some View {
         TextField("", text: $draft)
             .textFieldStyle(.plain)
-            // 数字 / 日期时间用等宽字体（`specs/03-data-browsing.md` §7）。
-            .font(.system(size: 13, design: usesMonospacedValue ? .monospaced : .default))
-            .padding(.horizontal, AppSpacing.xs)
+            .font(valueFont)
+            .padding(.horizontal, InspectorMetrics.fieldPadding)
             .padding(.vertical, AppSpacing.xxs)
             .background(fieldBackground, in: RoundedRectangle(cornerRadius: AppRadius.s))
             .overlay(
@@ -404,12 +427,9 @@ struct InspectorFieldRow: View {
             )
             .overlay(alignment: .leading) {
                 if isNullValue && draft.isEmpty {
-                    Text("NULL")
-                        .font(.system(size: 13, design: .monospaced))
-                        .italic()
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, AppSpacing.xs)
-                        .allowsHitTesting(false)
+                    nullPlaceholder
+                        .padding(.horizontal, InspectorMetrics.fieldPadding)
+                        .padding(.vertical, AppSpacing.xxs)
                 }
             }
             .contentShape(Rectangle())
@@ -424,19 +444,16 @@ struct InspectorFieldRow: View {
             .help(column.gridTypeTooltip)
     }
 
+    /// 值只有**聚焦**才出输入框外观：悬停就摆出白底 + 描边，看着像已经进入编辑。
     private var fieldBackground: Color {
-        guard isEditable else { return .clear }
-        if isFocused { return Color(nsColor: .textBackgroundColor) }
-        if isHovering { return Color.primary.opacity(0.05) }
-        return .clear
+        guard isEditable, isFocused else { return .clear }
+        return Color(nsColor: .textBackgroundColor)
     }
 
     private var fieldBorder: Color {
         guard isEditable else { return .clear }
         if errorMessage != nil { return .red }
-        if isFocused { return .accentColor }
-        if isHovering { return Color(nsColor: .separatorColor) }
-        return .clear
+        return isFocused ? .accentColor : .clear
     }
 
     private var multilineEditor: some View {
@@ -446,40 +463,51 @@ struct InspectorFieldRow: View {
                 isEditable: isEditable,
                 isMultiline: true,
                 fontSize: 13,
+                // 字段栏里的长文本跟正文同一套字体与左缘（`14-row-inspector.md` §9）。
+                usesMonospacedFont: false,
+                horizontalTextInset: 0,
+                showsVerticalScroller: false,
                 onCommit: commitDraft,
                 onCancel: cancelEdit,
                 onFocusChange: { isMultilineActive = $0 }
             )
-            .frame(minHeight: 52, maxHeight: 120)
+            .padding(.horizontal, InspectorMetrics.fieldPadding)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { editorWidth = $0 }
+            // 按内容长高（一行内容就一行高），超过上限才在框内滚动。
+            .frame(height: multilineFit.height)
             .background(
-                (isHovering || isFocusedOrEditing) ? Color(nsColor: .textBackgroundColor) : Color.clear,
+                isFocusedOrEditing ? Color(nsColor: .textBackgroundColor) : Color.clear,
                 in: RoundedRectangle(cornerRadius: AppRadius.s)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: AppRadius.s)
-                    .stroke((isHovering || isFocusedOrEditing) ? Color(nsColor: .separatorColor) : Color.clear)
+                    .stroke(isFocusedOrEditing ? Color.accentColor : Color.clear, lineWidth: 1)
                     .allowsHitTesting(false)
             )
             .overlay(alignment: .topLeading) {
                 if isNullValue && draft.isEmpty {
-                    Text("NULL")
-                        .font(.system(size: 13, design: .monospaced))
-                        .italic()
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 4)
-                        .allowsHitTesting(false)
+                    nullPlaceholder
+                        .padding(.horizontal, InspectorMetrics.fieldPadding)
+                        .padding(.vertical, AppSpacing.xxs)
                 }
             }
             .disabled(!isEditable)
 
-            HStack(spacing: 6) {
-                Button("展开") { isExpanded = true }
-                    .controlSize(.small)
-                Text("⇧↩ 换行 · ⌘↩ 提交")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Spacer()
+            // 「展开」在聚焦、只读、或内容超过三行时出现 —— 只读连接里的长文本也得打得开。
+            // 快捷键提示只在聚焦时给，免得空值字段也常驻一行。
+            if isFocusedOrEditing || !isEditable || multilineFit.isTruncated {
+                HStack(spacing: 6) {
+                    Button("展开") { isExpanded = true }
+                        .controlSize(.small)
+                        // 不参与键盘焦点环：`Tab` 要在字段之间走，不该落在附属按钮上。
+                        .focusable(false)
+                    if isFocusedOrEditing {
+                        Text("⇧↩ 换行 · ⌘↩ 提交")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
             }
         }
     }
@@ -500,60 +528,77 @@ struct InspectorFieldRow: View {
             }
         } label: {
             Text(draft.isEmpty ? "（空）" : draft)
-                .font(.system(size: 13))
+                .font(valueFont)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .menuStyle(.borderlessButton)
+        .padding(.horizontal, InspectorMetrics.fieldPadding)
         .disabled(!isEditable)
     }
 
     private var binaryEditor: some View {
         HStack(spacing: AppSpacing.xs) {
-            Text(binaryDisplayText)
-                .font(.system(size: 13, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
+            if isNullValue {
+                nullPlaceholder
+            } else {
+                Text(binaryDisplayText)
+                    .font(valueFont)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
             Spacer(minLength: 6)
             Button("查看") { viewModel.requestQuickLook(rowID: row.id, column: column.name) }
                 .controlSize(.small)
+                .disabled(isNullValue)
             Button("从文件导入…", action: importBinaryFile)
                 .controlSize(.small)
                 .disabled(!isEditable)
         }
+        // 和单行编辑器同一套内边距：值的左缘才能与其它字段对齐。
+        .padding(.horizontal, InspectorMetrics.fieldPadding)
+        .padding(.vertical, AppSpacing.xxs)
     }
 
+    /// 固定占位、只改轻重（`14-row-inspector.md` §9）：槽位一直有字形，
+    /// 右端才只有一条停靠线；现身 / 消失会让类型的右缘和胶囊的右缘来回摇摆。
     private var nullButton: some View {
         Button(action: toggleNull) {
             Text("∅")
                 .font(.system(size: 10, weight: .medium))
                 .frame(width: 16, height: 14)
-                .background(
-                    isNullValue ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.06),
-                    in: RoundedRectangle(cornerRadius: AppRadius.s)
-                )
+                .background(nullButtonBackground, in: RoundedRectangle(cornerRadius: AppRadius.s))
                 .overlay(
                     RoundedRectangle(cornerRadius: AppRadius.s)
-                        .stroke(isNullValue ? Color.accentColor.opacity(0.55) : Color.clear, lineWidth: 1)
+                        .stroke(nullButtonStroke, lineWidth: 1)
                 )
-                .foregroundStyle(isNullValue ? Color.accentColor : Color.secondary)
+                .foregroundStyle(nullButtonForeground)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         // `.plain` 不会自动变灰：只读行里不能看起来还能点。
-        .opacity(nullButtonOpacity)
-        .allowsHitTesting(nullButtonOpacity > 0)
-        // 不参与键盘焦点环：它只在悬停 / 聚焦时现身，否则按 Tab 会落在看不见的按钮上。
+        .opacity(isEditable ? 1 : 0.35)
+        // 不参与键盘焦点环：它只是字段名行上的一个附属按钮。
         .focusable(false)
         .disabled(!isEditable)
         .accessibilityLabel(isNullValue ? "恢复为上一个非 NULL 值" : "设为 NULL")
         .help(isNullValue ? "恢复为上一个非 NULL 值" : "设为 NULL")
     }
 
-    /// 悬停 / 聚焦 / 本身是 `NULL` 才现身；只读行里现身也不该看起来可点。
-    private var nullButtonOpacity: Double {
-        guard isHovering || isFocusedOrEditing || isNullValue else { return 0 }
-        return isEditable ? 1 : 0.35
+    private var nullButtonForeground: Color {
+        if isNullValue { return .accentColor }
+        if isFocusedOrEditing { return .secondary }
+        return Color.secondary.opacity(0.45)
+    }
+
+    private var nullButtonBackground: Color {
+        if isNullValue { return Color.accentColor.opacity(0.16) }
+        if isFocusedOrEditing { return Color.primary.opacity(0.06) }
+        return .clear
+    }
+
+    private var nullButtonStroke: Color {
+        isNullValue ? Color.accentColor.opacity(0.55) : .clear
     }
 
     // MARK: 提交 / 取消
@@ -623,6 +668,27 @@ struct InspectorFieldRow: View {
     }
 
     // MARK: 展示
+
+    /// 字段栏里多行字段最多直接铺三行，再长就让「展开」去大窗口。
+    private static let multilineLineLimit = 3
+
+    /// 多行字段的高度与是否超出行数上限（`InspectorFieldHeight`，纯逻辑、可单测）。
+    private var multilineFit: InspectorFieldHeight.Fit {
+        InspectorFieldHeight.fit(
+            text: draft,
+            width: multilineTextWidth,
+            font: .systemFont(ofSize: 13),
+            lineLimit: Self.multilineLineLimit,
+            verticalInset: PlainTextView.defaultVerticalTextInset
+        )
+    }
+
+    /// 文本实际能占的宽度：优先用布局量到的真实宽度（窄栏 + 系统滚动条都算在内），
+    /// 首帧还没量到时退回面板宽度。
+    private var multilineTextWidth: CGFloat {
+        if editorWidth > 1 { return editorWidth }
+        return max(viewModel.preferences.inspectorWidth - InspectorMetrics.textInset * 2, 80)
+    }
 
     private var binaryDisplayText: String {
         let display = CellDisplayFormatter.display(

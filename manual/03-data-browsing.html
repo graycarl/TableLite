@@ -328,29 +328,29 @@
   <text class="fnt s r" x="964" y="75">18 个字段</text>
   <line class="ln" x1="610" y1="96" x2="980" y2="96"/>
 
-  <!-- 每个字段两层：字段名行（小字、次要色，右端是类型与 ∅）+ 值行（13pt、主色、统一左缘）
-       字段之间用 1pt 分隔线断开，左右各留 16pt 边距 -->
+  <!-- 每个字段两层：字段名行（小字、次要色，右端是类型与 ∅ 槽位）+ 值行（13pt、主色）
+       标题 / 字段名 / 值的文字压在同一条左缘线上；字段之间的 1pt 分隔线通栏到头 -->
 
   <!-- 字段 1：🔑 id -->
   <text class="mut s b" x="626" y="112">🔑 id</text>
   <text class="fnt s r" x="930" y="112">int unsigned</text>
   <text class="c s" x="946" y="112">∅</text>
   <text class="mono m" x="626" y="134">1</text>
-  <line class="ln" x1="626" y1="148" x2="964" y2="148"/>
+  <line class="ln" x1="610" y1="148" x2="980" y2="148"/>
 
   <!-- 字段 2：name -->
   <text class="mut s b" x="626" y="164">name</text>
   <text class="fnt s r" x="930" y="164">varchar(255)</text>
   <text class="c s" x="946" y="164">∅</text>
   <text class="m" x="626" y="186">张三</text>
-  <line class="ln" x1="626" y1="200" x2="964" y2="200"/>
+  <line class="ln" x1="610" y1="200" x2="980" y2="200"/>
 
   <!-- 字段 3：email -->
   <text class="mut s b" x="626" y="216">email</text>
   <text class="fnt s r" x="930" y="216">varchar(255)</text>
   <text class="c s" x="946" y="216">∅</text>
   <text class="m" x="626" y="238">zs@example.com</text>
-  <line class="ln" x1="626" y1="252" x2="964" y2="252"/>
+  <line class="ln" x1="610" y1="252" x2="980" y2="252"/>
 
   <!-- 字段 4：content（已修改 + 大字段）
        整条字段行浅橙底（无圆角），左上角一个橙色小三角 -->
@@ -361,13 +361,10 @@
   <text class="c s" x="946" y="268">∅</text>
   <text class="m" x="626" y="290">这是一篇很长的文章，正文占两行以上。</text>
   <text class="m" x="626" y="306">第二段：编辑框限高，超出部分「展开」才看得到。</text>
-  <rect class="s-field ln2" x="626" y="320" width="52" height="20" rx="4"/>
-  <text class="c s" x="652" y="330">展开</text>
-  <text class="fnt s" x="688" y="330">⇧↩ 换行 · ⌘↩ 提交</text>
-  <rect class="s-field ln2" x="626" y="342" width="118" height="22" rx="5"/>
-  <text class="c s" x="685" y="353">加载完整内容…</text>
-  <text class="fnt s" x="754" y="353">该行大字段合计 12.4 MB</text>
-  <line class="ln" x1="626" y1="372" x2="964" y2="372"/>
+  <rect class="s-field ln2" x="626" y="320" width="118" height="22" rx="5"/>
+  <text class="c s" x="685" y="334">加载完整内容…</text>
+  <text class="fnt s" x="754" y="334">该行大字段合计 12.4 MB</text>
+  <line class="ln" x1="610" y1="372" x2="980" y2="372"/>
 
   <!-- 字段 5：photo -->
   <text class="mut s b" x="626" y="388">photo</text>
@@ -378,14 +375,14 @@
   <text class="c s" x="798" y="410">查看</text>
   <rect class="s-field ln2" x="826" y="399" width="100" height="20" rx="4"/>
   <text class="c s" x="876" y="410">从文件导入…</text>
-  <line class="ln" x1="626" y1="424" x2="964" y2="424"/>
+  <line class="ln" x1="610" y1="424" x2="980" y2="424"/>
 
   <!-- 字段 6：created_at -->
   <text class="mut s b" x="626" y="440">created_at</text>
   <text class="fnt s r" x="930" y="440">datetime</text>
   <text class="c s" x="946" y="440">∅</text>
   <text class="mono m" x="626" y="462">2025-01-01 10:00:00</text>
-  <line class="ln" x1="626" y1="476" x2="964" y2="476"/>
+  <line class="ln" x1="610" y1="476" x2="980" y2="476"/>
 
   <text class="fnt s" x="626" y="496">字段按表定义列顺序排列，不受网格列显隐影响</text>
   <text class="fnt s" x="626" y="514">宽度可拖拽（260–560pt），全局记住</text>
@@ -415,8 +412,8 @@
 <tr data-hot="3"><td class="num">3</td><td class="wide">字段名 + 类型</td>
   <td>字段名按表定义的顺序排列，用小字 + 次要色压在值上方；主键列带 <code>🔑</code> 并加粗。类型写在同一行右侧，字更淡，例如 <code>varchar(255)</code>，只读。</td></tr>
 <tr data-hot="4"><td class="num">4</td><td class="wide">值</td>
-  <td>字段栏里唯一能改数据的地方：点进去就能编辑，失焦或按 <kbd>↩</kbd> 写入暂存区，<kbd>Esc</kbd> 放弃。所有值统一左对齐，数字 / 日期时间 / 二进制用等宽字体。</td></tr>
-<tr data-hot="5"><td class="num">5</td><td class="wide">∅ 设为 NULL</td>
+  <td>字段栏里唯一能改数据的地方：点进去就能编辑，失焦或按 <kbd>↩</kbd> 写入暂存区，<kbd>Esc</kbd> 放弃。所有值统一左对齐，数字 / 日期时间 / 二进制用等宽数字。</td></tr>
+<tr data-hot="5"><td class="num">5</td><td class="wide">∅ 设为 NULL（常显淡灰，聚焦加深，<code>NULL</code> 时按下）</td>
   <td>在 <code>NULL</code> 与上一个非 NULL 值之间切换。它在<b>字段名行</b>的最右端，所以值那一行能吃满整宽、左右边缘都齐。字段本来就是 <code>NULL</code> 时按钮呈按下状态。</td></tr>
 <tr data-hot="6"><td class="num">6</td><td class="wide">已修改标记</td>
   <td>改过的字段橙色底色 + 左上角小三角；网格里对应的单元格与行号列同时出现相同标记，直到提交或放弃。</td></tr>
@@ -433,10 +430,11 @@
 
 <ul>
   <li>字段按<b>表定义的列顺序</b>排列，<b>不受网格列显隐与列顺序影响</b>：被列过滤器隐藏的列，在这里照样显示。</li>
-  <li>每个字段分两层：上面一行是<b>字段名</b>（小字、次要色），下面一行是<b>值</b>（13pt、主色）。两层的左缘对齐（字段名的文字与值的文字同一起点；主键行的 <code>🔑</code> 占在字段名前），一眼能分清哪个是名字、哪个是值。</li>
-  <li>字段之间用一条细<b>分隔线</b>断开（左右留边距，最后一个字段下面不画）；鼠标悬停时整条字段行浅底高亮。</li>
-  <li>所有值<b>统一左对齐</b>，不管它是文本、数字、日期还是二进制占位；数字 / 日期时间 / 二进制用等宽字体。</li>
-  <li>字段名行右侧是完整类型（<code>varchar(255)</code>、<code>int unsigned</code>、<code>decimal(10,2)</code>），类型<b>只读</b>，不做类型转换。</li>
+  <li>每个字段分两层：上面一行是<b>字段名</b>（小字、次要色），下面一行是<b>值</b>（13pt、主色）。<b>标题、字段名、值的文字压在同一条左缘线上</b>（主键行的 <code>🔑</code> 占在字段名前），一眼能分清哪个是名字、哪个是值。</li>
+  <li>字段之间用一条细<b>分隔线</b>断开，<b>通栏</b>（两端到头、不缩进），和顶部标题下面那条一样宽；最后一个字段下面不画。字段行没有悬停底色，鼠标扫过去字段栏不动 —— 整条底色只留给「已修改」的橙色标记。</li>
+  <li>纵向留白紧凑：字段名与值之间只留一点空隙，行上下各留一点；多行字段按内容高度收缩，只有一行内容就占一行高、最多直接铺三行，不会空出一大块。</li>
+  <li>所有值<b>统一左对齐</b>，不管它是文本、数字、日期还是二进制占位；数字 / 日期时间 / 二进制的数字串用<b>等宽数字</b>（字形还是普通正文字体，只让数字等宽），所以数字和文本的左缘分毫不差。</li>
+  <li>字段名行右侧是完整类型（<code>varchar(255)</code>、<code>int unsigned</code>、<code>decimal(10,2)</code>），类型<b>只读</b>，不做类型转换。类型右边固定着 <code>∅</code> 槽位，所以每一行右端都收在同一条线上，不会因为有没有 <code>∅</code> 而参差。</li>
   <li>主键字段的字段名前带 <code>🔑</code>，字段名加粗。</li>
   <li>值按上一节的规则呈现（<code>NULL</code>、<code>«BLOB 12.3 KB»</code>、图片、JSON 等）。</li>
   <li>字段超过 10 个时顶部才出现搜索框；过滤时计数显示成 <code>显示 3 / 18</code>。</li>
@@ -451,8 +449,10 @@
   <li>校验失败时输入框抖动并保持编辑状态，值不写入暂存区。</li>
   <li>改动过的字段橙色底色 + 左上角小三角；网格里对应的单元格与行号列同时出现相同标记。</li>
   <li>同一行改了多个字段，提交时合为一条 <code>UPDATE</code>。</li>
-  <li>每个字段的 <code>∅</code> 按钮在<b>字段名行右侧</b>，悬停 / 聚焦时出现，字段本身是 <code>NULL</code> 时始终显示；点一下在 <code>NULL</code> 与上一个非 NULL 值之间切换。值本身是 <code>NULL</code> 时，编辑器里显示灰色斜体 <code>NULL</code> 占位，与空字符串区分。</li>
-  <li>值平时不描边、不填底色，看起来就是一段文字；点进去（悬停 / 聚焦）才显出输入框的底色和描边，多行字段也一样。</li>
+  <li>每个字段的 <code>∅</code> 按钮在<b>字段名行右侧</b>，<b>始终在</b>（平时是淡灰字形），不靠悬停冒出来；聚焦时加深并出现浅底，值是 <code>NULL</code> 时呈按下态。点一下在 <code>NULL</code> 与上一个非 NULL 值之间切换。</li>
+  <li>值本身是 <code>NULL</code> 时，编辑器里显示灰色斜体 <code>NULL</code> 占位，与空字符串区分。<b>所有类型一视同仁</b>，二进制字段也是同样的灰色斜体、同样的左缘；二进制的 <code>查看</code> 在 <code>NULL</code> 时不可用，<code>从文件导入…</code> 仍然可用。</li>
+  <li>多行字段的「展开」在聚焦、字段只读、或内容超过三行时出现（只读连接里的长文本也得打得开）；快捷键提示只在聚焦时出现，空值或一行内容不会因此多占高度。</li>
+  <li>值平时不描边、不填底色，看起来就是一段文字；<b>只有点进去</b>才显出输入框的白底和焦点描边，多行字段也一样。只把鼠标移上去不会让值变成输入框的样子。</li>
 </ul>
 
 <h3>大字段</h3>
