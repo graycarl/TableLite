@@ -35,18 +35,6 @@ struct ObjectTreeSidebar: View {
 
             truncatedHint
             objectTree
-
-            Divider()
-
-            HStack(spacing: 4) {
-                SidebarEntryButton(title: "历史", accessibilityTitle: "查询历史", systemImage: "clock.arrow.circlepath") {
-                    session.openHistoryTab()
-                }
-                SidebarEntryButton(title: "日志", accessibilityTitle: "Console Log", systemImage: "terminal") {
-                    session.openConsoleLogTab()
-                }
-            }
-            .padding(6)
         }
         .background(AppColor.sidebar)
         .onAppear(perform: loadExpandedGroupsIfNeeded)
@@ -313,41 +301,5 @@ struct ObjectTreeSidebar: View {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(name, forType: .string)
-    }
-}
-
-/// 左侧栏底部的入口按钮：只显示图标，名称放在悬停提示里，悬停时给一块淡底
-/// 提示可点（`specs/02-workspace.md` §5）。
-private struct SidebarEntryButton: View {
-
-    let title: String
-    var accessibilityTitle: String? = nil
-    let systemImage: String
-    let action: () -> Void
-
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 5) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 12))
-                Text(title)
-                    .font(AppFont.caption)
-            }
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-            .padding(.vertical, 5)
-            .background(
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
-            )
-        }
-        .buttonStyle(.plain)
-        .help(accessibilityTitle ?? title)
-        .accessibilityLabel(title)
-        .onHover { isHovering = $0 }
-        .animation(.easeOut(duration: 0.1), value: isHovering)
     }
 }

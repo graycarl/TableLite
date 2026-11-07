@@ -80,6 +80,8 @@ struct WorkspaceView: View {
                 session: session,
                 onQuickOpen: { showOpenTable = true },
                 onRefresh: { Task { await refresh() } },
+                onOpenHistory: { session.openHistoryTab() },
+                onOpenConsoleLog: { session.openConsoleLogTab() },
                 onToggleInspector: { environment.preferences.showInspector.toggle() },
                 onShowConnections: { showConnectionList = true }
             )

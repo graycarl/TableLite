@@ -5,13 +5,15 @@ import SwiftUI
 /// 与系统标题栏合一（`docs/tech-designs/06-ui-layer.md` §10）：挂在 `WorkspaceView` 的
 /// `.toolbar` 上，按钮样式由系统 toolbar 统一处理，不再自绘一条 `.bar` 横条。
 ///
-/// 从左到右：连接切换器 → 窗口标题（库 / 标签）→ 快速打开 / 刷新 / 字段栏开关。
-/// 变更操作不在这里，见 `PendingChangesBar`。
+/// 从左到右：连接切换器 → 窗口标题（库 / 标签）→ 快速打开 / 刷新 /
+/// 查询历史 / Console Log / 字段栏开关。变更操作不在这里，见 `PendingChangesBar`。
 struct WorkspaceToolbar: ToolbarContent {
 
     let session: ConnectionSession
     var onQuickOpen: () -> Void
     var onRefresh: () -> Void
+    var onOpenHistory: () -> Void
+    var onOpenConsoleLog: () -> Void
     var onToggleInspector: () -> Void
     var onShowConnections: () -> Void
 
@@ -42,6 +44,28 @@ struct WorkspaceToolbar: ToolbarContent {
                 .accessibilityIdentifier("toolbar.refresh")
                 .disabled(!session.state.isConnected)
 
+                ToolbarDivider()
+
+                Button {
+                    onOpenHistory()
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+                .help("查询历史")
+                .accessibilityLabel("查询历史")
+                .accessibilityIdentifier("toolbar.history")
+
+                Button {
+                    onOpenConsoleLog()
+                } label: {
+                    Image(systemName: "terminal")
+                }
+                .help("Console Log（⇧⌘C）")
+                .accessibilityLabel("Console Log")
+                .accessibilityIdentifier("toolbar.console-log")
+
+                ToolbarDivider()
+
                 Button {
                     onToggleInspector()
                 } label: {
@@ -53,6 +77,17 @@ struct WorkspaceToolbar: ToolbarContent {
                 .disabled(session.activeTab?.kind.isTableData != true)
             }
         }
+    }
+}
+
+/// 工具栏里的轻分隔线：把「查看类」入口和字段栏开关分开。
+private struct ToolbarDivider: View {
+
+    var body: some View {
+        Rectangle()
+            .fill(Color.primary.opacity(0.12))
+            .frame(width: 1, height: 16)
+            .padding(.horizontal, 3)
     }
 }
 

@@ -58,27 +58,25 @@
     <circle class="s-red" cx="26" cy="30" r="5.5"/>
     <circle class="s-yellow" cx="44" cy="30" r="5.5"/>
     <circle class="s-green" cx="62" cy="30" r="5.5"/>
-    <text class="s b" x="84" y="31">本地开发 — app_dev</text>
 
-    <rect class="s-field ln2" x="210" y="17" width="140" height="26" rx="6"/>
-    <circle class="s-green" cx="224" cy="30" r="4.5"/>
-    <text x="236" y="31">本地开发</text>
-    <text class="mut s" x="328" y="31">▾</text>
+    <rect class="s-field ln2" x="84" y="17" width="140" height="26" rx="6"/>
+    <circle class="s-green" cx="98" cy="30" r="4.5"/>
+    <text x="110" y="31">本地开发</text>
+    <text class="mut s" x="202" y="31">▾</text>
 
-    <line class="ln" x1="360" y1="16" x2="360" y2="44"/>
-    <text class="mut" x="370" y="31">‹</text>
-    <text class="fnt" x="388" y="31">›</text>
-    <line class="ln" x1="410" y1="16" x2="410" y2="44"/>
+    <text class="mut" x="244" y="31">app_dev / users</text>
 
-    <rect class="s-field ln2" x="540" y="17" width="104" height="26" rx="6"/>
-    <text class="c" x="592" y="31">+ 打开表…</text>
-
-    <rect class="s-field ln2" x="676" y="17" width="64" height="26" rx="6"/>
-    <text class="c mut" x="708" y="31">放弃</text>
-    <rect class="s-field ln2" x="748" y="17" width="64" height="26" rx="6"/>
-    <text class="c mut" x="780" y="31">预览</text>
-    <rect class="s-accent" x="820" y="17" width="110" height="26" rx="6"/>
-    <text class="c" x="875" y="31" fill="#fff">提交修改 · 7</text>
+    <!-- 右侧全局按钮组：快速打开 / 刷新 / 查询历史 / Console Log / 字段栏 -->
+    <rect class="s-field ln2" x="760" y="17" width="26" height="26" rx="6"/>
+    <text class="c" x="773" y="31" text-anchor="middle">🔍</text>
+    <rect class="s-field ln2" x="790" y="17" width="26" height="26" rx="6"/>
+    <text class="c" x="803" y="31" text-anchor="middle">↻</text>
+    <line class="ln" x1="824" y1="21" x2="824" y2="39"/>
+    <rect class="s-field ln2" x="832" y="17" width="26" height="26" rx="6"/>
+    <text class="c" x="845" y="31" text-anchor="middle">🕘</text>
+    <rect class="s-field ln2" x="862" y="17" width="26" height="26" rx="6"/>
+    <text class="fnt s c" x="875" y="31" text-anchor="middle">&gt;_</text>
+    <line class="ln" x1="896" y1="21" x2="896" y2="39"/>
     <rect class="s-field ln2" x="938" y="17" width="44" height="26" rx="6"/>
     <text class="c" x="960" y="31">▤</text>
 
@@ -103,10 +101,6 @@
     <text class="fnt" x="42" y="261">…</text>
     <text class="b" x="26" y="288">▾ 视图 (3)</text>
     <text x="42" y="316">v_active_users</text>
-
-    <line class="ln" x1="8" y1="554" x2="250" y2="554"/>
-    <text class="c" x="68" y="572">🕘</text>
-    <text class="c" x="189" y="572">📋</text>
 
     <!-- 标签栏：当前标签圆角底色块 + 连接色顶线 -->
     <rect class="s-chrome" x="250" y="55" width="742" height="32"/>
@@ -258,13 +252,13 @@
 <thead><tr><th>#</th><th>区域</th><th>职责</th><th>会变的东西</th></tr></thead>
 <tbody>
 <tr data-hot="1"><td class="num">1</td><td class="wide">工具栏</td>
-  <td>连接切换、快速打开、刷新；最右端是右侧字段栏开关 <b>▤</b>。</td>
+  <td>连接切换、快速打开、刷新、查询历史、Console Log；最右端是右侧字段栏开关 <b>▤</b>。</td>
   <td><b>▤</b> 只在表数据标签下可用。</td></tr>
 <tr data-hot="2"><td class="num">2</td><td class="wide">连接颜色带</td>
   <td>用连接配置里的颜色区分生产 / 测试 / 开发，专门用来防「以为自己连的是测试库」。</td>
   <td>跟随连接配置里的颜色。</td></tr>
 <tr data-hot="3"><td class="num">3</td><td class="wide">左侧栏</td>
-  <td>选择库、浏览对象，底部两个入口（历史 / 日志），悬停显示完整名称。空分组直接隐藏。</td>
+  <td>选择库、浏览对象。空分组直接隐藏。</td>
   <td>随当前连接和当前库变化；可拖宽、可整体隐藏（<kbd>⌃⌘S</kbd>）。</td></tr>
 <tr data-hot="4"><td class="num">4</td><td class="wide">标签栏</td>
   <td>当前连接打开的所有标签。每个标签标题前有类型图标；当前标签用圆角底色块突出；有未提交改动的标签，标题右边有个橙色小圆点。</td>
@@ -306,37 +300,29 @@
   <circle class="s-red" cx="26" cy="64" r="4.5"/>
   <circle class="s-yellow" cx="42" cy="64" r="4.5"/>
   <circle class="s-green" cx="58" cy="64" r="4.5"/>
-  <text class="s b" x="74" y="64">本地开发 — app_dev</text>
 
   <!-- 连接切换器 -->
   <rect class="s-field ln2" x="200" y="47" width="170" height="34" rx="7"/>
   <circle class="s-green" cx="216" cy="64" r="5"/>
   <text x="230" y="64">本地开发</text>
   <text class="mut s" x="350" y="64">▾</text>
-  <line class="ln" x1="382" y1="47" x2="382" y2="81"/>
 
-  <!-- 前进后退 -->
-  <text class="mut m" x="394" y="64">‹</text>
-  <text class="fnt m" x="416" y="64">›</text>
-  <line class="ln" x1="440" y1="47" x2="440" y2="81"/>
+  <!-- 面包屑标题 -->
+  <text class="mut" x="398" y="64">app_dev / users</text>
 
-  <!-- 打开表 -->
-  <rect class="s-field ln2" x="576" y="47" width="112" height="34" rx="7"/>
-  <text class="c" x="632" y="64">+ 打开表…</text>
-
-  <!-- 变更操作组 -->
-  <rect class="s-field ln2" x="706" y="47" width="72" height="34" rx="7"/>
-  <text class="c mut" x="742" y="64">放弃</text>
-  <rect class="s-field ln2" x="786" y="47" width="72" height="34" rx="7"/>
-  <text class="c mut" x="822" y="64">预览</text>
-  <rect class="s-accent" x="866" y="47" width="76" height="34" rx="7"/>
-  <text class="c" x="900" y="64" fill="#fff">提交修改</text>
-  <circle class="s-orange" cx="930" cy="50" r="12"/>
-  <text class="c" x="930" y="50" fill="#fff" style="font:600 11px var(--sans)">7</text>
-
-  <!-- 右侧字段栏开关 -->
-  <rect class="s-field ln2" x="952" y="47" width="32" height="34" rx="7"/>
-  <text class="c" x="968" y="64">▤</text>
+  <!-- 右侧全局按钮组：快速打开 / 刷新 / 查询历史 / Console Log / 字段栏 -->
+  <rect class="s-field ln2" x="730" y="47" width="34" height="34" rx="7"/>
+  <text class="c" x="747" y="64" text-anchor="middle">🔍</text>
+  <rect class="s-field ln2" x="768" y="47" width="34" height="34" rx="7"/>
+  <text class="c" x="785" y="64" text-anchor="middle">↻</text>
+  <line class="ln" x1="812" y1="52" x2="812" y2="76"/>
+  <rect class="s-field ln2" x="820" y="47" width="34" height="34" rx="7"/>
+  <text class="c" x="837" y="64" text-anchor="middle">🕘</text>
+  <rect class="s-field ln2" x="858" y="47" width="34" height="34" rx="7"/>
+  <text class="fnt s c" x="875" y="64" text-anchor="middle">&gt;_</text>
+  <line class="ln" x1="902" y1="52" x2="902" y2="76"/>
+  <rect class="s-field ln2" x="940" y="47" width="44" height="34" rx="7"/>
+  <text class="c" x="962" y="64">▤</text>
 
   <!-- 颜色带 -->
   <rect class="s-green" x="8" y="94" width="984" height="6"/>
@@ -345,48 +331,40 @@
   <!-- 热点 -->
   <g class="hot" data-hot="1"><circle cx="285" cy="16" r="11"/><text x="285" y="16">1</text></g>
   <path class="leader" d="M285 27 L285 47"/>
-  <g class="hot" data-hot="2"><circle cx="405" cy="16" r="11"/><text x="405" y="16">2</text></g>
-  <path class="leader" d="M405 27 L405 47"/>
-  <g class="hot" data-hot="3"><circle cx="632" cy="16" r="11"/><text x="632" y="16">3</text></g>
-  <path class="leader" d="M632 27 L632 47"/>
-  <g class="hot" data-hot="4"><circle cx="742" cy="16" r="11"/><text x="742" y="16">4</text></g>
-  <path class="leader" d="M742 27 L742 47"/>
-  <g class="hot" data-hot="5"><circle cx="822" cy="16" r="11"/><text x="822" y="16">5</text></g>
-  <path class="leader" d="M822 27 L822 47"/>
-  <g class="hot" data-hot="6"><circle cx="904" cy="16" r="11"/><text x="904" y="16">6</text></g>
-  <path class="leader" d="M904 27 L904 47"/>
+  <g class="hot" data-hot="2"><circle cx="747" cy="16" r="11"/><text x="747" y="16">2</text></g>
+  <path class="leader" d="M747 27 L747 47"/>
+  <g class="hot" data-hot="3"><circle cx="785" cy="16" r="11"/><text x="785" y="16">3</text></g>
+  <path class="leader" d="M785 27 L785 47"/>
+  <g class="hot" data-hot="4"><circle cx="837" cy="16" r="11"/><text x="837" y="16">4</text></g>
+  <path class="leader" d="M837 27 L837 47"/>
+  <g class="hot" data-hot="5"><circle cx="875" cy="16" r="11"/><text x="875" y="16">5</text></g>
+  <path class="leader" d="M875 27 L875 47"/>
+  <g class="hot" data-hot="6"><circle cx="962" cy="16" r="11"/><text x="962" y="16">6</text></g>
+  <path class="leader" d="M962 27 L962 47"/>
   <g class="hot" data-hot="7"><circle cx="970" cy="112" r="11"/><text x="970" y="112">7</text></g>
-  <g class="hot" data-hot="8"><circle cx="968" cy="16" r="11"/><text x="968" y="16">8</text></g>
-  <path class="leader" d="M968 27 L968 47"/>
 </svg>
-<figcaption><b>图 2-2</b>　工具栏（线框为旧版）。改版后左侧是连接切换器 + 库/标签标题，右侧是快速打开 / 刷新 / 字段栏开关；变更操作移到网格下方，仅在有过改动时出现。</figcaption>
+<figcaption><b>图 2-2</b>　工具栏。左侧是连接切换器 + 库/标签标题，右侧是快速打开 / 刷新 / 查询历史 / Console Log / 字段栏开关；变更操作在网格下方，仅在有过改动时出现。</figcaption>
 </figure>
 
 <table class="controls">
 <thead><tr><th>#</th><th>控件</th><th>作用</th><th>快捷键</th></tr></thead>
 <tbody>
 <tr data-hot="1"><td class="num">1</td><td class="wide">连接切换器</td>
-  <td>点开是连接列表（见下图）。左边的小圆点是这个连接的状态：灰=未连接，转圈=连接中，绿=正常，红=异常。</td><td>—</td></tr>
+  <td>点开是连接列表（见下图）。左边的小圆点是这个连接的状态：灰=未连接，转圈=连接中，绿=正常，红=异常。右边紧挨着的是「库 / 当前标签」标题。</td><td>—</td></tr>
 <tr data-hot="2"><td class="num">2</td><td class="wide">快速打开</td>
   <td>在当前库里搜索表 / 视图并打开。替代原来标题栏中间的大搜索框。</td><td><kbd>⌘P</kbd></td></tr>
 <tr data-hot="3"><td class="num">3</td><td class="wide">刷新</td>
   <td>刷新对象树与当前标签的数据；与菜单「连接 → 刷新」一致。</td><td><kbd>⌘R</kbd></td></tr>
-<tr data-hot="4"><td class="num">4</td><td class="wide">上下文变更条</td>
-  <td>表格有未提交改动时出现在网格下方：<b>预览 SQL / 放弃 / 提交</b>。没有改动时整条不出现，不再占工具栏。</td><td><kbd>⇧⌘P</kbd> / <kbd>⇧⌘⌫</kbd> / <kbd>⌘S</kbd></td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">查询历史</td>
+  <td>打开查询历史标签；记录从 SQL 编辑器执行过的语句。它是全局入口，不随当前库或标签变化。</td><td>—</td></tr>
+<tr data-hot="5"><td class="num">5</td><td class="wide">Console Log</td>
+  <td>打开 Console Log 标签；记录所有发给服务器的语句，包括客户端自动发的元数据查询。与菜单「视图 → 显示 / 隐藏 Console Log」是同一个开关。</td><td><kbd>⇧⌘C</kbd></td></tr>
+<tr data-hot="6"><td class="num">6</td><td class="wide">右侧字段栏开关 ▤</td>
+  <td>整体开启 / 关闭右侧字段栏。只在<b>表数据标签</b>里可用，其它标签上是灰的。没有选中行时字段栏本来就会收起；它<b>没有快捷键</b>。</td><td>—</td></tr>
 <tr data-hot="7"><td class="num">7</td><td class="wide">连接颜色带</td>
   <td>一条 2pt 的细带，用连接配置里选的颜色。它是整窗口最容易扫到的一条线，专门用来防「以为自己连的是测试库」。</td><td>—</td></tr>
-<tr data-hot="8"><td class="num">8</td><td class="wide">右侧字段栏开关 ▤</td>
-  <td>整体开启 / 关闭右侧字段栏。只在<b>表数据标签</b>里可用，其它标签上是灰的。没有选中行时字段栏本来就会收起；它<b>没有快捷键</b>。</td><td>—</td></tr>
 </tbody>
 </table>
-
-<div class="callout warn">
-  <span class="tag">图 2-2 是旧版线框</span>
-  <p>
-    当前工具栏只有：连接切换器 + 库/标签标题、快速打开、刷新、右侧字段栏开关。
-    图中的「前进 / 后退」「打开表…」「预览 / 提交」已经是旧版；变更操作现在在网格下方。
-  </p>
-</div>
 
 <div class="callout warn">
   <span class="tag">变更操作现在在哪</span>
@@ -484,7 +462,7 @@
 <h2>左侧栏</h2>
 
 <p>
-  左侧栏从上到下是三层：选库、搜对象、看对象。底部还有两个固定的入口。
+  左侧栏从上到下是三层：选库、搜对象、看对象。
   宽度可以拖，拖动后会记住；整个左侧栏也能用 <kbd>⌃⌘S</kbd> 隐藏。
 </p>
 
@@ -522,11 +500,6 @@
   <text x="70" y="396">v_active_users</text>
   <text x="70" y="426">v_order_summary</text>
 
-  <!-- 底部 -->
-  <line class="ln" x1="30" y1="578" x2="430" y2="578"/>
-  <text class="c" x="130" y="598">🕘</text>
-  <text class="c" x="330" y="598">📋</text>
-
   <!-- 右键菜单 -->
   <rect class="s-window ln2" x="450" y="230" width="252" height="286" rx="9"/>
   <text x="468" y="252">打开数据</text>
@@ -548,8 +521,7 @@
   <g class="hot" data-hot="3"><circle cx="52" cy="186" r="11"/><text x="52" y="186">3</text></g>
   <g class="hot" data-hot="4"><circle cx="418" cy="274" r="11"/><text x="418" y="274">4</text></g>
   <g class="hot" data-hot="5"><circle cx="700" cy="252" r="11"/><text x="700" y="252">5</text></g>
-  <g class="hot" data-hot="6"><circle cx="418" cy="598" r="11"/><text x="418" y="598">6</text></g>
-  <g class="hot" data-hot="7"><circle cx="414" cy="147" r="11"/><text x="414" y="147">7</text></g>
+  <g class="hot" data-hot="6"><circle cx="414" cy="147" r="11"/><text x="414" y="147">6</text></g>
 </svg>
 <figcaption><b>图 2-4</b>　左侧栏、对象树，以及表项的右键菜单。</figcaption>
 </figure>
@@ -567,9 +539,7 @@
   <td><b>单击表</b>打开数据视图（已打开则切过去）；<b>单击视图</b>在新标签打开只读定义。<b>右键</b>展开菜单，菜单里有「在新标签打开」。</td></tr>
 <tr data-hot="5"><td class="num">5</td><td class="wide">右键菜单</td>
   <td>见下表。注意最后两项是<b>红色</b>的，因为它们直接生效、不进暂存区。</td></tr>
-<tr data-hot="6"><td class="num">6</td><td class="wide">查询历史 / Console Log</td>
-  <td>两个固定入口，<b>只显示图标</b>（时钟 / 终端），鼠标悬停时显示名称。点开各自成一个新标签。它们的详细用法在<a href="06-query-editor.html">第 6 章</a>。</td></tr>
-<tr data-hot="7"><td class="num">7</td><td class="wide">500 项提示条</td>
+<tr data-hot="6"><td class="num">6</td><td class="wide">500 项提示条</td>
   <td>一个库超过 500 个表时只显示前 500 个，并在顶部挂这条提示，避免一次拉几千个名字把界面拖死。</td></tr>
 </tbody>
 </table>
