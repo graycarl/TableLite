@@ -66,10 +66,12 @@ final class DataGridBridgeTests: XCTestCase {
         XCTAssertEqual(tableView.numberOfColumns, 3) // 行号 + id + name
         XCTAssertEqual(tableView.tableColumns.first?.identifier, DataGridCoordinator.rowNumberIdentifier)
         XCTAssertEqual(coordinator.numberOfRows(in: tableView), 2)
-        // 主键表头：SF Symbol 钥匙图标附件（`07-data-grid.md` §4），附件在 .string 里是 U+FFFC 占位符。
+        // 主键表头：只加粗、不带钥匙图标（`specs/03-data-browsing.md` §1）。
         let header = tableView.tableColumns[1].headerCell.attributedStringValue
-        XCTAssertEqual(header.string, "\u{FFFC} id")
-        XCTAssertTrue(header.containsAttachments(in: NSRange(location: 0, length: header.length)))
+        XCTAssertEqual(header.string, "id")
+        XCTAssertFalse(header.containsAttachments(in: NSRange(location: 0, length: header.length)))
+        let font = header.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+        XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.bold) ?? false)
     }
 
     func testCoordinatorProvidesCellViews() async throws {

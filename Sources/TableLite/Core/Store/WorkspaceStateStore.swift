@@ -9,10 +9,27 @@ public struct TableLayout: Sendable, Codable, Equatable {
     public var columnWidths: [String: Double]
     /// 被隐藏的列名。
     public var hiddenColumns: [String]
+    /// 用户亲手拖过的列名。只有这些列宽算「用户的意思」，不再被自动估算覆盖
+    /// （`docs/tech-designs/07-data-grid.md` §4.1）。
+    public var userResizedColumns: [String]
 
-    public init(columnWidths: [String: Double] = [:], hiddenColumns: [String] = []) {
+    public init(
+        columnWidths: [String: Double] = [:],
+        hiddenColumns: [String] = [],
+        userResizedColumns: [String] = []
+    ) {
         self.columnWidths = columnWidths
         self.hiddenColumns = hiddenColumns
+        self.userResizedColumns = userResizedColumns
+    }
+
+    /// 手工解码：早期版本没有 `userResizedColumns` 这个键，
+    /// 缺省成空数组 —— 老数据里那些宽度本来就是自动估算的产物，允许被重新估算覆盖。
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        columnWidths = try container.decodeIfPresent([String: Double].self, forKey: .columnWidths) ?? [:]
+        hiddenColumns = try container.decodeIfPresent([String].self, forKey: .hiddenColumns) ?? []
+        userResizedColumns = try container.decodeIfPresent([String].self, forKey: .userResizedColumns) ?? []
     }
 
     public var isEmpty: Bool {

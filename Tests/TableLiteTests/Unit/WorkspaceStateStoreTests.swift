@@ -33,6 +33,34 @@ final class WorkspaceStateStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.layout(connectionID: connectionID, database: "app_dev", table: "users"), layout)
     }
 
+    /// 老版本的布局里没有 `userResizedColumns` 这个键：解码不能失败，
+    /// 且这些列宽要允许被重新自动适配（`07-data-grid.md` §4.2）。
+    func testLegacyLayoutWithoutUserResizedColumnsDecodes() throws {
+        let legacy = Data(#"{"columnWidths":{"id":80,"name":240},"hiddenColumns":["payload"]}"#.utf8)
+        let layout = try JSONDecoder().decode(TableLayout.self, from: legacy)
+
+        XCTAssertEqual(layout.columnWidths, ["id": 80, "name": 240])
+        XCTAssertEqual(layout.hiddenColumns, ["payload"])
+        XCTAssertTrue(layout.userResizedColumns.isEmpty)
+    }
+
+    /// 新字段随布局一起存取。
+    func testUserResizedColumnsRoundTrip() {
+        let store = InMemoryKeyValueStore()
+        let workspace = WorkspaceStateStore(store: store)
+        let connectionID = UUID()
+        let layout = TableLayout(
+            columnWidths: ["id": 80],
+            hiddenColumns: [],
+            userResizedColumns: ["id"]
+        )
+
+        workspace.setLayout(layout, connectionID: connectionID, database: "app_dev", table: "users")
+
+        let reloaded = workspace.layout(connectionID: connectionID, database: "app_dev", table: "users")
+        XCTAssertEqual(reloaded?.userResizedColumns, ["id"])
+    }
+
     func testEmptyLayoutIsNotStored() {
         let workspace = WorkspaceStateStore(store: InMemoryKeyValueStore())
         let connectionID = UUID()

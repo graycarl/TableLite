@@ -141,10 +141,12 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         if lastFontSize != fontSize {
             lastFontSize = fontSize
             tableView.reloadData()
+            refreshGridCanvas()
         }
         if lastAlternateRowColors != alternateRowColors {
             lastAlternateRowColors = alternateRowColors
             tableView.reloadData()
+            refreshGridCanvas()
         }
         if abs(tableView.rowHeight - rowHeight) > 0.5 {
             tableView.rowHeight = rowHeight
@@ -154,15 +156,12 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
         let identifier = NSUserInterfaceItemIdentifier("ResultRowView")
-        let rowView = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableRowView
+        let rowView = tableView.makeView(withIdentifier: identifier, owner: self) as? TableRowView
             ?? {
                 let made = TableRowView()
                 made.identifier = identifier
                 return made
             }()
-        rowView.backgroundColor = (alternateRowColors && !row.isMultiple(of: 2))
-            ? AppNSColor.rowAlternate
-            : .clear
         return rowView
     }
 
@@ -170,6 +169,7 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         order = Array(rows.indices)
         applySort()
         tableView?.reloadData()
+        refreshGridCanvas()
     }
 
     // MARK: 列
@@ -201,6 +201,7 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
             tableView.addTableColumn(tableColumn)
         }
         applyColumnVisibility()
+        installGridCanvasIfNeeded()
     }
 
     /// 把 `hiddenColumnIndexes` 应用到 `NSTableView`（行号列永远可见）。
@@ -211,14 +212,14 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         }
     }
 
+    /// 按前 50 行的显示值量列宽（`GridColumnWidth`，与数据网格同一套规则）。
     private func estimatedWidth(for column: ColumnInfo) -> CGFloat {
         let index = columns.firstIndex(of: column) ?? 0
-        var sample = column.name.count
+        var texts = [column.name]
         for rowIndex in order.prefix(50) where rowIndex < rows.count && index < rows[rowIndex].count {
-            let value = rows[rowIndex][index]
-            sample = max(sample, min(displayText(value, column: column).count, 40))
+            texts.append(displayText(rows[rowIndex][index], column: column))
         }
-        return min(max(CGFloat(sample) * 8 + 24, 70), 400)
+        return GridColumnWidth.fit(texts: texts, font: cellFont)
     }
 
     // MARK: 数据源
@@ -336,10 +337,35 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         }
     }
 
+    /// 底纹 / 网格线的画布：一次绘制，不按行重复（`07-data-grid.md` §4.1）。
+    let gridCanvas = GridCanvasView()
+
+    /// 重算画布：位置、行区域、隔行底色、竖线 x。
+    func refreshGridCanvas() {
+        guard let tableView, gridCanvas.superview === tableView else { return }
+        let step = tableView.rowHeight + tableView.intercellSpacing.height
+        let rowsHeight = CGFloat(order.count) * step
+        gridCanvas.frame = NSRect(x: 0, y: 0, width: tableView.bounds.width, height: rowsHeight)
+        gridCanvas.rowsRect = NSRect(x: 0, y: 0, width: tableView.bounds.width, height: rowsHeight)
+        gridCanvas.stripeColor = alternateRowColors ? AppNSColor.rowAlternate : nil
+        gridCanvas.ownerTableView = tableView
+
+        let columns = tableView.tableColumns
+        var xs: [CGFloat] = []
+        xs.reserveCapacity(columns.count)
+        // 画在每一列的右缘（含行号列），最后一列右缘不画 —— 那里是表格外边。
+        for (index, column) in columns.enumerated() where !column.isHidden && index < columns.count - 1 {
+            xs.append((tableView.rect(ofColumn: index).maxX - 1).rounded(.down))
+        }
+        gridCanvas.columnSeparatorXs = xs
+        gridCanvas.needsDisplay = true
+    }
+
     // MARK: 交互
 
     func tableViewColumnDidResize(_ notification: Notification) {
-        // 结果集是临时的，不记忆列宽（S16 / 结果集无持久化）。
+        // 结果集是临时的，不记忆列宽（S16 / 结果集无持久化），但网格线要跟上。
+        refreshGridCanvas()
     }
 
     @objc func tableViewDoubleClicked(_ sender: NSTableView) {
@@ -407,6 +433,16 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
             columnCount: columns.count
         )
         applyColumnVisibility()
+        installGridCanvasIfNeeded()
+    }
+
+    /// 画布是表格的子视图、压在行视图之下（`07-data-grid.md` §4.1）。
+    private func installGridCanvasIfNeeded() {
+        guard let tableView else { return }
+        if gridCanvas.superview !== tableView {
+            tableView.addSubview(gridCanvas, positioned: .below, relativeTo: nil)
+        }
+        refreshGridCanvas()
     }
 
     @objc private func menuQuickLook(_ sender: NSMenuItem) {
