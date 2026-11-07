@@ -190,6 +190,25 @@ final class TableDataViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.visibleColumns.map(\.name), ["id"])
     }
 
+    // MARK: 列宽归属（`07-data-grid.md` §4.2）
+
+    /// 自动适配写进去的宽度不算「用户宽度」：下次打开还要重新量。
+    func testEstimatedWidthsDoNotCountAsUserWidth() async throws {
+        harness.preferences.lazyLargeColumns = false
+        let session = try await makeSession()
+        let (viewModel, _) = makeViewModel(session: session)
+        await harness.mysql.setResponses([pageResponse(rowCount: 10)])
+        await viewModel.start()
+
+        viewModel.setEstimatedColumnWidths(["id": 90, "name": 180])
+        XCTAssertEqual(viewModel.columnWidths["name"], 180)
+        XCTAssertFalse(viewModel.hasUserWidth("name"))
+
+        viewModel.setColumnWidth("name", width: 240)
+        XCTAssertTrue(viewModel.hasUserWidth("name"))
+        XCTAssertFalse(viewModel.hasUserWidth("id"))
+    }
+
     // MARK: 选择
 
     func testSelectionDrivesInspector() async throws {

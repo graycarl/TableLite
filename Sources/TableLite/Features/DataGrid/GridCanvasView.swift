@@ -39,23 +39,32 @@ final class GridCanvasView: NSView {
     }
 
     /// 可见行的「行号 + 表格坐标系矩形」。行高统一，所以只向表格要一次起点，其余按步长推进。
+    /// 行带高度取 `step`（行高 + 行间距），相邻两行首尾相接，隔行色之间不会露出白缝。
     private func visibleRows(in visible: NSRect, table: NSTableView) -> [(row: Int, rect: NSRect)] {
         let step = table.rowHeight + table.intercellSpacing.height
-        guard step > 0 else { return [] }
-        let first = max(0, Int(((visible.minY - rowsRect.minY) / step).rounded(.down)))
-        let last = min(table.numberOfRows - 1, Int(((visible.maxY - rowsRect.minY) / step).rounded(.up)))
-        guard last >= first else { return [] }
-        let anchor = table.rect(ofRow: first)
-        return (first ... last).map { index in
-            let y = anchor.minY + CGFloat(index - first) * step
-            return (index, NSRect(x: visible.minX, y: y, width: visible.width, height: table.rowHeight))
+        guard let range = GridCanvasGeometry.rowRange(
+            visible: visible,
+            rowsRect: rowsRect,
+            step: step,
+            rowCount: table.numberOfRows
+        ) else { return [] }
+        let anchor = table.rect(ofRow: range.lowerBound)
+        return range.map { index in
+            let rect = GridCanvasGeometry.rowBand(
+                anchor: anchor,
+                offset: index - range.lowerBound,
+                step: step,
+                width: visible.width,
+                minX: visible.minX
+            )
+            return (index, rect)
         }
     }
 
     private func drawStripes(_ rows: [(row: Int, rect: NSRect)]) {
         guard let stripeColor else { return }
         let path = NSBezierPath()
-        for (row, rect) in rows where row % 2 == stripeParity {
+        for (row, rect) in rows where GridCanvasGeometry.isStriped(row: row, parity: stripeParity) {
             path.appendRect(rect)
         }
         guard !path.isEmpty else { return }

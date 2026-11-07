@@ -37,7 +37,8 @@ struct DataGridView: NSViewRepresentable {
         tableView.usesAlternatingRowBackgroundColors = false
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.style = .plain
-        // 不画网格线：分行靠隔行变色（`docs/tech-designs/07-data-grid.md` §4）。
+        // 系统的网格线不画（它会连空白区一起画、也不受列虚拟化控制）；
+        // 隔行底色与行列细线由 `GridCanvasView` 自绘（`docs/tech-designs/07-data-grid.md` §4.1）。
         tableView.gridStyleMask = []
         tableView.intercellSpacing = NSSize(width: 0, height: 1)
         tableView.rowHeight = coordinator.rowHeight
@@ -101,6 +102,9 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     private var lastAlternateRowColors: Bool?
     private var lastColumnSignature = ""
     private var didEstimateWidths = false
+    /// 上一次「自动适配列宽」时的可见列清单。只有列集合变了才重量 ——
+    /// 排序也会重建列（为了重画表头箭头），不能让列宽跟着排序跳一次（`07-data-grid.md` §4.2）。
+    private var widthEstimateSignature = ""
     private var isApplyingSelection = false
     /// 列名 → 列元数据。`viewFor` 是热路径，避免每个单元格都线性扫 `columns`。
     private var columnsByName: [String: ColumnInfo] = [:]
@@ -192,12 +196,18 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
             refreshGridCanvas()
         }
 
+        // 列集合（含显隐）变了才重新适配列宽；排序变化也走 rebuildColumns，但不该动量出来的宽度。
+        let widthSignature = viewModel.visibleColumns.map(\.name).joined(separator: ",")
+        if widthSignature != widthEstimateSignature {
+            widthEstimateSignature = widthSignature
+            didEstimateWidths = false
+        }
+
         let signature = columnSignature()
         if signature != lastColumnSignature {
             lastColumnSignature = signature
             rebuildColumns()
             tableView.reloadData()
-            didEstimateWidths = false
         }
 
         if lastDataRevision != viewModel.dataRevision {
@@ -261,7 +271,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
             let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(column.name))
             tableColumn.headerCell.attributedStringValue = headerTitle(for: column, baseFont: headerFont)
             tableColumn.headerToolTip = column.gridTypeTooltip
-            tableColumn.width = viewModel.columnWidths[column.name] ?? fallbackWidth(for: column)
+            applyProgrammaticWidth(viewModel.columnWidths[column.name] ?? fallbackWidth(for: column), to: tableColumn)
             tableColumn.minWidth = 40
             tableColumn.maxWidth = 2000
             tableColumn.resizingMask = .userResizingMask
@@ -275,10 +285,13 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         // 列集合变了，x 映射也变了：重新判定列窗口（不触发重载，调用方随后会 `reloadData`）。
         refreshColumnWindow(reloadIfChanged: false)
         // 画布在行视图之下：重载时行视图会被重新添加，画布必须重新压到底。
-        if gridCanvas.superview !== tableView {
+        // 判「是不是第一个子视图」而不是「是不是子视图」：一旦被顶到行视图之上，
+        // 底纹会盖住单元格文字。
+        if tableView.subviews.first !== gridCanvas {
+            gridCanvas.removeFromSuperview()
             tableView.addSubview(gridCanvas, positioned: .below, relativeTo: nil)
         }
-        lastCanvasRowsHeight = -1
+        lastCanvasRegion = .null
         refreshGridCanvas()
         refreshColumnSeparators()
     }
@@ -336,7 +349,7 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
                 )
             }
             let width = GridColumnWidth.fit(texts: texts, font: cellFont)
-            applyEstimatedWidth(width, to: tableColumn)
+            applyProgrammaticWidth(width, to: tableColumn)
             estimated[name] = Double(width)
         }
         viewModel.setEstimatedColumnWidths(estimated)
@@ -354,11 +367,11 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         return Array(0 ..< min(rowsSnapshot.count, 50))
     }
 
-    /// 把自动量出来的宽度写到列上：不经过「用户拖拽」这条路，所以不标记为 `userResizedColumns`。
-    private func applyEstimatedWidth(_ width: CGFloat, to tableColumn: NSTableColumn) {
-        isApplyingEstimatedWidth = true
+    /// 程序化写宽度：不经过「用户拖拽」这条路，所以不会被记成 `userResizedColumns`。
+    private func applyProgrammaticWidth(_ width: CGFloat, to tableColumn: NSTableColumn) {
+        isApplyingProgrammaticWidth = true
         tableColumn.width = width
-        isApplyingEstimatedWidth = false
+        isApplyingProgrammaticWidth = false
     }
 
     // MARK: 列窗口
@@ -419,6 +432,8 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
 
     @objc func clipViewBoundsDidChange(_ notification: Notification) {
         refreshColumnWindow()
+        // 窗口缩放 / 拖分隔条 / 滚动都会改可视区：画布的宽度与可见行要跟着走。
+        refreshGridCanvas()
     }
 
     deinit {
@@ -475,24 +490,33 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         return cell
     }
 
-    /// 正在写入自动估算的宽度：此时 `tableViewColumnDidResize` 不该把它当成用户拖拽。
-    private var isApplyingEstimatedWidth = false
+    /// 正在程序化写入列宽（重建列 / 自动适配）：此时 `tableViewColumnDidResize` 不该把它当成用户拖拽。
+    /// 注意 AppKit 对程序化改宽**也会**发通知（列宽变了就发），所以这条路必须挡住，
+    /// 否则「重建列」会把整张表的列都钉成用户宽度（`07-data-grid.md` §4.2）。
+    private var isApplyingProgrammaticWidth = false
 
     /// 底纹 / 网格线的画布：一次绘制，不按行重复（`07-data-grid.md` §4.1）。
     let gridCanvas = GridCanvasView()
 
-    /// 画布的行区域高度；`sync()` 每次 SwiftUI 更新都会走到刷新，不能无条件标脏。
-    private var lastCanvasRowsHeight: CGFloat = -1
+    /// 画布最近一次写入的行区域；`sync()` / 滚动 / 缩放都会走到这里，不能无条件标脏。
+    private var lastCanvasRegion: NSRect = .null
 
     /// 画布的位置与行区域。只在真变了的时候重画 —— 每帧无条件 `needsDisplay` 等于每帧整块重绘。
+    ///
+    /// 宽度必须跟着表格走：窗口拉宽、拖侧栏 / 字段栏分隔条都会改 `bounds.width`，
+    /// 画布是普通子视图（没有 autoresizing mask），不重设的话右侧那一段没有底纹也没有线。
     private func refreshGridCanvas() {
         guard let tableView, gridCanvas.superview === tableView else { return }
         let step = tableView.rowHeight + tableView.intercellSpacing.height
-        let rowsHeight = CGFloat(rowsSnapshot.count) * step
+        let region = NSRect(
+            x: 0,
+            y: 0,
+            width: canvasWidth(for: tableView),
+            height: CGFloat(rowsSnapshot.count) * step
+        )
         var changed = false
-        if abs(rowsHeight - lastCanvasRowsHeight) > 0.5 {
-            lastCanvasRowsHeight = rowsHeight
-            let region = NSRect(x: 0, y: 0, width: tableView.bounds.width, height: rowsHeight)
+        if region != lastCanvasRegion {
+            lastCanvasRegion = region
             gridCanvas.frame = region
             gridCanvas.rowsRect = region
             changed = true
@@ -506,17 +530,21 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
         if changed { gridCanvas.needsDisplay = true }
     }
 
-    /// 列的竖线 x 坐标。只有列集合 / 列宽 / 列显隐变了才重算
-    /// （200 列的表上 `rect(ofColumn:)` 要跑 200 次，不能放进 `sync()` 的每帧路径）。
+    /// 画布要盖多宽：列总宽可能小于视口（窄表），这时底纹与行底横线也要铺到视口右边，
+    /// 否则右侧会留一条没有斑马纹的白边（`07-data-grid.md` §4.1）。
+    private func canvasWidth(for tableView: NSTableView) -> CGFloat {
+        let viewport = tableView.enclosingScrollView?.contentSize.width ?? 0
+        return max(tableView.bounds.width, viewport)
+    }
+
+    /// 列的竖线 x 坐标。只有列集合 / 列宽 / 列显隐变了才重算（`sync()` 是每帧路径）。
     private func refreshColumnSeparators() {
         guard let tableView else { return }
-        let columns = tableView.tableColumns
-        var xs: [CGFloat] = []
-        xs.reserveCapacity(columns.count)
-        // 画在每一列的右缘（含行号列），最后一列右缘不画 —— 那里是表格外边。
-        for (index, column) in columns.enumerated() where !column.isHidden && index < columns.count - 1 {
-            xs.append((tableView.rect(ofColumn: index).maxX - 1).rounded(.down))
-        }
+        // 竖线 x 按列宽累加算（纯函数，`GridCanvasGeometry`）：首帧几何不可信时也不用问 AppKit。
+        let xs = GridCanvasGeometry.columnSeparatorXs(
+            columns: tableView.tableColumns.map { ($0.width, $0.isHidden) },
+            intercellSpacing: tableView.intercellSpacing.width
+        )
         guard xs != gridCanvas.columnSeparatorXs else { return }
         gridCanvas.columnSeparatorXs = xs
         gridCanvas.needsDisplay = true
@@ -1033,17 +1061,14 @@ final class DataGridCoordinator: NSObject, NSTableViewDataSource, NSTableViewDel
     }
 
     func tableViewColumnDidResize(_ notification: Notification) {
-        guard let tableView, !isApplyingEstimatedWidth else { return }
+        guard let tableView, !isApplyingProgrammaticWidth else { return }
         refreshColumnSeparators()
-        // 只记「真的变了宽度」的那一列：拖一条分隔线只改一列，
-        // 但通知里的 tableColumns 是所有列，照单全收会把整张表的列都标成「用户拖过」，
-        // 自动适配从此再也碰不了它们（`07-data-grid.md` §4.2）。
-        for column in tableView.tableColumns where column.identifier != Self.rowNumberIdentifier {
-            let name = column.identifier.rawValue
-            let stored = viewModel.columnWidths[name] ?? -1
-            guard abs(stored - Double(column.width)) > 0.5 else { continue }
-            viewModel.setColumnWidth(name, width: Double(column.width))
-        }
+        // 只记通知里那一列：拖一条分隔线只改一列，但通知里的 `tableColumns` 是所有列，
+        // 照单全收会把整张表的列都标成「用户拖过」（空表时所有列都还没存过宽度，
+        // 一定会全中），自动适配从此再也碰不了它们（`07-data-grid.md` §4.2）。
+        guard let column = notification.userInfo?["NSTableColumn"] as? NSTableColumn,
+              column.identifier != Self.rowNumberIdentifier else { return }
+        viewModel.setColumnWidth(column.identifier.rawValue, width: Double(column.width))
         // 宽度变了 → x 映射变了，列窗口要重判。
         refreshColumnWindow()
     }

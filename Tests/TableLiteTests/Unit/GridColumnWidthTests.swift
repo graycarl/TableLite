@@ -51,6 +51,29 @@ final class GridColumnWidthTests: XCTestCase {
         XCTAssertEqual(Set(widths).count, widths.count)
     }
 
+    /// 恰好跨过下限的那一档：刚好不足 60 与刚好超过 60 要落在正确的一侧。
+    func testBoundaryAroundMinimum() {
+        // 12 个 "8" 约 73pt、加内边距 ≫ 60；"id" 只有 22pt 左右 → 夹到 60。
+        XCTAssertEqual(width(["id"]), GridColumnWidth.minimum)
+        XCTAssertGreaterThan(width([String(repeating: "8", count: 12)]), GridColumnWidth.minimum)
+    }
+
+    /// 空白字符串不当内容（否则一个纯空格的列会被量出空格宽度）。
+    func testWhitespaceOnlyTextDoesNotDecideWidth() {
+        XCTAssertEqual(width(["", "   "]), GridColumnWidth.minimum)
+    }
+
+    /// 上下限传反了也不崩：`min(max(…))` 先抬到下限再压回上限，最终落在上限。
+    func testDegenerateBoundsClampToMaximum() {
+        let width = GridColumnWidth.fit(
+            texts: [String(repeating: "长", count: 40)],
+            font: font,
+            minimum: 300,
+            maximum: 120
+        )
+        XCTAssertEqual(width, 120)
+    }
+
     /// 内边距确实留了：量出来的宽度 > 纯文本宽度。
     func testCellPaddingIsIncluded() {
         let text = "created_at"

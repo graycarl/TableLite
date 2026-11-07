@@ -141,17 +141,17 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         if lastFontSize != fontSize {
             lastFontSize = fontSize
             tableView.reloadData()
-            refreshGridCanvas()
         }
         if lastAlternateRowColors != alternateRowColors {
             lastAlternateRowColors = alternateRowColors
             tableView.reloadData()
-            refreshGridCanvas()
         }
         if abs(tableView.rowHeight - rowHeight) > 0.5 {
             tableView.rowHeight = rowHeight
             tableView.reloadData()
         }
+        // 放在最后：上面几段都会改行高 / 行数，画布的行区域要按最终值算。
+        refreshGridCanvas()
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
@@ -212,7 +212,8 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         }
     }
 
-    /// 按前 50 行的显示值量列宽（`GridColumnWidth`，与数据网格同一套规则）。
+    /// 按前 50 行的显示值量列宽：度量方式与数据网格相同（`GridColumnWidth`），
+    /// 采样范围不同 —— 结果集是临时对象，不做可见性判断，直接取前 50 行。
     private func estimatedWidth(for column: ColumnInfo) -> CGFloat {
         let index = columns.firstIndex(of: column) ?? 0
         var texts = [column.name]
@@ -341,24 +342,43 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
     let gridCanvas = GridCanvasView()
 
     /// 重算画布：位置、行区域、隔行底色、竖线 x。
+    /// 画布要盖多宽：列总宽可能小于视口（窄表），这时底纹与行底横线也要铺到视口右边，
+    /// 否则右侧会留一条没有斑马纹的白边（`07-data-grid.md` §4.1）。
+    private func canvasWidth(for tableView: NSTableView) -> CGFloat {
+        let viewport = tableView.enclosingScrollView?.contentSize.width ?? 0
+        return max(tableView.bounds.width, viewport)
+    }
+
+    /// 画布最近一次写入的行区域；只在真变了的时候重画（每帧标脏 = 每帧整块重绘）。
+    private var lastCanvasRegion: NSRect = .null
+
     func refreshGridCanvas() {
         guard let tableView, gridCanvas.superview === tableView else { return }
         let step = tableView.rowHeight + tableView.intercellSpacing.height
-        let rowsHeight = CGFloat(order.count) * step
-        gridCanvas.frame = NSRect(x: 0, y: 0, width: tableView.bounds.width, height: rowsHeight)
-        gridCanvas.rowsRect = NSRect(x: 0, y: 0, width: tableView.bounds.width, height: rowsHeight)
-        gridCanvas.stripeColor = alternateRowColors ? AppNSColor.rowAlternate : nil
-        gridCanvas.ownerTableView = tableView
-
-        let columns = tableView.tableColumns
-        var xs: [CGFloat] = []
-        xs.reserveCapacity(columns.count)
-        // 画在每一列的右缘（含行号列），最后一列右缘不画 —— 那里是表格外边。
-        for (index, column) in columns.enumerated() where !column.isHidden && index < columns.count - 1 {
-            xs.append((tableView.rect(ofColumn: index).maxX - 1).rounded(.down))
+        let region = NSRect(x: 0, y: 0, width: canvasWidth(for: tableView), height: CGFloat(order.count) * step)
+        var changed = false
+        if region != lastCanvasRegion {
+            lastCanvasRegion = region
+            gridCanvas.frame = region
+            gridCanvas.rowsRect = region
+            changed = true
         }
-        gridCanvas.columnSeparatorXs = xs
-        gridCanvas.needsDisplay = true
+        gridCanvas.ownerTableView = tableView
+        let stripesOn = alternateRowColors
+        if (gridCanvas.stripeColor != nil) != stripesOn {
+            gridCanvas.stripeColor = stripesOn ? AppNSColor.rowAlternate : nil
+            changed = true
+        }
+        // 竖线 x 按列宽累加算（纯函数，`GridCanvasGeometry`）：首帧几何不可信时也不用问 AppKit。
+        let xs = GridCanvasGeometry.columnSeparatorXs(
+            columns: tableView.tableColumns.map { ($0.width, $0.isHidden) },
+            intercellSpacing: tableView.intercellSpacing.width
+        )
+        if xs != gridCanvas.columnSeparatorXs {
+            gridCanvas.columnSeparatorXs = xs
+            changed = true
+        }
+        if changed { gridCanvas.needsDisplay = true }
     }
 
     // MARK: 交互
@@ -439,9 +459,16 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
     /// 画布是表格的子视图、压在行视图之下（`07-data-grid.md` §4.1）。
     private func installGridCanvasIfNeeded() {
         guard let tableView else { return }
-        if gridCanvas.superview !== tableView {
+        if tableView.subviews.first !== gridCanvas {
+            gridCanvas.removeFromSuperview()
             tableView.addSubview(gridCanvas, positioned: .below, relativeTo: nil)
+            lastCanvasRegion = .null
         }
+        refreshGridCanvas()
+    }
+
+    /// 可视区变化（窗口缩放 / 拖动结果区高度 / 滚动）后重设画布宽度。
+    @objc func clipViewBoundsDidChange(_ notification: Notification) {
         refreshGridCanvas()
     }
 

@@ -861,11 +861,11 @@ public final class TableDataViewModel {
         bumpRevision()
     }
 
-    /// 记录列宽。`byUser` 为真表示用户亲手拖出来的宽度，从此不再被自动估算覆盖
-    /// （`docs/tech-designs/07-data-grid.md` §4.1）。
-    public func setColumnWidth(_ name: String, width: Double, byUser: Bool = true) {
+    /// 记录用户亲手拖出来的列宽：从此这一列不再被自动适配覆盖
+    /// （`docs/tech-designs/07-data-grid.md` §4.2）。自动适配走 `setEstimatedColumnWidths`。
+    public func setColumnWidth(_ name: String, width: Double) {
         columnWidths[name] = width
-        if byUser { userResizedColumns.insert(name) }
+        userResizedColumns.insert(name)
         schedulePersistLayout()
     }
 
