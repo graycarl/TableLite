@@ -58,12 +58,17 @@ enum AppNSColor {
         dark: NSColor(srgbRed: 0.149, green: 0.149, blue: 0.161, alpha: 1)
     )
     static let rowAlternate = NSColor.dynamic(
-        light: NSColor(srgbRed: 0.957, green: 0.957, blue: 0.965, alpha: 1),
-        dark: NSColor(srgbRed: 0.145, green: 0.145, blue: 0.157, alpha: 1)
+        light: NSColor(srgbRed: 0.945, green: 0.945, blue: 0.953, alpha: 1),
+        dark: NSColor(srgbRed: 0.157, green: 0.157, blue: 0.169, alpha: 1)
     )
     static let rowSeparator = NSColor.dynamic(
         light: NSColor(srgbRed: 0.902, green: 0.902, blue: 0.914, alpha: 1),
         dark: NSColor(srgbRed: 0.176, green: 0.176, blue: 0.192, alpha: 1)
+    )
+    /// 列之间的竖线：比行分隔线再淡一档，免得整张网格碎成一片格子。
+    static let cellSeparator = NSColor.dynamic(
+        light: NSColor(srgbRed: 0.909, green: 0.909, blue: 0.921, alpha: 1),
+        dark: NSColor(srgbRed: 0.169, green: 0.169, blue: 0.184, alpha: 1)
     )
 }
 

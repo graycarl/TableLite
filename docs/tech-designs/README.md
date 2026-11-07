@@ -74,7 +74,8 @@
 | 时区 | 客户端零处理：日期时间原样读、原样写，不解析不换算 | [03](03-mysql-layer.md) §4.3 |
 | 存储版本 | 只做向前兼容读取；破坏性变更时备份重建，不写迁移代码 | [02](02-persistence.md) §9 |
 | 界面语言 | 文案硬编码中文，不引入本地化资源 | [06](06-ui-layer.md) §8 |
-| 设计系统 | 间距 / 圆角 / 按钮三档 / 背景层级统一收敛在 `DesignTokens`；窗口工具栏与系统标题栏合一；网格不画竖线、空白区不画斑马纹 | [06](06-ui-layer.md) §10、[07](07-data-grid.md) §4 |
+| 列宽 | 自动适配只采样**当前可见行**的显示值、用真实字体量、60–400pt 兜底；只有用户亲手拖过的列宽才进 `userResizedColumns`，自动值下次打开重量（排序不触发） | [07](07-data-grid.md) §4.2、[13](13-open-questions.md) S56 |
+| 设计系统 | 间距 / 圆角 / 按钮三档 / 背景层级统一收敛在 `DesignTokens`；窗口工具栏与系统标题栏合一；网格的隔行底色与行列细线由**一块画布**一次性画（空白区不画） | [06](06-ui-layer.md) §10、[07](07-data-grid.md) §4.1 |
 | 外观 | 亮色 / 暗色 / 跟随系统三选一，默认跟随系统；全局生效，走 `preferredColorScheme`，自定义色一律用动态语义色 | [06](06-ui-layer.md) §9、[13](13-open-questions.md) S40 |
 | 可测试性 | 手写协议 + `AppEnvironment` 注入（`Clock` / `CredentialStore` / `FileSystemLocator`），不引入 DI 框架 | [15](15-testing.md) §3 |
 | 性能排查 | 隔离夹具（假后端 + 真 AppKit + 程序化滚动）+ 扫参数看曲线 + `sample` + 微基准；毫秒基准不进 CI | [15](15-testing.md) §6 |

@@ -150,19 +150,18 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
             tableView.rowHeight = rowHeight
             tableView.reloadData()
         }
+        // 放在最后：上面几段都会改行高 / 行数，画布的行区域要按最终值算。
+        refreshGridCanvas()
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
         let identifier = NSUserInterfaceItemIdentifier("ResultRowView")
-        let rowView = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableRowView
+        let rowView = tableView.makeView(withIdentifier: identifier, owner: self) as? TableRowView
             ?? {
                 let made = TableRowView()
                 made.identifier = identifier
                 return made
             }()
-        rowView.backgroundColor = (alternateRowColors && !row.isMultiple(of: 2))
-            ? AppNSColor.rowAlternate
-            : .clear
         return rowView
     }
 
@@ -170,6 +169,7 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         order = Array(rows.indices)
         applySort()
         tableView?.reloadData()
+        refreshGridCanvas()
     }
 
     // MARK: 列
@@ -201,6 +201,7 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
             tableView.addTableColumn(tableColumn)
         }
         applyColumnVisibility()
+        installGridCanvasIfNeeded()
     }
 
     /// 把 `hiddenColumnIndexes` 应用到 `NSTableView`（行号列永远可见）。
@@ -211,14 +212,15 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         }
     }
 
+    /// 按前 50 行的显示值量列宽：度量方式与数据网格相同（`GridColumnWidth`），
+    /// 采样范围不同 —— 结果集是临时对象，不做可见性判断，直接取前 50 行。
     private func estimatedWidth(for column: ColumnInfo) -> CGFloat {
         let index = columns.firstIndex(of: column) ?? 0
-        var sample = column.name.count
+        var texts = [column.name]
         for rowIndex in order.prefix(50) where rowIndex < rows.count && index < rows[rowIndex].count {
-            let value = rows[rowIndex][index]
-            sample = max(sample, min(displayText(value, column: column).count, 40))
+            texts.append(displayText(rows[rowIndex][index], column: column))
         }
-        return min(max(CGFloat(sample) * 8 + 24, 70), 400)
+        return GridColumnWidth.fit(texts: texts, font: cellFont)
     }
 
     // MARK: 数据源
@@ -336,10 +338,54 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
         }
     }
 
+    /// 底纹 / 网格线的画布：一次绘制，不按行重复（`07-data-grid.md` §4.1）。
+    let gridCanvas = GridCanvasView()
+
+    /// 重算画布：位置、行区域、隔行底色、竖线 x。
+    /// 画布要盖多宽：列总宽可能小于视口（窄表），这时底纹与行底横线也要铺到视口右边，
+    /// 否则右侧会留一条没有斑马纹的白边（`07-data-grid.md` §4.1）。
+    private func canvasWidth(for tableView: NSTableView) -> CGFloat {
+        let viewport = tableView.enclosingScrollView?.contentSize.width ?? 0
+        return max(tableView.bounds.width, viewport)
+    }
+
+    /// 画布最近一次写入的行区域；只在真变了的时候重画（每帧标脏 = 每帧整块重绘）。
+    private var lastCanvasRegion: NSRect = .null
+
+    func refreshGridCanvas() {
+        guard let tableView, gridCanvas.superview === tableView else { return }
+        let step = tableView.rowHeight + tableView.intercellSpacing.height
+        let region = NSRect(x: 0, y: 0, width: canvasWidth(for: tableView), height: CGFloat(order.count) * step)
+        var changed = false
+        if region != lastCanvasRegion {
+            lastCanvasRegion = region
+            gridCanvas.frame = region
+            gridCanvas.rowsRect = region
+            changed = true
+        }
+        gridCanvas.ownerTableView = tableView
+        let stripesOn = alternateRowColors
+        if (gridCanvas.stripeColor != nil) != stripesOn {
+            gridCanvas.stripeColor = stripesOn ? AppNSColor.rowAlternate : nil
+            changed = true
+        }
+        // 竖线 x 按列宽累加算（纯函数，`GridCanvasGeometry`）：首帧几何不可信时也不用问 AppKit。
+        let xs = GridCanvasGeometry.columnSeparatorXs(
+            columns: tableView.tableColumns.map { ($0.width, $0.isHidden) },
+            intercellSpacing: tableView.intercellSpacing.width
+        )
+        if xs != gridCanvas.columnSeparatorXs {
+            gridCanvas.columnSeparatorXs = xs
+            changed = true
+        }
+        if changed { gridCanvas.needsDisplay = true }
+    }
+
     // MARK: 交互
 
     func tableViewColumnDidResize(_ notification: Notification) {
-        // 结果集是临时的，不记忆列宽（S16 / 结果集无持久化）。
+        // 结果集是临时的，不记忆列宽（S16 / 结果集无持久化），但网格线要跟上。
+        refreshGridCanvas()
     }
 
     @objc func tableViewDoubleClicked(_ sender: NSTableView) {
@@ -407,6 +453,23 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
             columnCount: columns.count
         )
         applyColumnVisibility()
+        installGridCanvasIfNeeded()
+    }
+
+    /// 画布是表格的子视图、压在行视图之下（`07-data-grid.md` §4.1）。
+    private func installGridCanvasIfNeeded() {
+        guard let tableView else { return }
+        if tableView.subviews.first !== gridCanvas {
+            gridCanvas.removeFromSuperview()
+            tableView.addSubview(gridCanvas, positioned: .below, relativeTo: nil)
+            lastCanvasRegion = .null
+        }
+        refreshGridCanvas()
+    }
+
+    /// 可视区变化（窗口缩放 / 拖动结果区高度 / 滚动）后重设画布宽度。
+    @objc func clipViewBoundsDidChange(_ notification: Notification) {
+        refreshGridCanvas()
     }
 
     @objc private func menuQuickLook(_ sender: NSMenuItem) {

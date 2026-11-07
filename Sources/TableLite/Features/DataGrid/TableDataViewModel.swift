@@ -90,6 +90,9 @@ public final class TableDataViewModel {
     /// 需要聚焦的条件 id；nil 表示聚焦 Raw 模式输入框。
     public internal(set) var filterFocusConditionID: UUID?
     public private(set) var columnWidths: [String: Double]
+    /// 用户亲手拖过宽度的列；这些列的宽度不再被自动估算覆盖
+    /// （`specs/03-data-browsing.md` §5、`docs/tech-designs/07-data-grid.md` §4.1）。
+    public private(set) var userResizedColumns: Set<String> = []
 
     // MARK: 选择
 
@@ -186,7 +189,9 @@ public final class TableDataViewModel {
             self.filter = rememberedFilter
             self.filterDraft = rememberedFilter ?? FilterState()
         }
-        self.columnWidths = session.tableLayout(database: self.database, table: self.table)?.columnWidths ?? [:]
+        let layout = session.tableLayout(database: self.database, table: self.table)
+        self.columnWidths = layout?.columnWidths ?? [:]
+        self.userResizedColumns = Set(layout?.userResizedColumns ?? [])
         // 卡片是临时浮层：从标签现场 / 按表记住的状态恢复时保持关闭，只有主动点「筛选」
         // 或快捷筛选动作才打开（条件本身照常生效，chips 负责摘要）。
         self.filter?.isVisible = false
@@ -856,8 +861,28 @@ public final class TableDataViewModel {
         bumpRevision()
     }
 
+    /// 记录用户亲手拖出来的列宽：从此这一列不再被自动适配覆盖
+    /// （`docs/tech-designs/07-data-grid.md` §4.2）。自动适配走 `setEstimatedColumnWidths`。
     public func setColumnWidth(_ name: String, width: Double) {
         columnWidths[name] = width
+        userResizedColumns.insert(name)
+        schedulePersistLayout()
+    }
+
+    /// 这一列的宽度是不是用户自己拖出来的（自动估算只碰不是的列）。
+    public func hasUserWidth(_ name: String) -> Bool {
+        userResizedColumns.contains(name)
+    }
+
+    /// 批量写入自动适配出来的宽度。
+    ///
+    /// 逐列调 `setColumnWidth` 会让 `@Observable` 记录 N 次变更、取消并重建 N 个持久化任务
+    /// （200 列的表 = 200 次，AGENTS 坑 §7），所以先在局部字典里改完再一次性赋值。
+    public func setEstimatedColumnWidths(_ widths: [String: Double]) {
+        guard !widths.isEmpty else { return }
+        var merged = columnWidths
+        for (name, width) in widths { merged[name] = width }
+        columnWidths = merged
         schedulePersistLayout()
     }
 
@@ -1216,6 +1241,7 @@ public final class TableDataViewModel {
             isMetadataLoaded = true
             if let layout = session.tableLayout(database: database, table: table) {
                 columnWidths = layout.columnWidths
+                userResizedColumns.formUnion(layout.userResizedColumns)
                 if !layout.hiddenColumns.isEmpty {
                     hiddenColumns = Set(layout.hiddenColumns)
                 }
@@ -1416,7 +1442,8 @@ public final class TableDataViewModel {
             table: table,
             layout: TableLayout(
                 columnWidths: columnWidths,
-                hiddenColumns: columns.map(\.name).filter { hiddenColumns.contains($0) }
+                hiddenColumns: columns.map(\.name).filter { hiddenColumns.contains($0) },
+                userResizedColumns: userResizedColumns.sorted()
             )
         )
     }

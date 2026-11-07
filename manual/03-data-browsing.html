@@ -50,8 +50,7 @@
   <!-- 表头 -->
   <rect class="s-chrome2 ln" x="20" y="20" width="948" height="30"/>
   <text class="fnt s r" x="52" y="35">#</text>
-  <text class="b" x="70" y="35">🔑</text>
-  <text class="b" x="88" y="35">id</text>
+  <text class="b" x="70" y="35">id</text>
   <text class="b" x="140" y="35">name</text>
   <text class="b" x="260" y="35">email</text>
   <text class="b" x="430" y="35">content</text>
@@ -73,6 +72,15 @@
   </g>
   <rect class="s-alt" x="58" y="82" width="910" height="32"/>
   <rect class="s-alt" x="58" y="146" width="910" height="32"/>
+
+  <!-- 列间竖线：只画在有数据的行上，空白区不画 -->
+  <line class="ln" x1="58" y1="50" x2="58" y2="242"/>
+  <line class="ln" x1="130" y1="50" x2="130" y2="242"/>
+  <line class="ln" x1="250" y1="50" x2="250" y2="242"/>
+  <line class="ln" x1="420" y1="50" x2="420" y2="242"/>
+  <line class="ln" x1="600" y1="50" x2="600" y2="242"/>
+  <line class="ln" x1="720" y1="50" x2="720" y2="242"/>
+  <line class="ln" x1="860" y1="50" x2="860" y2="242"/>
 
   <!-- 第 1 行 -->
   <text class="fnt s c" x="39" y="66">1</text>
@@ -142,7 +150,7 @@
   <text class="acc s" x="938" y="240">导出</text>
 
   <!-- 底部说明 -->
-  <text class="fnt s" x="20" y="256">↓ 行号列　·　主键列加粗且带钥匙图标　·　外键列带 ↗ 可跳转</text>
+  <text class="fnt s" x="20" y="256">↓ 行号列　·　主键列加粗　·　外键列带 ↗ 可跳转　·　隔行底色 + 行列细分隔线（空白区不画）</text>
 
   <!-- 提示气泡 -->
   <rect class="s-window ln2" x="460" y="276" width="520" height="52" rx="8"/>
@@ -162,7 +170,7 @@
   <g class="hot" data-hot="9"><circle cx="982" cy="20" r="11"/><text x="982" y="20">9</text></g>
   <g class="hot" data-hot="10"><circle cx="160" cy="236" r="11"/><text x="160" y="236">10</text></g>
 </svg>
-<figcaption><b>图 3-1</b>　数据网格。鼠标悬停在超长内容的单元格上，会弹出它到底有多大。</figcaption>
+<figcaption><b>图 3-1</b>　数据网格。相邻行用一档浅底色分开、列之间有一条细竖线，只有有数据的行才画；鼠标悬停在超长内容的单元格上，会弹出它到底有多大。</figcaption>
 </figure>
 
 <table class="controls">
@@ -171,7 +179,7 @@
 <tr data-hot="1"><td class="num">1</td><td class="wide">行号列</td>
   <td>最左边一列序号。点它可以选中整行；<kbd>⌘</kbd> + 点击可以多选不连续的行。有已修改的行，行号上会带标记。</td></tr>
 <tr data-hot="2"><td class="num">2</td><td class="wide">主键列</td>
-  <td>表头带钥匙图标、列名加粗。有主键的表才可以编辑（见<a href="04-data-editing.html">第 4 章</a>）。</td></tr>
+  <td>列名加粗（不带图标）。有主键的表才可以编辑（见<a href="04-data-editing.html">第 4 章</a>）。</td></tr>
 <tr data-hot="3"><td class="num">3</td><td class="wide">外键跳转 ↗</td>
   <td>外键列的单元格后面带这个箭头。点一下会在<b>新标签</b>打开被引用的那张表，并自动只显示对应的那一行。</td></tr>
 <tr data-hot="4"><td class="num">4</td><td class="wide">NULL</td>
@@ -254,7 +262,7 @@
   <!-- 左侧数据网格 -->
   <rect class="s-chrome2 ln" x="20" y="50" width="590" height="30"/>
   <text class="fnt s r" x="50" y="65">#</text>
-  <text class="b" x="66" y="65">🔑 id</text>
+  <text class="b" x="66" y="65">id</text>
   <text class="b" x="136" y="65">name</text>
   <text class="b" x="226" y="65">email</text>
   <text class="b" x="330" y="65">content</text>
@@ -267,15 +275,13 @@
     <line x1="20" y1="140" x2="610" y2="140"/>
     <line x1="20" y1="170" x2="610" y2="170"/>
     <line x1="20" y1="200" x2="610" y2="200"/>
-    <line x1="20" y1="230" x2="610" y2="230"/>
-    <line x1="20" y1="260" x2="610" y2="260"/>
-    <line x1="20" y1="290" x2="610" y2="290"/>
-    <line x1="20" y1="320" x2="610" y2="320"/>
-    <line x1="20" y1="350" x2="610" y2="350"/>
-    <line x1="20" y1="380" x2="610" y2="380"/>
-    <line x1="20" y1="410" x2="610" y2="410"/>
-    <line x1="20" y1="440" x2="610" y2="440"/>
-    <line x1="20" y1="470" x2="610" y2="470"/>
+    <!-- 列间竖线：只画在有数据的行上 -->
+    <line x1="58" y1="80" x2="58" y2="200"/>
+    <line x1="128" y1="80" x2="128" y2="200"/>
+    <line x1="218" y1="80" x2="218" y2="200"/>
+    <line x1="322" y1="80" x2="322" y2="200"/>
+    <line x1="432" y1="80" x2="432" y2="200"/>
+    <line x1="540" y1="80" x2="540" y2="200"/>
   </g>
   <rect class="s-alt" x="58" y="110" width="552" height="30"/>
   <rect class="s-alt" x="58" y="170" width="552" height="30"/>
@@ -789,7 +795,8 @@
 
 <ul>
   <li>拖列头之间的分隔线可以改列宽，宽度会记住，下次打开同一张表恢复。</li>
-  <li>第一次打开时按内容自动估算列宽，上限 400pt。</li>
+  <li>第一次打开一张表时，列宽会按<b>当前看得见的那些值</b>自动适配：按值的实际显示宽度量（列头也算），最窄 60pt、最宽 400pt 兜底。看不见的行不参与，一屏之外的超长文本不会把列拽宽。</li>
+  <li>自己拖过的列从此以你为准，不会再被自动适配覆盖；自动适配出来的宽度不算「你定的」，下次打开会按当时可见的内容重新量。打开之后改排序不会让列宽跳动，显隐列时新出现的列会按当前可见内容适配一次。</li>
   <li>显示哪些列由列过滤器控制（<kbd>⌥⌘F</kbd>），见<a href="05-filtering.html">第 5 章</a>。</li>
   <li>列的鼠标悬停提示里会显示完整类型，例如 <code>`content` LONGTEXT NULL</code>。</li>
 </ul>

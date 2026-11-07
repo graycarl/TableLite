@@ -66,10 +66,65 @@ final class DataGridBridgeTests: XCTestCase {
         XCTAssertEqual(tableView.numberOfColumns, 3) // 行号 + id + name
         XCTAssertEqual(tableView.tableColumns.first?.identifier, DataGridCoordinator.rowNumberIdentifier)
         XCTAssertEqual(coordinator.numberOfRows(in: tableView), 2)
-        // 主键表头：SF Symbol 钥匙图标附件（`07-data-grid.md` §4），附件在 .string 里是 U+FFFC 占位符。
+        // 主键表头：只加粗、不带钥匙图标（`specs/03-data-browsing.md` §1）。
         let header = tableView.tableColumns[1].headerCell.attributedStringValue
-        XCTAssertEqual(header.string, "\u{FFFC} id")
-        XCTAssertTrue(header.containsAttachments(in: NSRange(location: 0, length: header.length)))
+        XCTAssertEqual(header.string, "id")
+        XCTAssertFalse(header.containsAttachments(in: NSRange(location: 0, length: header.length)))
+        let font = header.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+        XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.bold) ?? false)
+    }
+
+    /// 拖分隔线只把「通知里那一列」记成用户宽度（`07-data-grid.md` §4.2）。
+    /// 早期实现遍历所有列，会把整张表都标成「用户拖过」，自动适配从此再也碰不了它们。
+    func testColumnResizeMarksOnlyTheDraggedColumn() async throws {
+        let (coordinator, tableView) = try await makeCoordinator()
+        // 先用「自动适配」给两列写上宽度（不算用户宽度），再模拟用户只拖 name。
+        coordinator.viewModel.setEstimatedColumnWidths(["id": 80, "name": 112])
+        let nameColumn = tableView.tableColumns[2]
+        nameColumn.width = 200
+
+        coordinator.tableViewColumnDidResize(
+            Notification(
+                name: NSTableView.columnDidResizeNotification,
+                object: tableView,
+                userInfo: ["NSTableColumn": nameColumn]
+            )
+        )
+
+        XCTAssertEqual(coordinator.viewModel.userResizedColumns, ["name"])
+        XCTAssertEqual(coordinator.viewModel.columnWidths["name"], 200)
+    }
+
+    /// 空表时 `columnWidths` 还是空的：拖一列不能把所有列一起钉成用户宽度。
+    func testColumnResizeOnEmptyWidthBookMarksOnlyDraggedColumn() async throws {
+        let (coordinator, tableView) = try await makeCoordinator()
+        XCTAssertTrue(coordinator.viewModel.columnWidths.isEmpty)
+
+        let idColumn = tableView.tableColumns[1]
+        idColumn.width = 120
+        coordinator.tableViewColumnDidResize(
+            Notification(
+                name: NSTableView.columnDidResizeNotification,
+                object: tableView,
+                userInfo: ["NSTableColumn": idColumn]
+            )
+        )
+
+        XCTAssertEqual(coordinator.viewModel.userResizedColumns, ["id"])
+        XCTAssertFalse(coordinator.viewModel.hasUserWidth("name"))
+    }
+
+    /// 行号列不在宽度记忆里（它固定 48pt，也不能拖）。
+    func testColumnResizeIgnoresRowNumberColumn() async throws {
+        let (coordinator, tableView) = try await makeCoordinator()
+        coordinator.tableViewColumnDidResize(
+            Notification(
+                name: NSTableView.columnDidResizeNotification,
+                object: tableView,
+                userInfo: ["NSTableColumn": tableView.tableColumns[0]]
+            )
+        )
+        XCTAssertTrue(coordinator.viewModel.userResizedColumns.isEmpty)
     }
 
     func testCoordinatorProvidesCellViews() async throws {
