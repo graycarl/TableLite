@@ -72,7 +72,7 @@ partition 只有 `unsigned:` / `apple:` / `apple-tool:` / `teamid:<TEAM>` / `cdh
 
 - 记录**所有**下发到服务器的语句，带 `[data]` / `[meta]` 标签（`[data]` 用户发起、`[meta]` 客户端自动发出）。
 - 内存环形缓冲，容量 5000（需求见 `specs/06-query-editor.md` §6）。
-- 默认不落盘；偏好可开启写文件，按天轮转、保留 7 天（需求见 `specs/11-preferences.md` §7）。
+- 默认不落盘；偏好可开启写文件，按天轮转、保留 7 天（需求见 `specs/11-preferences.md` §4）。
 - UI 支持按标签过滤、复制全部、清空。
 
 ## 6. 偏好设置

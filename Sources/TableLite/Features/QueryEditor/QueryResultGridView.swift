@@ -41,16 +41,18 @@ struct QueryResultGridView: NSViewRepresentable {
         tableView.allowsColumnResizing = true
         tableView.allowsMultipleSelection = true
         tableView.allowsEmptySelection = true
-        tableView.usesAlternatingRowBackgroundColors = alternateRowColors
+        tableView.usesAlternatingRowBackgroundColors = false
+        tableView.backgroundColor = AppNSColor.content
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.style = .plain
-        // 不画网格线：分行靠隔行变色（`docs/tech-designs/07-data-grid.md` §4）。
+        // 不画网格线：分行靠数据行的隔行底色（`docs/tech-designs/07-data-grid.md` §4）。
         tableView.gridStyleMask = []
         tableView.intercellSpacing = NSSize(width: 0, height: 1)
         tableView.rowHeight = coordinator.rowHeight
         tableView.target = coordinator
         tableView.doubleAction = #selector(QueryResultGridCoordinator.tableViewDoubleClicked(_:))
         tableView.setAccessibilityLabel("查询结果网格")
+        tableView.setAccessibilityIdentifier("result.table")
 
         let headerView = ResultGridHeaderView()
         headerView.coordinator = coordinator
@@ -63,7 +65,7 @@ struct QueryResultGridView: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
-        scrollView.backgroundColor = .textBackgroundColor
+        scrollView.backgroundColor = AppNSColor.content
 
         coordinator.rebuildColumns()
         coordinator.reloadData()
@@ -73,6 +75,8 @@ struct QueryResultGridView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.onQuickLook = onQuickLook
         context.coordinator.onExport = onExport
+        context.coordinator.alternateRowColors = alternateRowColors
+        context.coordinator.fontSize = fontSize
         context.coordinator.sync()
     }
 }
@@ -125,16 +129,41 @@ final class QueryResultGridCoordinator: NSObject, NSTableViewDataSource, NSTable
     }
 
     var rowHeight: CGFloat {
-        max(20, CGFloat(fontSize) + 8)
+        max(AppMetrics.tableRowHeight, CGFloat(fontSize) + 13)
     }
+
+    /// 只给有数据的行画交替底色；空白区域由 `textBackgroundColor` 保持干净。
+    private var lastAlternateRowColors: Bool?
+    private var lastFontSize: Double?
 
     func sync() {
         guard let tableView else { return }
-        tableView.usesAlternatingRowBackgroundColors = alternateRowColors
+        if lastFontSize != fontSize {
+            lastFontSize = fontSize
+            tableView.reloadData()
+        }
+        if lastAlternateRowColors != alternateRowColors {
+            lastAlternateRowColors = alternateRowColors
+            tableView.reloadData()
+        }
         if abs(tableView.rowHeight - rowHeight) > 0.5 {
             tableView.rowHeight = rowHeight
             tableView.reloadData()
         }
+    }
+
+    func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+        let identifier = NSUserInterfaceItemIdentifier("ResultRowView")
+        let rowView = tableView.makeView(withIdentifier: identifier, owner: self) as? NSTableRowView
+            ?? {
+                let made = TableRowView()
+                made.identifier = identifier
+                return made
+            }()
+        rowView.backgroundColor = (alternateRowColors && !row.isMultiple(of: 2))
+            ? AppNSColor.rowAlternate
+            : .clear
+        return rowView
     }
 
     func reloadData() {
@@ -470,6 +499,12 @@ final class QueryResultTableView: NSTableView {
 final class ResultGridHeaderView: NSTableHeaderView {
 
     weak var coordinator: QueryResultGridCoordinator?
+
+    override func draw(_ dirtyRect: NSRect) {
+        AppNSColor.gridHeader.setFill()
+        dirtyRect.fill()
+        super.draw(dirtyRect)
+    }
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)

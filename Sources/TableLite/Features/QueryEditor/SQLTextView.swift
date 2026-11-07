@@ -78,7 +78,7 @@ struct SQLTextView: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
-        scrollView.backgroundColor = .textBackgroundColor
+        scrollView.backgroundColor = AppNSColor.content
 
         let ruler = LineNumberRulerView(textView: textView, scrollView: scrollView)
         // 行号栏的绘制不越出编辑器可视区（`docs/tech-designs/10-query-editor.md` §2）。

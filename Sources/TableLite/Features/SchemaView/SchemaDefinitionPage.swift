@@ -42,7 +42,7 @@ struct SchemaDefinitionPage: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(.bar)
+        .background(AppColor.bar)
     }
 
     // MARK: 语句
@@ -75,7 +75,7 @@ struct SchemaDefinitionPage: View {
                 .padding(.vertical, 10)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(Color(nsColor: .textBackgroundColor))
+            .background(AppColor.content)
         } else {
             SchemaEmptyState(icon: "doc.plaintext", text: "没有可显示的定义语句")
         }

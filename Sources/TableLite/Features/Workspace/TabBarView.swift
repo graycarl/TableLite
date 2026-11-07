@@ -3,7 +3,7 @@ import SwiftUI
 /// 标签条（`specs/02-workspace.md` §6）。
 ///
 /// - 标签过多时横向滚动；
-/// - 当前标签用圆角底色块突出，顶边 2pt 连接色（无颜色连接用系统强调色）；
+/// - 当前标签用圆角底色块突出，标题前带类型图标；
 ///   非活动标签无分隔线，悬停出淡底（`docs/tech-designs/06-ui-layer.md` §10）；
 /// - 有未提交改动时标题右侧显示橙色圆点；
 /// - `⌘W` / 关闭按钮关闭当前标签，有未提交改动时先确认；
@@ -25,7 +25,6 @@ struct TabBarView: View {
                     TabItemView(
                         tab: tab,
                         isActive: tab.id == session.activeTabID,
-                        accentColor: tabAccentColor,
                         onSelect: { session.selectTab(tab) },
                         onClose: { requestClose(tab) },
                         onRename: {
@@ -49,7 +48,7 @@ struct TabBarView: View {
         }
         .frame(height: 30)
         .accessibilityIdentifier("tabs.bar")
-        .background(.bar)
+        .background(AppColor.bar)
         .overlay(alignment: .bottom) { Divider() }
         .alert("重命名标签", isPresented: renamePresented) {
             TextField("标签名", text: $renameText)
@@ -61,12 +60,6 @@ struct TabBarView: View {
             }
             Button("取消", role: .cancel) { renamingTab = nil }
         }
-    }
-
-    /// 活动标签顶边的颜色：连接配置的颜色，无色时用系统强调色（`specs/02-workspace.md` §6）。
-    private var tabAccentColor: Color {
-        let connectionColor = session.connection.color
-        return connectionColor == .none ? Color.accentColor : connectionColor.swiftUIColor
     }
 
     private var renamePresented: Binding<Bool> {
@@ -92,7 +85,6 @@ private struct TabItemView: View {
 
     let tab: Tab
     let isActive: Bool
-    let accentColor: Color
     var onSelect: () -> Void
     var onClose: () -> Void
     var onRename: () -> Void
@@ -101,8 +93,11 @@ private struct TabItemView: View {
 
     var body: some View {
         HStack(spacing: 6) {
+            Image(systemName: iconName)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(isActive ? Color.secondary : Color.secondary.opacity(0.8))
             Text(tab.title)
-                .font(.callout)
+                .font(AppFont.body)
                 .lineLimit(1)
                 .foregroundStyle(isActive ? .primary : .secondary)
 
@@ -132,14 +127,6 @@ private struct TabItemView: View {
             RoundedRectangle(cornerRadius: AppRadius.m)
                 .fill(backgroundColor)
         )
-        .overlay(alignment: .top) {
-            if isActive {
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(accentColor)
-                    .frame(height: 2)
-                    .padding(.horizontal, AppSpacing.xs)
-            }
-        }
         .contentShape(Rectangle())
         .onTapGesture(perform: onSelect)
         .onHover { isHovering = $0 }
@@ -152,8 +139,19 @@ private struct TabItemView: View {
         }
     }
 
+    private var iconName: String {
+        switch tab.kind {
+        case .tableData: return "tablecells"
+        case .tableStructure: return "square.grid.2x2"
+        case .objectDefinition: return "eye"
+        case .query: return "chevron.left.forwardslash.chevron.right"
+        case .history: return "clock"
+        case .consoleLog: return "terminal"
+        }
+    }
+
     private var backgroundColor: Color {
-        if isActive { return Color.primary.opacity(0.10) }
+        if isActive { return Color.primary.opacity(0.08) }
         return Color.primary.opacity(isHovering ? 0.05 : 0)
     }
 }

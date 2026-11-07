@@ -9,7 +9,7 @@ final class PreferencesStoreTests: XCTestCase {
         let store = PreferencesStore(store: InMemoryKeyValueStore())
         XCTAssertTrue(store.bool(.restoreLastScript))
         XCTAssertEqual(store.integer(.gridRowLimit), 300)
-        XCTAssertEqual(store.double(.gridInspectorWidth), 320)
+        XCTAssertEqual(store.double(.gridInspectorWidth), 300)
         XCTAssertEqual(store.string(.gridNullDisplayText), "NULL")
         XCTAssertEqual(store.choice(.csvDelimiter, CSVExportDelimiter.self, fallback: .comma), .comma)
     }

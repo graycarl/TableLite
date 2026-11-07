@@ -90,12 +90,23 @@ public final class ExportViewModel {
         errorMessage = nil
         phase = .preparing
 
+        persistOptions()
+
         let control = ExportControl()
         self.control = control
         let options = writeOptions
         runTask = Task { [weak self] in
             guard let self else { return }
             await self.runExport(destination: destinationURL, options: options, control: control)        }
+    }
+
+    /// 导出面板里的 CSV 选项就是下次的默认值（偏好设置不再单列一组 CSV 选项）。
+    public func persistOptions() {
+        preferences.csvDelimiter = delimiter
+        preferences.csvLineEnding = lineEnding
+        preferences.csvIncludeHeader = includeHeader
+        preferences.csvEncoding = encoding
+        preferences.csvNullRepresentation = nullRepresentation
     }
 
     public func cancel() {

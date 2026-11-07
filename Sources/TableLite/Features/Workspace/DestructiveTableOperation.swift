@@ -81,7 +81,7 @@ struct DestructiveTableOperationSheet: View {
                     .textSelection(.enabled)
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(nsColor: .textBackgroundColor))
+                    .background(AppColor.content)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 

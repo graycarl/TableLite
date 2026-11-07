@@ -9,33 +9,39 @@ struct SchemaPageTabBar: View {
     let pages: [SchemaStructurePage]
     @Binding var selection: SchemaStructurePage
     let title: (SchemaStructurePage) -> String
+    var onCopyDDL: (() -> Void)?
+    var copyDisabled = false
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(pages) { page in
-                Button {
-                    selection = page
-                } label: {
-                    // 下划线用 overlay：不把按钮撑成柔性宽度，页签保持自然宽度左对齐。
-                    Text(title(page))
-                        .font(.callout)
-                        .foregroundStyle(page == selection ? Color.primary : Color.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.top, 7)
-                        .padding(.bottom, 6)
-                        .overlay(alignment: .bottom) {
-                            Rectangle()
-                                .fill(page == selection ? Color.accentColor : Color.clear)
-                                .frame(height: 2)
-                        }
+        HStack(spacing: 10) {
+            if pages.count > 1 {
+                Picker("结构页", selection: $selection) {
+                    ForEach(pages) { page in
+                        Text(title(page)).tag(page)
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(page == selection ? .isSelected : [])
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 440, alignment: .leading)
+                .accessibilityIdentifier("schema.page")
+            } else if let page = pages.first {
+                Text(title(page))
+                    .font(AppFont.body)
+                    .fontWeight(.medium)
             }
+
             Spacer()
+
+            Button("复制 DDL") { onCopyDDL?() }
+                .buttonStyle(.subtle)
+                .controlSize(.small)
+                .disabled(copyDisabled || onCopyDDL == nil)
+                .help("复制建表语句 / 视图定义")
+                .accessibilityIdentifier("schema.copy-ddl")
         }
-        .padding(.leading, AppSpacing.xxs)
-        .background(.bar)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(AppColor.bar)
     }
 }
 
@@ -48,8 +54,10 @@ struct SchemaColumnsPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
-            Divider()
+            if hasTableComment {
+                header
+                Divider()
+            }
             ScrollView([.horizontal, .vertical]) {
                 Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
                     SwiftUI.GridRow {
@@ -60,21 +68,18 @@ struct SchemaColumnsPage: View {
                         SchemaHeaderCell(text: "默认值")
                         SchemaHeaderCell(text: "主键")
                         SchemaHeaderCell(text: "自增")
-                        SchemaHeaderCell(text: "字符集 / 排序规则")
-                        SchemaHeaderCell(text: "备注")
                     }
 
                     ForEach(Array(structure.columns.enumerated()), id: \.element.id) { index, column in
                         SwiftUI.GridRow {
                             SchemaCell(text: column.ordinalPosition.map { String($0) } ?? String(index + 1))
                             SchemaCell(text: column.name, mono: true)
+                                .help(columnDetail(column))
                             SchemaCell.value(column.columnTypeText ?? column.dataType, mono: true)
                             SchemaCell(text: column.isNullable == true ? "是" : "否")
                             SchemaCell.value(SchemaDisplay.defaultDisplay(column), mono: true)
                             SchemaCell(text: SchemaDisplay.check(column.isPrimaryKey))
                             SchemaCell(text: SchemaDisplay.check(column.isAutoIncrement))
-                            SchemaCell.value(SchemaDisplay.charsetDisplay(column), mono: true)
-                            SchemaCell.value(column.comment)
                         }
                         .fontWeight(column.isPrimaryKey ? .semibold : .regular)
                         .background(SchemaRowStyle.background(index: index, isPrimaryKey: column.isPrimaryKey))
@@ -85,22 +90,34 @@ struct SchemaColumnsPage: View {
         }
     }
 
+    private var hasTableComment: Bool {
+        viewModel.tableComment != nil
+    }
+
     private var header: some View {
         HStack(spacing: 12) {
-            if let comment = viewModel.tableComment {
-                Text("表注释：\(comment)")
-                    .font(.callout)
-                    .lineLimit(1)
-            } else {
-                Text("表注释：\(SchemaDisplay.placeholder)")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+            Text("表注释：\(viewModel.tableComment ?? "")")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
             Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    /// 字符集 / 排序规则与列备注不再占默认列，悬停列名时显示。
+    private func columnDetail(_ column: ColumnInfo) -> String {
+        var parts = [column.name]
+        let charset = SchemaDisplay.charsetDisplay(column)
+        if charset != SchemaDisplay.placeholder {
+            parts.append("字符集 / 排序规则：\(charset)")
+        }
+        if let comment = column.comment?.trimmingCharacters(in: .whitespacesAndNewlines), !comment.isEmpty {
+            parts.append("备注：\(comment)")
+        }
+        return parts.joined(separator: " · ")
     }
 }
 

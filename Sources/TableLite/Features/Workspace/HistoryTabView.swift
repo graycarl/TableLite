@@ -142,7 +142,7 @@ struct HistoryTabView: View {
             .padding(12)
         }
         .frame(height: 150)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
     }
 
     // MARK: 数据

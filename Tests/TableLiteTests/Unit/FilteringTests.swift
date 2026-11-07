@@ -16,6 +16,38 @@ final class FilterStateModelTests: XCTestCase {
         XCTAssertEqual(decoded, state)
     }
 
+    func testConditionChipTextUsesShortSymbols() {
+        XCTAssertEqual(
+            FilterCondition(column: "status", op: .equal, value: "paid").chipText,
+            "status = 'paid'"
+        )
+        XCTAssertEqual(
+            FilterCondition(column: "amount", op: .greaterThanOrEqual, value: "100").chipText,
+            "amount ≥ 100"
+        )
+        XCTAssertEqual(
+            FilterCondition(column: "id", op: .inList, value: "1, 2").chipText,
+            "id ∈ (1, 2)"
+        )
+        XCTAssertEqual(
+            FilterCondition(column: "email", op: .isNull).chipText,
+            "email 为空"
+        )
+    }
+
+    func testSameCriteriaIgnoresVisibility() {
+        var a = FilterState(
+            conditions: [FilterCondition(column: "id", op: .equal, value: "42")],
+            isVisible: true
+        )
+        var b = a
+        b.isVisible = false
+        XCTAssertTrue(a.hasSameCriteria(as: b))
+
+        b.conditions.append(FilterCondition(column: "name", op: .equal, value: "x"))
+        XCTAssertFalse(a.hasSameCriteria(as: b))
+    }
+
     func testFilterStateIsActiveOnlyWithConditionsOrRaw() {
         var state = FilterState()
         XCTAssertFalse(state.isActive)
@@ -272,6 +304,27 @@ final class TableDataFilteringTests: XCTestCase {
 
     // MARK: 持久化
 
+    func testRemoveAppliedChipIgnoresUnappliedDraftConditions() async throws {
+        let session = try await makeSession()
+        let (viewModel, _) = makeViewModel(session: session)
+        await harness.mysql.setResponses([pageResponse(rowCount: 10)])
+        await viewModel.start()
+
+        let applied = viewModel.addFilterCondition(column: "name", op: .equal, value: "x")
+        viewModel.applyFilter()
+        await viewModel.waitForPendingWork()
+
+        _ = viewModel.addFilterCondition(column: "id", op: .equal, value: "1")
+        XCTAssertEqual(viewModel.filterDraft.conditions.count, 2)
+        XCTAssertEqual(viewModel.filter?.conditions.count, 1)
+
+        viewModel.removeAppliedFilterCondition(id: applied)
+        await viewModel.waitForPendingWork()
+
+        XCTAssertEqual(viewModel.filter?.activeConditions.count, 0)
+        XCTAssertEqual(viewModel.filterDraft.conditions.count, 0)
+    }
+
     func testFilterPersistsAndRestoresForSameTable() async throws {
         let session = try await makeSession()
         let (viewModel, _) = makeViewModel(session: session)
@@ -301,7 +354,8 @@ final class TableDataFilteringTests: XCTestCase {
         )
         XCTAssertEqual(restored.filterDraft.conditions.count, 1)
         XCTAssertEqual(restored.filterDraft.conditions.first?.value, "张")
-        XCTAssertTrue(restored.filterDraft.isVisible)
+        // 条件照常恢复，但卡片是临时浮层，不自动重新打开（chips 负责摘要）。
+        XCTAssertFalse(restored.filterDraft.isVisible)
         XCTAssertNotNil(restored.filter)
     }
 

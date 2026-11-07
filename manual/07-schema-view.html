@@ -204,13 +204,13 @@
   <g class="hot" data-hot="5"><circle cx="608" cy="96" r="11"/><text x="608" y="96">5</text></g>
   <g class="hot" data-hot="6"><circle cx="28" cy="411" r="11"/><text x="28" y="411">6</text></g>
 </svg>
-<figcaption><b>图 7-1</b>　结构视图的「列」页。</figcaption>
+<figcaption><b>图 7-1</b>（线框仍画出字符集 / 备注列；改版后这两列默认收起）　结构视图的「列」页。</figcaption>
 </figure>
 
 <table class="controls">
 <thead><tr><th>#</th><th>元素</th><th>说明</th></tr></thead>
 <tbody>
-<tr data-hot="1"><td class="num">1</td><td class="wide">子页签</td>
+<tr data-hot="1"><td class="num">1</td><td class="wide">子页签（分段控件）</td>
   <td>列 / 索引 / 外键 / 触发器 / 建表语句。当前页带下划线。表以外的对象只显示其中一两页。</td></tr>
 <tr data-hot="2"><td class="num">2</td><td class="wide">序号</td>
   <td>列在表里的位置顺序。改列顺序要写 DDL。</td></tr>
@@ -219,7 +219,7 @@
 <tr data-hot="4"><td class="num">4</td><td class="wide">可空与默认值</td>
   <td>没有默认值时显示 <code>—</code>；默认值就是 <code>NULL</code> 时显示 <code>NULL</code>。<b>这两者含义不同</b>，所以分开显示。</td></tr>
 <tr data-hot="5"><td class="num">5</td><td class="wide">主键 / 自增 / 字符集</td>
-  <td>属于主键和自增的打勾；字符集与排序规则只对文本类型显示，其它类型显示 <code>—</code>。</td></tr>
+  <td>属于主键和自增的打勾；字符集 / 排序规则与列备注不再占默认列，鼠标悬停在列名上时显示。</td></tr>
 <tr data-hot="6"><td class="num">6</td><td class="wide">底部概况条</td>
   <td>当前表的列 / 索引 / 外键 / 触发器数量。视图没有索引与外键，不显示这一条。</td></tr>
 </tbody>
@@ -237,8 +237,7 @@
 <tr><td>默认值</td><td>没有默认值 → <code>—</code>；默认值为 NULL → <code>NULL</code></td></tr>
 <tr><td>主键</td><td><code>✓</code> 表示属于主键</td></tr>
 <tr><td>自增</td><td><code>✓</code></td></tr>
-<tr><td>字符集 / 排序规则</td><td>仅文本类型显示</td></tr>
-<tr><td>备注</td><td>列的注释</td></tr>
+<tr><td>字符集 / 排序规则 / 备注</td><td>改版后收进列名的悬停提示，避免宽表横向滚动；点「复制 DDL」可看完整定义。</td></tr>
 </tbody>
 </table>
 

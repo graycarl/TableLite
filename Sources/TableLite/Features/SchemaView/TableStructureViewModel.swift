@@ -177,7 +177,11 @@ final class TableStructureViewModel {
     var statusSummary: String? { isTableStructureTab ? structure?.summary : nil }
 
     var tableComment: String? {
-        guard let comment = structure?.table.comment, !comment.isEmpty else { return nil }
+        // MySQL 对视图会把 TABLE_COMMENT 填成 "VIEW"，这不是用户写的注释。
+        guard !isView,
+              let comment = structure?.table.comment?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !comment.isEmpty,
+              comment.uppercased() != "VIEW" else { return nil }
         return comment
     }
 

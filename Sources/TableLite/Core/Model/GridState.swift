@@ -110,6 +110,14 @@ public struct RowLimitState: Sendable, Codable, Equatable, Hashable {
         return "\(visibleCount) / \(total)"
     }
 
+    /// 紧凑文案：没触到显示上限时只写 `4 行`；触到上限（可能被截断）时写
+    /// `300 / 约 12,480 行`，总数未知时写 `300 / 行数未知`。
+    public func compactStatusText(visibleCount: Int) -> String {
+        guard visibleCount >= limit else { return "\(visibleCount) 行" }
+        guard let rowCount else { return "\(visibleCount) / 行数未知" }
+        return "\(visibleCount) / \(rowCount.displayText)"
+    }
+
     private enum CodingKeys: String, CodingKey {
         case limit = "pageSize"
         case rowCount

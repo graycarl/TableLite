@@ -1,11 +1,12 @@
 import SwiftUI
 
-/// 行过滤器横条（`specs/05-filtering.md` §1、`docs/tech-designs/09-filtering.md` §1.2）。
+/// 行过滤器卡片（`specs/05-filtering.md` §1、`docs/tech-designs/09-filtering.md` §1.2）。
 ///
-/// 网格上方的一条可折叠横条：
+/// 从网格下方 `筛选` 按钮弹出的 popover：
 /// - 每行是「启用勾选 + 列下拉（可搜索）+ 操作符下拉 + 值输入」，支持增删行；
 /// - AND / OR 组合、切到 Raw SQL、重置、应用；
-/// - `Esc` 关闭但保留条件；`⌘I` 由数据网格转发到「添加条件」。
+/// - `Esc` / 关闭按钮收起但保留条件；`⌘I` 由数据网格转发到「添加条件」。
+/// - 生效后的摘要回到 `FilterChipsBar`，卡片本身不常驻。
 struct FilterBarView: View {
 
     let viewModel: TableDataViewModel
@@ -13,8 +14,10 @@ struct FilterBarView: View {
     @FocusState private var rawWhereFocused: Bool
 
     var body: some View {
-        if viewModel.isFilterVisible {
-            VStack(spacing: 6) {
+        VStack(spacing: 0) {
+            header
+            Divider()
+            VStack(spacing: 8) {
                 if let error = viewModel.filterError {
                     errorBanner(error)
                 }
@@ -23,21 +26,57 @@ struct FilterBarView: View {
                 } else {
                     conditionList
                 }
-                footer
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(.bar)
-            .overlay(alignment: .bottom) { Divider() }
-            .onExitCommand { viewModel.setFilterVisible(false) }
-            .onChange(of: viewModel.filterFocusToken) { _, _ in
-                // 需要聚焦条件值时由对应行自己处理；这里响应 Raw 模式输入框的聚焦请求。
-                if viewModel.filterFocusConditionID == nil,
-                   viewModel.filterDraft.isRawMode {
-                    rawWhereFocused = true
-                }
+            .padding(12)
+            Divider()
+            footer
+                .padding(12)
+        }
+        .frame(width: 600)
+        .onExitCommand { viewModel.setFilterVisible(false) }
+        .onChange(of: viewModel.filterFocusToken) { _, _ in
+            // 需要聚焦条件值时由对应行自己处理；这里响应 Raw 模式输入框的聚焦请求。
+            if viewModel.filterFocusConditionID == nil,
+               viewModel.filterDraft.isRawMode {
+                rawWhereFocused = true
             }
         }
+    }
+
+    // MARK: 顶部
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            Text("筛选条件")
+                .font(.headline)
+            Text(viewModel.filterDraft.isRawMode ? "高级" : "\(viewModel.filterDraft.conditions.count) 条")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            if viewModel.filterDraft.isRawMode {
+                Button("切换回条件行") { viewModel.switchFilterToConditionsMode() }
+                    .accessibilityIdentifier("filter.mode-conditions")
+                    .buttonStyle(.subtle)
+                    .controlSize(.small)
+            } else {
+                Button("高级…") { viewModel.switchFilterToRawMode() }
+                    .accessibilityIdentifier("filter.mode-raw")
+                    .buttonStyle(.subtle)
+                    .controlSize(.small)
+            }
+            Button {
+                viewModel.setFilterVisible(false)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+            }
+            .buttonStyle(.subtle)
+            .controlSize(.small)
+            .help("关闭筛选卡片（条件会保留）")
+            .accessibilityIdentifier("filter.close")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 
     // MARK: 错误提示
@@ -72,6 +111,7 @@ struct FilterBarView: View {
                 .buttonStyle(.subtle)
                 .keyboardShortcut("i", modifiers: .command)
                 .help("添加一行过滤条件（⌘I）")
+                .accessibilityIdentifier("filter.add")
                 Spacer()
             }
         }
@@ -92,9 +132,6 @@ struct FilterBarView: View {
                     .font(.system(.callout, design: .monospaced))
                     .focused($rawWhereFocused)
             }
-            Text("高级条件不会被校验，请自行确认语法正确。与条件行互斥，切换会清空条件行。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 
@@ -110,9 +147,7 @@ struct FilterBarView: View {
     private var footer: some View {
         HStack(spacing: 10) {
             if viewModel.filterDraft.isRawMode {
-                Button("切换回条件行") { viewModel.switchFilterToConditionsMode() }
-                    .accessibilityIdentifier("filter.mode-conditions")
-                    .buttonStyle(.subtle)
+                EmptyView()
             } else {
                 Picker("组合方式", selection: combinationBinding) {
                     ForEach(FilterCombination.allCases, id: \.self) { combination in
@@ -122,10 +157,6 @@ struct FilterBarView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .frame(maxWidth: 220)
-
-                Button("高级 / 直接写条件") { viewModel.switchFilterToRawMode() }
-                    .accessibilityIdentifier("filter.mode-raw")
-                    .buttonStyle(.subtle)
             }
             Spacer()
             Button("重置") { viewModel.resetFilter() }
@@ -172,7 +203,7 @@ private struct FilterConditionRow: View {
                     selected: condition.column,
                     onSelect: { viewModel.setFilterConditionColumn(id: conditionID, column: $0) }
                 )
-                .frame(width: 170)
+                .frame(width: 150)
 
                 Picker("操作符", selection: operatorBinding) {
                     ForEach(FilterOperator.allCases, id: \.self) { op in
@@ -181,10 +212,10 @@ private struct FilterConditionRow: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.menu)
-                .frame(width: 140)
+                .frame(width: 120)
 
                 valueEditor(condition)
-                    .frame(maxWidth: 320)
+                    .frame(maxWidth: 260)
 
                 Button {
                     viewModel.addFilterCondition()

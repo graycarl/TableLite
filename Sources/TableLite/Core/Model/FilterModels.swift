@@ -37,6 +37,26 @@ public enum FilterOperator: String, Sendable, Codable, CaseIterable, Hashable {
         }
     }
 
+    /// 筛选 chips 里的短符号。
+    public var chipSymbol: String {
+        switch self {
+        case .equal: return "="
+        case .notEqual: return "≠"
+        case .contains: return "包含"
+        case .notContains: return "不含"
+        case .beginsWith: return "开头是"
+        case .endsWith: return "结尾是"
+        case .greaterThan: return ">"
+        case .greaterThanOrEqual: return "≥"
+        case .lessThan: return "<"
+        case .lessThanOrEqual: return "≤"
+        case .between: return "区间"
+        case .inList: return "∈"
+        case .isNull: return "为空"
+        case .isNotNull: return "不为空"
+        }
+    }
+
     /// 是否需要值输入框。
     public var requiresValue: Bool {
         switch self {
@@ -119,6 +139,29 @@ public struct FilterCondition: Sendable, Codable, Equatable, Hashable, Identifia
         }
         return value.trimmingCharacters(in: .whitespaces).isEmpty
     }
+
+    /// 网格上方 chip 里显示的短文案。
+    public var chipText: String {
+        switch op {
+        case .isNull, .isNotNull:
+            return "\(column) \(op.chipSymbol)"
+        case .between:
+            return "\(column) \(chipLiteral(value))…\(chipLiteral(secondValue))"
+        case .inList:
+            let items = value.split(separator: ",").map { chipLiteral(String($0)) }
+            return "\(column) ∈ (\(items.joined(separator: ", ")))"
+        default:
+            return "\(column) \(op.chipSymbol) \(chipLiteral(value))"
+        }
+    }
+
+    /// 字符串值补引号；数字列 / 纯数字保持裸文本。只用于显示，不参与 SQL 生成。
+    private func chipLiteral(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        if fieldType?.isNumeric == true { return trimmed }
+        if fieldType == nil, Double(trimmed) != nil { return trimmed }
+        return "'" + trimmed.replacingOccurrences(of: "'", with: "''") + "'"
+    }
 }
 
 /// 行过滤器的完整状态。**纯客户端状态**，不改数据。
@@ -175,6 +218,15 @@ public struct FilterState: Sendable, Codable, Equatable {
             return !rawWhere.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         return !activeConditions.isEmpty
+    }
+
+    /// 条件内容是否相同（忽略 `isVisible`）。用于「外键带入的过滤」在用户真正改条件前
+    /// 不写回按表记住的过滤。
+    public func hasSameCriteria(as other: FilterState) -> Bool {
+        conditions == other.conditions
+            && combination == other.combination
+            && rawWhere == other.rawWhere
+            && isRawMode == other.isRawMode
     }
 
     /// 引用到的列名。

@@ -162,7 +162,7 @@ public enum PreferenceKey: String, CaseIterable, Sendable {
         case .gridNullDisplayText: return "NULL"
         case .gridTinyintAsCheckbox: return false
         case .gridShowInspector: return true
-        case .gridInspectorWidth: return 320.0
+        case .gridInspectorWidth: return 300.0
         case .gridRememberColumnLayout: return true
         case .gridRememberFilters: return true
 
@@ -184,7 +184,7 @@ public enum PreferenceKey: String, CaseIterable, Sendable {
         case .uiAppearance: return AppearanceMode.system.rawValue
         case .uiShowSystemDatabases: return false
         case .uiSidebarWidth: return 220.0
-        case .uiEditorResultSplitRatio: return 0.5
+        case .uiEditorResultSplitRatio: return 0.4
         case .uiLanguage: return InterfaceLanguage.chinese.rawValue
 
         case .consoleLogCapacity: return 5000

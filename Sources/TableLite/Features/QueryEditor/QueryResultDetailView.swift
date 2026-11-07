@@ -102,7 +102,7 @@ struct ResultStatusPanel: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
     }
 }
 
@@ -163,6 +163,6 @@ struct ResultErrorPanel: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
     }
 }

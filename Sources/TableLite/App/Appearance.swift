@@ -32,6 +32,13 @@ extension AppearanceMode {
 
 extension NSColor {
 
+    /// 按外观显式取色：浅色 / 深色各一份，避免 `windowBackgroundColor` 等在浅色下几乎同白。
+    static func dynamic(light: NSColor, dark: NSColor) -> NSColor {
+        NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+        }
+    }
+
     /// 保留动态性的 `withAlphaComponent`。
     ///
     /// `NSColor.withAlphaComponent` 会把动态系统色**解析成当前外观下的固定值**，

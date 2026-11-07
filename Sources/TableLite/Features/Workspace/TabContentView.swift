@@ -23,7 +23,7 @@ struct TabPlaceholderView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
     }
 }
 

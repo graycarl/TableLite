@@ -4,7 +4,7 @@ import AppKit
 /// 应用根视图：按「有没有活动会话」在连接列表与工作区之间分流
 /// （`specs/02-workspace.md` §1、§10；`specs/01-connections.md` §7）。
 ///
-/// - 无活动会话 → `ConnectionsView`（连接列表；零连接时显示「选择一个连接开始」）；
+/// - 无活动会话 → `ConnectionsView`（连接列表；零连接时显示「还没有连接」+ 新建按钮）；
 /// - 有活动会话 → `WorkspaceView(session:)`；切换连接由 `SessionManager.activeSessionID`
 ///   驱动，**不关闭**其它会话。
 ///
@@ -38,7 +38,7 @@ struct RootView: View {
                 .frame(width: 0, height: 0)
         )
         .sheet(isPresented: $showConnectionList) {
-            ConnectionsView()
+            ConnectionsView(presentsAsSheet: true)
         }
         // 连接成功后主区已切到工作区，顺手关掉连接管理 sheet
         .onChange(of: environment.sessionManager.activeSessionID) { _, newValue in

@@ -147,7 +147,7 @@ private struct ImportStepPickerView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
-                    .background(Color(nsColor: .textBackgroundColor))
+                    .background(AppColor.content)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 Button("选择…") { model.chooseFile() }
                     .disabled(model.isReadOnly)
@@ -258,7 +258,7 @@ private struct ImportPreviewTable: View {
             }
         }
         .frame(minHeight: 150, maxHeight: 220)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
     }
@@ -337,7 +337,7 @@ private struct ImportStepMappingView: View {
                     .textSelection(.enabled)
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(nsColor: .textBackgroundColor))
+                    .background(AppColor.content)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
         }
@@ -506,7 +506,7 @@ private struct ImportStepExecuteView: View {
                     }
                 }
                 .frame(maxHeight: 180)
-                .background(Color(nsColor: .textBackgroundColor))
+                .background(AppColor.content)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
 
                 Button("导出失败行 CSV") { exportFailures() }

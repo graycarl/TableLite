@@ -15,6 +15,7 @@ struct ConnectionFormView: View {
     /// 用户编辑过表单（或点过「测试连接」/「保存」）之后才列出来，
     /// 避免新建连接时一打开就满屏报错。
     @State private var validationRevealed = false
+    @State private var showAdvanced = false
 
     private let labelWidth: CGFloat = 76
 
@@ -40,23 +41,41 @@ struct ConnectionFormView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(form.isEditing ? "编辑连接" : "新建连接")
-                .font(.headline)
-                .padding(16)
+            HStack(spacing: 8) {
+                Text(form.isEditing ? "编辑连接" : "新建连接")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    viewModel.cancelForm()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .buttonStyle(.plain)
+                .help("关闭")
+                .accessibilityIdentifier("sheet.connection.close")
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             Divider()
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    basicsCard
-                    mysqlCard
-                    sshCard
+                VStack(alignment: .leading, spacing: 14) {
+                    connectionCard
+                    if form.sshEnabled {
+                        sshCard
+                    }
                 }
                 .padding(16)
             }
             Divider()
             footer
         }
-        .frame(width: 680, height: 720)
-        .onChange(of: form) { _, _ in validationRevealed = true }
+        .frame(width: 660, height: 580)
+        .onChange(of: form) { _, _ in
+            validationRevealed = true
+            if hasAdvancedIssue { showAdvanced = true }
+            viewModel.invalidateTestResult()
+        }
         .sheet(isPresented: $viewModel.isTestPresented) {
             ConnectionTestView(
                 sshEnabled: form.sshEnabled,
@@ -77,57 +96,55 @@ struct ConnectionFormView: View {
         }
     }
 
-    // MARK: - 基本信息
+    private var connectionModeBinding: Binding<Bool> {
+        Binding(
+            get: { form.sshEnabled },
+            set: { form.sshEnabled = $0 }
+        )
+    }
 
-    private var basicsCard: some View {
-        FormCard(title: "基本信息") {
+    // MARK: - 连接
+
+    private var connectionCard: some View {
+        FormCard(title: "连接") {
+            Picker("连接方式", selection: connectionModeBinding) {
+                Text("直连").tag(false)
+                Text("SSH 隧道").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 220)
+            .accessibilityIdentifier("sheet.connection.mode")
+
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 fieldLabel("名称")
                 TextField("本地开发", text: $form.name)
-                    .frame(width: 360)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("sheet.connection.name")
             }
             errorLine(.name)
 
             HStack(alignment: .center, spacing: 10) {
                 fieldLabel("颜色")
-                Picker("", selection: $form.color) {
-                    ForEach(ConnectionColor.allCases, id: \.self) { color in
-                        Text(color.displayName).tag(color)
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 110)
-                Circle()
-                    .fill(form.color.swatchColor)
-                    .frame(width: 10, height: 10)
+                colorSwatches
                 Spacer()
                 Toggle("只读", isOn: $form.isReadOnly)
-                    .toggleStyle(.checkbox)
-                Text("禁止一切写操作")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .help("禁止一切写操作")
+                    .accessibilityIdentifier("sheet.connection.readonly")
             }
-        }
-    }
 
-    // MARK: - MySQL
-
-    private var mysqlCard: some View {
-        FormCard(title: "MySQL") {
-            mysqlAccountFields
-            mysqlConnectionFields
-        }
-    }
-
-    private var mysqlAccountFields: some View {
-        VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 fieldLabel("主机")
                 TextField("127.0.0.1", text: $form.host)
-                    .frame(width: 240)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("sheet.connection.host")
                 Text("端口")
+                    .foregroundStyle(.secondary)
                 TextField("3306", text: $form.portText)
                     .frame(width: 80)
+                    .accessibilityIdentifier("sheet.connection.port")
             }
             errorLine(.host)
             errorLine(.mysqlPort)
@@ -135,22 +152,23 @@ struct ConnectionFormView: View {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 fieldLabel("用户")
                 TextField("root", text: $form.user)
-                    .frame(width: 240)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("sheet.connection.user")
             }
             errorLine(.user)
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 fieldLabel("密码")
                 SecureField("（可留空）", text: $form.password)
-                    .frame(width: 240)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("sheet.connection.password")
                 Toggle("保存密码", isOn: $form.savePassword)
                     .toggleStyle(.checkbox)
-                Spacer()
             }
-            HStack(spacing: 10) {
-                Spacer()
-                    .frame(width: labelWidth + 10)
-                if form.hasStoredPassword {
+
+            if form.hasStoredPassword {
+                HStack(spacing: 10) {
+                    Spacer().frame(width: labelWidth + 10)
                     Button("清除已保存密码") {
                         form.clearStoredPasswordRequested = true
                         form.password = ""
@@ -163,16 +181,73 @@ struct ConnectionFormView: View {
                             .foregroundStyle(.orange)
                     }
                 }
-                Spacer()
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 fieldLabel("数据库")
                 TextField("", text: $form.database)
-                    .frame(width: 240)
-                Text("（可留空，连上后选中第一个可访问的库）")
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("sheet.connection.database")
+                Text("（可留空）")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            DisclosureGroup(isExpanded: $showAdvanced) {
+                mysqlConnectionFields
+                    .padding(.top, 6)
+            } label: {
+                HStack(spacing: 6) {
+                    Text("高级选项")
+                    if hasAdvancedIssue {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .font(AppFont.body)
+            .accessibilityIdentifier("sheet.connection.advanced")
+        }
+    }
+
+    private var hasAdvancedIssue: Bool {
+        issues.contains { issue in
+            switch issue.field {
+            case .connectTimeout, .queryTimeout, .keepAliveInterval: return true
+            default: return false
+            }
+        }
+    }
+
+    private var colorSwatches: some View {
+        HStack(spacing: 7) {
+            ForEach(ConnectionColor.allCases, id: \.self) { color in
+                Button {
+                    form.color = color
+                } label: {
+                    Circle()
+                        .fill(color.swatchColor)
+                        .frame(width: 16, height: 16)
+                        .overlay(
+                            Circle()
+                                .stroke(
+                                    form.color == color ? Color.accentColor : Color.primary.opacity(0.15),
+                                    lineWidth: form.color == color ? 2 : 1
+                                )
+                        )
+                        .overlay {
+                            if color == .none {
+                                Image(systemName: "slash")
+                                    .font(.system(size: 7))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+                .help(color.displayName)
+                .accessibilityLabel(color.displayName)
+                .accessibilityIdentifier("sheet.connection.color.\(color.rawValue)")
             }
         }
     }
@@ -259,9 +334,6 @@ struct ConnectionFormView: View {
 
     private var sshConnectionFields: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Toggle("通过 SSH 连接", isOn: $form.sshEnabled)
-                .toggleStyle(.checkbox)
-
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 fieldLabel("SSH 主机")
                 TextField("bastion.example.com", text: $form.sshHost)
@@ -363,24 +435,58 @@ struct ConnectionFormView: View {
     // MARK: - 底部按钮
 
     private var footer: some View {
-        HStack {
-            Button("测试连接") {
+        HStack(spacing: 8) {
+            Button {
                 validationRevealed = true
                 viewModel.testCurrentForm()
+            } label: {
+                Label("测试连接", systemImage: "bolt.horizontal")
             }
+            .buttonStyle(.subtle)
             .accessibilityIdentifier("sheet.connection.test")
+            .disabled(viewModel.isTesting)
+
+            if viewModel.isTesting {
+                ProgressView()
+                    .controlSize(.small)
+                Text("正在测试…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("取消测试") { viewModel.cancelTest() }
+                    .buttonStyle(.subtle)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("sheet.connection.test-cancel")
+            } else if let report = viewModel.testReport {
+                if report.succeeded {
+                    Label("连接成功", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                } else {
+                    Label("连接失败", systemImage: "xmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+                Button("详情") { viewModel.isTestPresented = true }
+                    .buttonStyle(.subtle)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("sheet.connection.test-details")
+            }
+
             Spacer()
+
             Button("取消") { viewModel.cancelForm() }
                 .accessibilityIdentifier("sheet.connection.cancel")
                 .keyboardShortcut(.cancelAction)
             Button("保存") {
                 Task { await viewModel.saveCurrentForm() }
             }
+            .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("sheet.connection.save")
             .keyboardShortcut(.defaultAction)
             .disabled(!issues.isEmpty)
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
     }
 
     // MARK: - 小部件

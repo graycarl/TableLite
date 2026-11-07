@@ -132,7 +132,7 @@
   <text class="warn s" x="290" y="356">该连接处于只读模式，所有写操作已被禁用。</text>
 
   <!-- 禁用的按钮 -->
-  <text class="fnt s" x="20" y="386">工具栏的变更操作组整体禁用，悬停时说明原因：</text>
+  <text class="fnt s" x="20" y="386">网格下方的上下文变更条（仅在有改动时出现）里的「提交」禁用，悬停时说明原因：</text>
   <rect class="s-chrome ln" x="20" y="398" width="960" height="52" rx="8"/>
   <rect class="s-field ln2" x="620" y="410" width="78" height="30" rx="7" opacity="0.45"/>
   <text class="c mut s" x="659" y="425">放弃</text>
@@ -146,7 +146,7 @@
   <rect class="s-chrome ln" x="20" y="506" width="960" height="34" rx="8"/>
   <text class="warn s" x="42" y="523">只读模式：写操作已被禁用</text>
 </svg>
-<figcaption><b>图 9-1</b>　只读连接的五个标识位置，以及被禁用的变更操作组。</figcaption>
+<figcaption><b>图 9-1</b>　只读连接的标识位置，以及被禁用的提交操作。</figcaption>
 </figure>
 
 <table>
@@ -155,7 +155,7 @@
 <tr><td>连接列表</td><td>名称前显示锁图标 🔒，摘要末尾追加 <code>· 只读</code></td></tr>
 <tr><td>连接切换器</td><td>名称前显示锁图标 🔒；悬停详情里连接信息末尾追加 <code>· 只读</code>，用醒目颜色</td></tr>
 <tr><td>工具栏颜色带</td><td>用连接颜色着色（生产建议设红色）</td></tr>
-<tr><td>标题栏</td><td>显示 <code>连接名（只读）</code></td></tr>
+<tr><td>连接切换器</td><td>锁图标 + 只读轻提示；窗口标题仍是 <code>库 / 标签</code></td></tr>
 </tbody>
 </table>
 

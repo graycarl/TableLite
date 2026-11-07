@@ -27,7 +27,7 @@ struct TableStructureTabView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
         .onAppear(perform: startIfNeeded)
         .onDisappear {
             viewModel?.cancelInFlight()
@@ -49,14 +49,14 @@ struct TableStructureTabView: View {
                 Divider()
             }
 
-            if viewModel.pages.count > 1 {
-                SchemaPageTabBar(
-                    pages: viewModel.pages,
-                    selection: pageSelection(viewModel),
-                    title: { viewModel.pageTitle($0) }
-                )
-                Divider()
-            }
+            SchemaPageTabBar(
+                pages: viewModel.pages,
+                selection: pageSelection(viewModel),
+                title: { viewModel.pageTitle($0) },
+                onCopyDDL: { viewModel.copyDefinition() },
+                copyDisabled: viewModel.isEmptyDefinition
+            )
+            Divider()
 
             pageBody(viewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -73,7 +73,7 @@ struct TableStructureTabView: View {
                 }
                 .padding(.horizontal, 10)
                 .frame(height: 24)
-                .background(.bar)
+                .background(AppColor.bar)
             }
         }
         .overlay(alignment: .top) {

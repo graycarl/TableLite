@@ -35,20 +35,8 @@ struct ObjectTreeSidebar: View {
 
             truncatedHint
             objectTree
-
-            Divider()
-
-            HStack(spacing: 4) {
-                SidebarEntryButton(title: "查询历史", systemImage: "clock.arrow.circlepath") {
-                    session.openHistoryTab()
-                }
-                SidebarEntryButton(title: "Console Log", systemImage: "terminal") {
-                    session.openConsoleLogTab()
-                }
-            }
-            .padding(6)
         }
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(AppColor.sidebar)
         .onAppear(perform: loadExpandedGroupsIfNeeded)
         .task(id: focusSearchRequest) {
             // 0 是初始值；只有显式请求（⌘F）时才聚焦，且兼容侧栏隐藏后重新创建的情况。
@@ -85,7 +73,7 @@ struct ObjectTreeSidebar: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(AppColor.content)
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
@@ -116,8 +104,10 @@ struct ObjectTreeSidebar: View {
                         actionTitle: "新建查询",
                         action: { session.newQueryTab() }
                     )
+                } else if !searchText.isEmpty && visibleGroups.isEmpty {
+                    emptyState("没有匹配的对象", systemImage: "magnifyingglass")
                 } else {
-                    ForEach(groups) { group in
+                    ForEach(visibleGroups) { group in
                         groupHeader(group)
                         if isExpanded(group.group) {
                             groupContent(group)
@@ -136,12 +126,6 @@ struct ObjectTreeSidebar: View {
             ForEach(0..<3, id: \.self) { _ in
                 loadingRow
             }
-        } else if group.isEmpty {
-            Text("（空）")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
-                .padding(.leading, 28)
-                .padding(.vertical, 4)
         } else {
             ForEach(group.items) { object in
                 objectRow(object)
@@ -272,6 +256,11 @@ struct ObjectTreeSidebar: View {
         ObjectTreeModel.group(session.objects, query: searchText)
     }
 
+    /// 空分组直接隐藏（例如 `视图 (0)`）；搜索时保留有命中项的分组。
+    private var visibleGroups: [ObjectTreeGroupContent] {
+        groups.filter { !$0.isEmpty || session.isLoadingObjects }
+    }
+
     private func isExpanded(_ group: ObjectTreeGroup) -> Bool {
         // 搜索时自动展开所有分组（`specs/02-workspace.md` §5）。
         if !searchText.isEmpty { return true }
@@ -312,35 +301,5 @@ struct ObjectTreeSidebar: View {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(name, forType: .string)
-    }
-}
-
-/// 左侧栏底部的入口按钮：只显示图标，名称放在悬停提示里，悬停时给一块淡底
-/// 提示可点（`specs/02-workspace.md` §5）。
-private struct SidebarEntryButton: View {
-
-    let title: String
-    let systemImage: String
-    let action: () -> Void
-
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.callout)
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
-                )
-        }
-        .buttonStyle(.plain)
-        .help(title)
-        .accessibilityLabel(title)
-        .onHover { isHovering = $0 }
-        .animation(.easeOut(duration: 0.1), value: isHovering)
     }
 }
