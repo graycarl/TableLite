@@ -56,7 +56,7 @@ struct WorkspaceView: View {
                         }
                     )
                         .frame(width: environment.preferences.sidebarWidth)
-                    ResizeHandle { delta in
+                    ResizeHandle(fill: AppColor.sidebar, lineEdge: .trailing) { delta in
                         environment.preferences.sidebarWidth += Double(delta)
                     }
                 }
@@ -64,7 +64,7 @@ struct WorkspaceView: View {
                 TabContainerView(session: session, onNewQuery: newQuery)
 
                 if showsInspector {
-                    ResizeHandle { delta in
+                    ResizeHandle(fill: AppColor.inspector, lineEdge: .leading) { delta in
                         environment.preferences.inspectorWidth -= Double(delta)
                     }
                     inspector

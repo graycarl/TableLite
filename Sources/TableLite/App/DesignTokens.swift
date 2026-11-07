@@ -72,6 +72,7 @@ enum AppColor {
     static let content = Color(nsColor: AppNSColor.content)
     static let inspector = Color(nsColor: AppNSColor.inspector)
     static let bar = Color(nsColor: AppNSColor.bar)
+    static let rowSeparator = Color(nsColor: AppNSColor.rowSeparator)
 }
 
 /// 尺寸刻度：表格行高、侧栏行高、工具栏控件高度。
