@@ -171,7 +171,7 @@ struct RowInspectorView: View {
             }
             .font(.caption)
             .foregroundStyle(.red)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, InspectorMetrics.textInset)
             .padding(.vertical, 5)
             .background(Color.red.opacity(0.08))
         } else if viewModel.isInsertionRow(rowID: row.id) {
@@ -184,7 +184,7 @@ struct RowInspectorView: View {
             }
             .font(.caption)
             .foregroundStyle(.green)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, InspectorMetrics.textInset)
             .padding(.vertical, 5)
             .background(Color.green.opacity(0.08))
         }
@@ -251,6 +251,8 @@ struct InspectorFieldRow: View {
     @State private var errorMessage: String?
     @State private var previousNonNull: SQLValue?
     @State private var isExpanded = false
+    /// 多行编辑器的实际可用宽度（`onGeometryChange` 量到）；高度按它算才不会多数 / 少算一行。
+    @State private var editorWidth: CGFloat = 0
     /// `NSTextView` 没有 `@FocusState`，多行编辑器的焦点由它自己回调（见 `PlainTextView`）。
     @State private var isMultilineActive = false
     /// L29：大窗口里的查找请求计数。
@@ -271,14 +273,14 @@ struct InspectorFieldRow: View {
     }
 
     private var valueFont: Font {
-        let base = Font.system(size: 13)
+        let base = AppFont.body
         return usesTabularDigits ? base.monospacedDigit() : base
     }
 
     /// `NULL` 值统一走这一份占位：灰色斜体，所有类型（含二进制）都长一样。
     private var nullPlaceholder: some View {
         Text("NULL")
-            .font(.system(size: 13))
+            .font(AppFont.body)
             .italic()
             .foregroundStyle(.tertiary)
             .allowsHitTesting(false)
@@ -296,7 +298,7 @@ struct InspectorFieldRow: View {
     private var isFocusedOrEditing: Bool { isFocused || isMultilineActive }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: AppSpacing.xxs) {
             labelLine
 
             editor
@@ -382,6 +384,7 @@ struct InspectorFieldRow: View {
             ))
             .toggleStyle(.checkbox)
             .labelsHidden()
+            .padding(.horizontal, InspectorMetrics.fieldPadding)
             .disabled(!isEditable)
 
         case .enumeration(let values):
@@ -396,6 +399,7 @@ struct InspectorFieldRow: View {
                 ForEach(values, id: \.self) { Text($0).tag($0) }
             }
             .labelsHidden()
+            .padding(.horizontal, InspectorMetrics.fieldPadding)
             .disabled(!isEditable)
 
         case .set(let values):
@@ -468,8 +472,9 @@ struct InspectorFieldRow: View {
                 onFocusChange: { isMultilineActive = $0 }
             )
             .padding(.horizontal, InspectorMetrics.fieldPadding)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { editorWidth = $0 }
             // 按内容长高（一行内容就一行高），超过上限才在框内滚动。
-            .frame(height: multilineHeight)
+            .frame(height: multilineFit.height)
             .background(
                 isFocusedOrEditing ? Color(nsColor: .textBackgroundColor) : Color.clear,
                 in: RoundedRectangle(cornerRadius: AppRadius.s)
@@ -488,14 +493,19 @@ struct InspectorFieldRow: View {
             }
             .disabled(!isEditable)
 
-            // 只在编辑时摆出来：不聚焦时这一行纯占高度，空值字段会空出一大块。
-            if isFocusedOrEditing {
+            // 「展开」在聚焦、只读、或内容超过三行时出现 —— 只读连接里的长文本也得打得开。
+            // 快捷键提示只在聚焦时给，免得空值字段也常驻一行。
+            if isFocusedOrEditing || !isEditable || multilineFit.isTruncated {
                 HStack(spacing: 6) {
                     Button("展开") { isExpanded = true }
                         .controlSize(.small)
-                    Text("⇧↩ 换行 · ⌘↩ 提交")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        // 不参与键盘焦点环：`Tab` 要在字段之间走，不该落在附属按钮上。
+                        .focusable(false)
+                    if isFocusedOrEditing {
+                        Text("⇧↩ 换行 · ⌘↩ 提交")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                     Spacer()
                 }
             }
@@ -522,6 +532,7 @@ struct InspectorFieldRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .menuStyle(.borderlessButton)
+        .padding(.horizontal, InspectorMetrics.fieldPadding)
         .disabled(!isEditable)
     }
 
@@ -658,22 +669,25 @@ struct InspectorFieldRow: View {
 
     // MARK: 展示
 
-    /// 多行字段的高度：按当前文本在面板里实际能占的宽度量出来，夹在 [一行, 上限] 之间
-    /// （`specs/03-data-browsing.md` §7）。`NSTextView` 自己不报高度，交给 SwiftUI 侧量。
-    private var multilineHeight: CGFloat {
-        let width = max(viewModel.preferences.inspectorWidth - InspectorMetrics.textInset * 2, 80)
-        let font = NSFont.systemFont(ofSize: 13)
-        let measured = (draft.isEmpty ? " " : draft) as NSString
-        let bounding = measured.boundingRect(
-            with: CGSize(width: width, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: font]
+    /// 字段栏里多行字段最多直接铺三行，再长就让「展开」去大窗口。
+    private static let multilineLineLimit = 3
+
+    /// 多行字段的高度与是否超出行数上限（`InspectorFieldHeight`，纯逻辑、可单测）。
+    private var multilineFit: InspectorFieldHeight.Fit {
+        InspectorFieldHeight.fit(
+            text: draft,
+            width: multilineTextWidth,
+            font: .systemFont(ofSize: 13),
+            lineLimit: Self.multilineLineLimit,
+            verticalInset: PlainTextView.defaultVerticalTextInset
         )
-        let lineHeight = ceil(font.ascender - font.descender + font.leading)
-        let needed = Int(ceil(bounding.height / max(lineHeight, 1)))
-        // 一行内容就一行高；上限三行，再长就让「展开」去大窗口，字段栏不该被一个字段撑满。
-        let lines = min(max(needed, 1), 3)
-        return CGFloat(lines) * lineHeight + AppSpacing.xxs * 2
+    }
+
+    /// 文本实际能占的宽度：优先用布局量到的真实宽度（窄栏 + 系统滚动条都算在内），
+    /// 首帧还没量到时退回面板宽度。
+    private var multilineTextWidth: CGFloat {
+        if editorWidth > 1 { return editorWidth }
+        return max(viewModel.preferences.inspectorWidth - InspectorMetrics.textInset * 2, 80)
     }
 
     private var binaryDisplayText: String {

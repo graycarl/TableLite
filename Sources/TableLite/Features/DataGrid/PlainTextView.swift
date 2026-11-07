@@ -12,12 +12,17 @@ struct PlainTextView: NSViewRepresentable {
     var isEditable: Bool
     var isMultiline: Bool
     var fontSize: Double
-    /// 是否用等宽字体（SQL 编辑器 / 展开窗口为真；字段栏里跟正文一致，避免左缘差 2pt）。
-    var usesMonospacedFont: Bool = true
-    /// 文本容器左右内边距；字段栏里由 SwiftUI 侧统一给，这里给 0。
-    var horizontalTextInset: CGFloat = 4
-    /// 是否显示纵向滚动条；字段栏的内联框不显示（换行滚动靠触控板），展开窗口才显示。
-    var showsVerticalScroller: Bool = true
+    /// 是否用等宽字体。字段栏里跟正文一致（避免左缘差 2pt），传 `false`。
+    var usesMonospacedFont: Bool = false
+    /// 文本容器左右内边距；字段栏里由 SwiftUI 侧统一给，传 `0`。
+    var horizontalTextInset: CGFloat = 0
+    /// 文本容器上下内边距。字段栏靠同一个值算多行高度（`InspectorFieldHeight`），必须一致。
+    var verticalTextInset: CGFloat = PlainTextView.defaultVerticalTextInset
+    /// 是否显示纵向滚动条；字段栏的内联框不显示（换行滚动靠触控板）。
+    var showsVerticalScroller: Bool = false
+
+    /// 多行编辑器的默认上下内边距；高度计算与 `textContainerInset` 都用这一份。
+    static let defaultVerticalTextInset: CGFloat = 4
     /// 失焦或提交键（单行 `↩` / 多行 `⌘↩`）时调用。
     var onCommit: () -> Void
     /// `Esc` 取消时调用。
@@ -39,11 +44,13 @@ struct PlainTextView: NSViewRepresentable {
         textView.font = Self.font(size: fontSize, monospaced: usesMonospacedFont)
         // 背景由外层 SwiftUI 管（字段栏里平时透明，聚焦才出底色）。
         textView.drawsBackground = false
-        textView.textContainerInset = NSSize(width: horizontalTextInset, height: 4)
+        textView.textContainerInset = NSSize(width: horizontalTextInset, height: verticalTextInset)
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
         textView.textContainer?.widthTracksTextView = true
+        // 文本容器默认左右各留 5pt：字段栏靠它对齐左缘，这里必须清零（`14-row-inspector.md` §9）。
+        textView.textContainer?.lineFragmentPadding = 0
 
         // 智能替换全部关闭（AGENTS 坑 §1）。
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -78,7 +85,8 @@ struct PlainTextView: NSViewRepresentable {
         textView.onCancel = onCancel
         textView.isMultiline = isMultiline
         textView.font = Self.font(size: fontSize, monospaced: usesMonospacedFont)
-        textView.textContainerInset = NSSize(width: horizontalTextInset, height: 4)
+        scrollView.hasVerticalScroller = showsVerticalScroller
+        textView.textContainerInset = NSSize(width: horizontalTextInset, height: verticalTextInset)
         // 只在非编辑状态下同步，避免打断输入。
         if !textView.isEditing, textView.string != text {
             textView.string = text
