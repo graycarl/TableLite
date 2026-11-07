@@ -6,7 +6,7 @@ import Foundation
 public enum FieldEditorKind: Sendable, Equatable {
     /// 普通文本：单行输入框。
     case singleLineText
-    /// 数字：单行输入框，右对齐。
+    /// 数字：单行输入框，等宽数字，与其它值一样左对齐。
     case number
     /// 长文本 / JSON：内联多行 + 展开。
     case multilineText

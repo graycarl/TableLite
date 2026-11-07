@@ -180,50 +180,46 @@
   <text class="fnt s r" x="964" y="81">18 个字段</text>
   <line class="ln" x1="600" y1="104" x2="980" y2="104"/>
 
-  <!-- 字段行 1 -->
-  <text class="b" x="616" y="122">🔑 id</text>
-  <text class="mono mut s" x="700" y="122">int unsigned</text>
-  <rect class="s-field ln2" x="616" y="130" width="300" height="28" rx="6"/>
-  <text class="s" x="628" y="144">42</text>
-  <rect class="s-field ln2" x="928" y="130" width="32" height="28" rx="6"/>
-  <text class="c s" x="944" y="144">∅</text>
+  <!-- 字段行 1：字段名（小字、次要色）在上，值（13pt、主色）在下 -->
+  <text class="mut s b" x="616" y="122">🔑 id</text>
+  <text class="mono mut s r" x="930" y="122">int unsigned</text>
+  <text class="c s" x="946" y="122">∅</text>
+  <text class="mono m" x="616" y="144">42</text>
+  <line class="ln" x1="616" y1="158" x2="964" y2="158"/>
 
-  <!-- 字段行 2：正在编辑 -->
-  <text class="b" x="616" y="184">name</text>
-  <text class="mono mut s" x="700" y="184">varchar(64)</text>
-  <rect class="s-field lnA sw2" x="616" y="192" width="300" height="28" rx="6"/>
-  <text class="s" x="628" y="206">李四</text>
-  <rect class="s-field ln2" x="928" y="192" width="32" height="28" rx="6"/>
-  <text class="c s" x="944" y="206">∅</text>
+  <!-- 字段行 2：正在编辑（聚焦时值才出现底色与描边） -->
+  <text class="mut s b" x="616" y="176">name</text>
+  <text class="mono mut s r" x="930" y="176">varchar(64)</text>
+  <text class="c s" x="946" y="176">∅</text>
+  <rect class="s-field lnA sw2" x="612" y="184" width="352" height="26" rx="4"/>
+  <text class="m" x="620" y="198">李四</text>
+  <line class="ln" x1="616" y1="214" x2="964" y2="214"/>
 
   <!-- 字段行 3 -->
-  <text class="b" x="616" y="246">email</text>
-  <text class="mono mut s" x="700" y="246">varchar(255)</text>
-  <rect class="s-field ln2" x="616" y="254" width="300" height="28" rx="6"/>
-  <text class="s" x="628" y="268">ls@example.com</text>
-  <rect class="s-field ln2" x="928" y="254" width="32" height="28" rx="6"/>
-  <text class="c s" x="944" y="268">∅</text>
+  <text class="mut s b" x="616" y="232">email</text>
+  <text class="mono mut s r" x="930" y="232">varchar(255)</text>
+  <text class="c s" x="946" y="232">∅</text>
+  <text class="m" x="616" y="254">ls@example.com</text>
+  <line class="ln" x1="616" y1="268" x2="964" y2="268"/>
 
-  <!-- 字段行 4：多行编辑器 + 已修改 -->
-  <text class="b" x="616" y="308">content</text>
-  <text class="mono mut s" x="700" y="308">longtext</text>
-  <rect class="s-edit" x="616" y="316" width="300" height="48" rx="6"/>
-  <rect class="lnO" x="616" y="316" width="300" height="48" rx="6"/>
-  <path class="lnO sw2" d="M620 318 l9 0 l-9 9 z"/>
-  <text class="s" x="628" y="330">这是一篇很长的文章，</text>
-  <text class="s" x="628" y="350">里面还有换行。</text>
-  <text class="acc s r" x="906" y="350">展开</text>
-  <rect class="s-field ln2" x="928" y="316" width="32" height="28" rx="6"/>
-  <text class="c s" x="944" y="330">∅</text>
+  <!-- 字段行 4：多行编辑器 + 已修改（整条字段行浅橙底，无圆角） -->
+  <rect class="s-edit" x="600" y="268" width="380" height="82"/>
+  <path class="lnO sw2" d="M612 272 l9 0 l-9 9 z"/>
+  <text class="mut s b" x="616" y="286">content</text>
+  <text class="mono mut s r" x="930" y="286">longtext</text>
+  <text class="c s" x="946" y="286">∅</text>
+  <text class="m" x="616" y="308">这是一篇很长的文章，</text>
+  <text class="m" x="616" y="326">里面还有换行。</text>
+  <text class="acc s r" x="964" y="326">展开</text>
+  <line class="ln" x1="616" y1="350" x2="964" y2="350"/>
 
-  <!-- 字段行 5 -->
-  <text class="b" x="616" y="392">status</text>
-  <text class="mono mut s" x="700" y="392">enum('draft','published')</text>
-  <rect class="s-field ln2" x="616" y="400" width="300" height="28" rx="6"/>
-  <text class="s" x="628" y="414">draft</text>
-  <text class="mut s r" x="906" y="414">▾</text>
-  <rect class="s-field ln2" x="928" y="400" width="32" height="28" rx="6"/>
-  <text class="c s" x="944" y="414">∅</text>
+  <!-- 字段行 5：ENUM 下拉 -->
+  <text class="mut s b" x="616" y="368">status</text>
+  <text class="mono mut s r" x="930" y="368">enum('draft','published')</text>
+  <text class="c s" x="946" y="368">∅</text>
+  <text class="m" x="616" y="390">draft</text>
+  <text class="mut s r" x="964" y="390">▾</text>
+  <line class="ln" x1="616" y1="404" x2="964" y2="404"/>
 
   <!-- 热点 -->
   <g class="hot" data-hot="1"><circle cx="954" cy="54" r="11"/><text x="954" y="54">1</text></g>
@@ -231,13 +227,13 @@
   <g class="hot" data-hot="3"><circle cx="880" cy="81" r="11"/><text x="880" y="81">3</text></g>
   <path class="leader" d="M597 122 L614 122"/>
   <g class="hot" data-hot="4"><circle cx="584" cy="122" r="11"/><text x="584" y="122">4</text></g>
-  <path class="leader" d="M597 268 L614 268"/>
-  <g class="hot" data-hot="5"><circle cx="584" cy="268" r="11"/><text x="584" y="268">5</text></g>
-  <g class="hot" data-hot="6"><circle cx="972" cy="414" r="11"/><text x="972" y="414">6</text></g>
+  <path class="leader" d="M597 198 L610 198"/>
+  <g class="hot" data-hot="5"><circle cx="584" cy="198" r="11"/><text x="584" y="198">5</text></g>
+  <g class="hot" data-hot="6"><circle cx="968" cy="122" r="11"/><text x="968" y="122">6</text></g>
   <path class="leader" d="M595 320 L601 320"/>
   <g class="hot" data-hot="7"><circle cx="584" cy="320" r="11"/><text x="584" y="320">7</text></g>
 </svg>
-<figcaption><b>图 4-1</b>　右侧字段栏（线框为旧版）。改版后字段 ≤10 个时不显示搜索框；值默认无边框，悬停/聚焦才出背景与描边；<code>∅</code> 只对 NULL 字段常驻。</figcaption>
+<figcaption><b>图 4-1</b>　右侧字段栏。字段名（小字、次要色）在上，值（13pt、主色）在下，两者左缘对齐；字段之间用分隔线断开；<code>∅</code> 在字段名行右端，值默认无边框，悬停 / 聚焦才出底色与描边。</figcaption>
 </figure>
 
 <table class="controls">
@@ -249,12 +245,12 @@
   <td>网格只负责浏览和选择：不能在格子里改值，也不能把多行文本铺开成二维表格粘进来。在网格里双击一个单元格，会自动跳到字段栏里对应的字段并聚焦；表不可编辑时则改为打开快速查看。</td></tr>
 <tr data-hot="3"><td class="num">3</td><td class="wide">搜索字段</td>
   <td>按列名过滤字段。右侧显示命中的数量，例如 <code>显示 3 / 18</code>；没有过滤时显示字段总数。</td></tr>
-<tr data-hot="4"><td class="num">4</td><td class="wide">列名 + 类型</td>
-  <td>字段按表定义的顺序排列，<b>不受</b>网格的列显隐与列顺序影响。主键列的列名前带 🔑 并且加粗。类型是完整类型名（<code>varchar(255)</code>、<code>int unsigned</code>、<code>decimal(10,2)</code>），<b>只读</b>，不做类型转换。</td></tr>
-<tr data-hot="5"><td class="num">5</td><td class="wide">值编辑器</td>
-  <td>点进去就能改这个字段。编辑器按列类型自动选，不用你挑（见下面两张图）。</td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">字段名 + 类型</td>
+  <td>字段按表定义的顺序排列，<b>不受</b>网格的列显隐与列顺序影响。字段名用小字 + 次要色压在值上方，主键列的字段名前带 🔑 并且加粗。类型写在同一行右侧（<code>varchar(255)</code>、<code>int unsigned</code>、<code>decimal(10,2)</code>），<b>只读</b>，不做类型转换。</td></tr>
+<tr data-hot="5"><td class="num">5</td><td class="wide">值</td>
+  <td>点进去就能改这个字段。平时就是一段文字，点进去才出现底色与描边；所有值左对齐。编辑器按列类型自动选，不用你挑（见下面两张图）。</td></tr>
 <tr data-hot="6"><td class="num">6</td><td class="wide">∅ 按钮</td>
-  <td>点一下把这个字段设为 <code>NULL</code>，再点一下恢复原来的值。值本来就是 <code>NULL</code> 时按钮呈按下状态。</td></tr>
+  <td>在<b>字段名行右端</b>，悬停 / 聚焦时出现。点一下把这个字段设为 <code>NULL</code>，再点一下恢复原来的值。值本来就是 <code>NULL</code> 时按钮呈按下状态。</td></tr>
 <tr data-hot="7"><td class="num">7</td><td class="wide">拖拽把手</td>
   <td>拖它调整字段栏的宽度，范围 <b>260–560pt</b>（默认 300pt），全局记住。</td></tr>
 </tbody>
@@ -276,23 +272,22 @@
 <svg viewBox="0 0 1000 560" role="img" aria-label="文本类字段的编辑器">
   <title>文本类字段的编辑器</title>
 
-  <!-- A 普通文本 -->
+  <!-- A 普通文本：字段名行 + 值行，聚焦时值才出底色与描边 -->
   <rect class="s-window ln" x="20" y="20" width="470" height="250" rx="9"/>
   <rect class="s-chrome" x="20" y="20" width="470" height="30" rx="9"/>
   <line class="ln" x1="20" y1="50" x2="490" y2="50"/>
   <text class="b s" x="38" y="35">普通文本</text>
   <text class="fnt s r" x="472" y="35">varchar / char / text</text>
-  <text class="b" x="38" y="66">name</text>
-  <text class="mono mut s" x="110" y="66">varchar(64)</text>
-  <rect class="s-field ln2" x="38" y="86" width="392" height="30" rx="6"/>
-  <text class="s" x="50" y="101">李四</text>
-  <line class="lnA sw2" x1="78" y1="92" x2="78" y2="110"/>
-  <rect class="s-field ln2" x="442" y="86" width="30" height="30" rx="6"/>
-  <text class="c s" x="457" y="101">∅</text>
-  <text class="fnt s" x="38" y="146">单行输入框，点进去就能改。</text>
-  <text class="fnt s" x="38" y="168">↩ 或失去焦点写入暂存区，Esc 放弃。</text>
-  <text class="fnt s" x="38" y="190">Tab / ⇧Tab 提交并移到下一个 / 上一个字段。</text>
-  <g class="hot" data-hot="8"><circle cx="38" cy="101" r="11"/><text x="38" y="101">8</text></g>
+  <text class="mut s b" x="38" y="66">name</text>
+  <text class="mono mut s r" x="438" y="66">varchar(64)</text>
+  <text class="c s" x="454" y="66">∅</text>
+  <rect class="s-field lnA sw2" x="34" y="78" width="438" height="26" rx="4"/>
+  <text class="m" x="42" y="91">李四</text>
+  <line class="lnA sw2" x1="76" y1="82" x2="76" y2="100"/>
+  <text class="fnt s" x="38" y="126">单行输入框，点进去就能改；平时只是一段文字，</text>
+  <text class="fnt s" x="38" y="148">聚焦才出现底色与描边。↩ 或失去焦点写入暂存区，</text>
+  <text class="fnt s" x="38" y="170">Esc 放弃；Tab / ⇧Tab 提交并移到下一个 / 上一个字段。</text>
+  <g class="hot" data-hot="8"><circle cx="440" cy="91" r="11"/><text x="440" y="91">8</text></g>
 
   <!-- B 长文本 / JSON -->
   <rect class="s-window ln" x="510" y="20" width="470" height="250" rx="9"/>
@@ -300,21 +295,19 @@
   <line class="ln" x1="510" y1="50" x2="980" y2="50"/>
   <text class="b s" x="528" y="35">长文本 / JSON</text>
   <text class="fnt s r" x="962" y="35">longtext / json</text>
-  <text class="b" x="528" y="66">content</text>
-  <text class="mono mut s" x="612" y="66">longtext NULL</text>
-  <rect class="s-field ln2" x="528" y="86" width="392" height="76" rx="6"/>
-  <text class="mono s" x="540" y="102">{</text>
-  <text class="mono s" x="540" y="122">　&quot;title&quot;: &quot;标题&quot;,</text>
-  <text class="mono s" x="540" y="142">　&quot;body&quot;: &quot;正文…&quot;</text>
-  <rect class="s-field ln2" x="836" y="136" width="74" height="22" rx="6"/>
-  <text class="c s" x="873" y="147">展开</text>
-  <rect class="s-field ln2" x="932" y="86" width="30" height="30" rx="6"/>
-  <text class="c s" x="947" y="101">∅</text>
-  <text class="fnt s" x="528" y="192">⇧↩ 换行，⌘↩ 提交；Esc 放弃。</text>
-  <text class="fnt s" x="528" y="214">点「展开」进入大编辑窗口：带行号与查找。</text>
-  <g class="hot" data-hot="9"><circle cx="528" cy="118" r="11"/><text x="528" y="118">9</text></g>
-  <path class="leader" d="M827 147 L836 147"/>
-  <g class="hot" data-hot="10"><circle cx="814" cy="147" r="11"/><text x="814" y="147">10</text></g>
+  <text class="mut s b" x="528" y="66">content</text>
+  <text class="mono mut s r" x="928" y="66">longtext NULL</text>
+  <text class="c s" x="944" y="66">∅</text>
+  <text class="mono m" x="528" y="92">{</text>
+  <text class="mono m" x="528" y="110">　&quot;title&quot;: &quot;标题&quot;,</text>
+  <text class="mono m" x="528" y="128">　&quot;body&quot;: &quot;正文…&quot;</text>
+  <rect class="s-field ln2" x="846" y="112" width="74" height="22" rx="5"/>
+  <text class="c s" x="883" y="123">展开</text>
+  <text class="fnt s" x="528" y="172">⇧↩ 换行，⌘↩ 提交；Esc 放弃。</text>
+  <text class="fnt s" x="528" y="194">点「展开」进入大编辑窗口：带行号与查找。</text>
+  <g class="hot" data-hot="9"><circle cx="528" cy="110" r="11"/><text x="528" y="110">9</text></g>
+  <path class="leader" d="M838 123 L846 123"/>
+  <g class="hot" data-hot="10"><circle cx="826" cy="123" r="11"/><text x="826" y="123">10</text></g>
 
   <!-- C 数字 -->
   <rect class="s-window ln" x="20" y="290" width="470" height="250" rx="9"/>
@@ -322,16 +315,14 @@
   <line class="ln" x1="20" y1="320" x2="490" y2="320"/>
   <text class="b s" x="38" y="305">数字</text>
   <text class="fnt s r" x="472" y="305">int / decimal / float</text>
-  <text class="b" x="38" y="336">price</text>
-  <text class="mono mut s" x="110" y="336">decimal(10,2) NULL</text>
-  <rect class="s-field ln2" x="38" y="356" width="392" height="30" rx="6"/>
-  <text class="mono r" x="418" y="371">128.00</text>
-  <rect class="s-field ln2" x="442" y="356" width="30" height="30" rx="6"/>
-  <text class="c s" x="457" y="371">∅</text>
-  <text class="fnt s" x="38" y="416">单行输入框，数字靠右对齐，方便比大小。</text>
-  <text class="fnt s" x="38" y="438">只接受合法数字（含负号和小数点）。</text>
+  <text class="mut s b" x="38" y="336">price</text>
+  <text class="mono mut s r" x="438" y="336">decimal(10,2) NULL</text>
+  <text class="c s" x="454" y="336">∅</text>
+  <text class="mono m" x="38" y="361">128.00</text>
+  <text class="fnt s" x="38" y="416">单行输入框，等宽数字，和其它值一样左对齐，</text>
+  <text class="fnt s" x="38" y="438">位数一眼对得齐。只接受合法数字（含负号和小数点）。</text>
   <text class="fnt s" x="38" y="460">校验不过时输入框抖动，编辑状态不退出。</text>
-  <g class="hot" data-hot="11"><circle cx="38" cy="371" r="11"/><text x="38" y="371">11</text></g>
+  <g class="hot" data-hot="11"><circle cx="440" cy="361" r="11"/><text x="440" y="361">11</text></g>
 
   <!-- D 日期 / 时间 -->
   <rect class="s-window ln" x="510" y="290" width="470" height="250" rx="9"/>
@@ -339,21 +330,17 @@
   <line class="ln" x1="510" y1="320" x2="980" y2="320"/>
   <text class="b s" x="528" y="305">日期 / 时间</text>
   <text class="fnt s r" x="962" y="305">date / datetime / timestamp</text>
-  <text class="b" x="528" y="336">created_at</text>
-  <text class="mono mut s" x="632" y="336">datetime NULL</text>
-  <rect class="s-field ln2" x="528" y="356" width="392" height="30" rx="6"/>
-  <text class="s" x="540" y="371">2025-01-01 10:00:00</text>
-  <rect class="s-field ln2" x="932" y="356" width="30" height="30" rx="6"/>
-  <text class="c s" x="947" y="371">∅</text>
-
-  <!-- 单行输入框原样编辑 -->
+  <text class="mut s b" x="528" y="336">created_at</text>
+  <text class="mono mut s r" x="928" y="336">datetime NULL</text>
+  <text class="c s" x="944" y="336">∅</text>
+  <text class="mono m" x="528" y="361">2025-01-01 10:00:00</text>
   <text class="fnt s" x="528" y="420">单行输入框，直接按文本编辑，</text>
   <text class="fnt s" x="528" y="442">如 2025-01-01 10:00:00。</text>
   <text class="fnt s" x="528" y="474">时间戳 / datetime 一律按文本处理，</text>
   <text class="fnt s" x="528" y="496">不做时区换算，避免看错。</text>
-  <g class="hot" data-hot="12"><circle cx="528" cy="371" r="11"/><text x="528" y="371">12</text></g>
+  <g class="hot" data-hot="12"><circle cx="930" cy="361" r="11"/><text x="930" y="361">12</text></g>
 </svg>
-<figcaption><b>图 4-2</b>　文本 / 数字 / 日期的值编辑器。每张卡片就是字段栏里的一个字段行。</figcaption>
+<figcaption><b>图 4-2</b>　文本 / 数字 / 日期的值编辑器。每张卡片就是字段栏里的一个字段行：字段名在上、值在下，∅ 在字段名行右端，值聚焦时才出底色与描边。</figcaption>
 </figure>
 
 <table class="controls">
@@ -366,7 +353,7 @@
 <tr data-hot="10"><td class="num">10</td><td class="wide">「展开」</td>
   <td>把多行编辑器放大成一个独立的大窗口，同样带行号与查找，长内容在这里改更舒服。</td></tr>
 <tr data-hot="11"><td class="num">11</td><td class="wide">数字</td>
-  <td>单行输入框，右对齐。只接受合法数字（含负号和小数点）。</td></tr>
+  <td>单行输入框，等宽数字、和其它值一样左对齐。只接受合法数字（含负号和小数点）。</td></tr>
 <tr data-hot="12"><td class="num">12</td><td class="wide">日期 / 时间</td>
   <td>单行输入框，原样显示与编辑；时间戳这类值一律按文本处理，不做时区换算，避免看错。</td></tr>
 </tbody>
@@ -382,24 +369,22 @@
   <line class="ln" x1="20" y1="50" x2="490" y2="50"/>
   <text class="b s" x="38" y="35">ENUM</text>
   <text class="fnt s r" x="472" y="35">取值固定的一组</text>
-  <text class="b" x="38" y="66">status</text>
-  <text class="mono mut s" x="120" y="66">enum('draft','published')</text>
-  <rect class="s-field ln2" x="38" y="86" width="392" height="30" rx="6"/>
-  <text class="s" x="50" y="101">published</text>
-  <text class="mut r" x="418" y="101">▾</text>
-  <rect class="s-field ln2" x="442" y="86" width="30" height="30" rx="6"/>
-  <text class="c s" x="457" y="101">∅</text>
-  <rect class="s-window ln2" x="38" y="126" width="200" height="102" rx="7"/>
-  <rect class="s-soft" x="44" y="150" width="188" height="26" rx="6"/>
-  <text class="s" x="54" y="137">draft</text>
-  <text class="acc" x="54" y="163">published</text>
-  <text class="acc r" x="222" y="163">✓</text>
-  <text class="s" x="54" y="189">archived</text>
-  <text class="s" x="54" y="215">deleted</text>
+  <text class="mut s b" x="38" y="66">status</text>
+  <text class="mono mut s r" x="438" y="66">enum('draft','published')</text>
+  <text class="c s" x="454" y="66">∅</text>
+  <text class="m" x="38" y="91">published</text>
+  <text class="mut s r" x="464" y="91">▾</text>
+  <rect class="s-window ln2" x="38" y="104" width="200" height="102" rx="7"/>
+  <rect class="s-soft" x="44" y="128" width="188" height="26" rx="6"/>
+  <text class="s" x="54" y="115">draft</text>
+  <text class="acc" x="54" y="141">published</text>
+  <text class="acc r" x="222" y="141">✓</text>
+  <text class="s" x="54" y="167">archived</text>
+  <text class="s" x="54" y="193">deleted</text>
   <text class="fnt s" x="260" y="150">限定了取值，</text>
   <text class="fnt s" x="260" y="172">不需要手输，</text>
   <text class="fnt s" x="260" y="194">也不会拼错。</text>
-  <g class="hot" data-hot="13"><circle cx="38" cy="101" r="11"/><text x="38" y="101">13</text></g>
+  <g class="hot" data-hot="13"><circle cx="440" cy="91" r="11"/><text x="440" y="91">13</text></g>
 
   <!-- B SET -->
   <rect class="s-window ln" x="510" y="20" width="470" height="250" rx="9"/>
@@ -407,27 +392,26 @@
   <line class="ln" x1="510" y1="50" x2="980" y2="50"/>
   <text class="b s" x="528" y="35">SET</text>
   <text class="fnt s r" x="962" y="35">可以同时取多个值</text>
-  <text class="b" x="528" y="66">perms</text>
-  <text class="mono mut s" x="600" y="66">set('read','write','delete')</text>
-  <rect class="s-field ln2" x="528" y="86" width="392" height="30" rx="6"/>
-  <text class="s" x="540" y="101">read,write</text>
-  <rect class="s-field ln2" x="932" y="86" width="30" height="30" rx="6"/>
-  <text class="c s" x="947" y="101">∅</text>
-  <rect class="s-window ln2" x="528" y="126" width="200" height="112" rx="7"/>
-  <rect class="s-accent" x="540" y="136" width="15" height="15" rx="4"/>
-  <path d="M543 143 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
-  <text class="s" x="564" y="144">read</text>
-  <rect class="s-accent" x="540" y="162" width="15" height="15" rx="4"/>
-  <path d="M543 169 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
-  <text class="s" x="564" y="170">write</text>
-  <rect class="s-field ln2" x="540" y="188" width="15" height="15" rx="4"/>
-  <text class="s" x="564" y="196">delete</text>
-  <rect class="s-field ln2" x="540" y="214" width="15" height="15" rx="4"/>
-  <text class="s" x="564" y="222">admin</text>
+  <text class="mut s b" x="528" y="66">perms</text>
+  <text class="mono mut s r" x="928" y="66">set('read','write','delete')</text>
+  <text class="c s" x="944" y="66">∅</text>
+  <text class="m" x="528" y="91">read,write</text>
+  <text class="mut s r" x="954" y="91">▾</text>
+  <rect class="s-window ln2" x="528" y="104" width="200" height="112" rx="7"/>
+  <rect class="s-accent" x="540" y="114" width="15" height="15" rx="4"/>
+  <path d="M543 121 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="s" x="564" y="122">read</text>
+  <rect class="s-accent" x="540" y="140" width="15" height="15" rx="4"/>
+  <path d="M543 147 l3.5 4.5 l6.5 -8" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="s" x="564" y="148">write</text>
+  <rect class="s-field ln2" x="540" y="166" width="15" height="15" rx="4"/>
+  <text class="s" x="564" y="174">delete</text>
+  <rect class="s-field ln2" x="540" y="192" width="15" height="15" rx="4"/>
+  <text class="s" x="564" y="200">admin</text>
   <text class="fnt s" x="750" y="150">勾中的值用逗号</text>
   <text class="fnt s" x="750" y="172">拼在一起写入。</text>
   <text class="fnt s" x="750" y="204">值必须来自列定义。</text>
-  <g class="hot" data-hot="14"><circle cx="528" cy="101" r="11"/><text x="528" y="101">14</text></g>
+  <g class="hot" data-hot="14"><circle cx="930" cy="91" r="11"/><text x="930" y="91">14</text></g>
 
   <!-- C 布尔 -->
   <rect class="s-window ln" x="20" y="290" width="470" height="250" rx="9"/>
@@ -435,40 +419,36 @@
   <line class="ln" x1="20" y1="320" x2="490" y2="320"/>
   <text class="b s" x="38" y="305">布尔</text>
   <text class="fnt s r" x="472" y="305">偏好开启时才这样</text>
-  <text class="b" x="38" y="336">active</text>
-  <text class="mono mut s" x="120" y="336">tinyint(1)</text>
-  <rect class="s-field ln2" x="38" y="356" width="392" height="30" rx="6"/>
-  <rect class="s-accent" x="50" y="363" width="16" height="16" rx="4"/>
-  <path d="M53 371 l4 5 l7 -9" stroke="#fff" stroke-width="2" fill="none"/>
-  <text class="s" x="78" y="371">开启（1）</text>
-  <rect class="s-field ln2" x="442" y="356" width="30" height="30" rx="6"/>
-  <text class="c s" x="457" y="371">∅</text>
+  <text class="mut s b" x="38" y="336">active</text>
+  <text class="mono mut s r" x="438" y="336">tinyint(1)</text>
+  <text class="c s" x="454" y="336">∅</text>
+  <rect class="s-accent" x="38" y="353" width="16" height="16" rx="4"/>
+  <path d="M41 361 l4 5 l7 -9" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="m" x="66" y="361">开启（1）</text>
   <text class="fnt s" x="38" y="416">偏好里打开「把 tinyint(1) 显示为复选框」之后，</text>
   <text class="fnt s" x="38" y="438">这一列在这里就是一个复选框。</text>
   <text class="fnt s" x="38" y="460">没打开时按普通数字处理，和上面一样手输。</text>
-  <g class="hot" data-hot="15"><circle cx="38" cy="371" r="11"/><text x="38" y="371">15</text></g>
+  <g class="hot" data-hot="15"><circle cx="440" cy="361" r="11"/><text x="440" y="361">15</text></g>
 
-  <!-- D BLOB -->
+  <!-- D BLOB：值、查看 / 从文件导入 同一行；设为 NULL 就是字段名行右端的 ∅ -->
   <rect class="s-window ln" x="510" y="290" width="470" height="250" rx="9"/>
   <rect class="s-chrome" x="510" y="290" width="470" height="30" rx="9"/>
   <line class="ln" x1="510" y1="320" x2="980" y2="320"/>
   <text class="b s" x="528" y="305">BLOB / 二进制</text>
   <text class="fnt s r" x="962" y="305">不能当文本编辑</text>
-  <text class="b" x="528" y="336">photo</text>
-  <text class="mono mut s" x="600" y="336">mediumblob NULL</text>
-  <rect class="s-sunken ln" x="528" y="346" width="434" height="34" rx="6"/>
-  <text class="c s" x="745" y="363">«BLOB 12.3 KB»</text>
-  <rect class="s-field ln2" x="528" y="392" width="76" height="30" rx="6"/>
-  <text class="c s" x="566" y="407">查看</text>
-  <rect class="s-field ln2" x="616" y="392" width="132" height="30" rx="6"/>
-  <text class="c s" x="682" y="407">从文件导入…</text>
-  <rect class="s-field ln2" x="760" y="392" width="110" height="30" rx="6"/>
-  <text class="c s" x="815" y="407">设为 NULL</text>
-  <text class="fnt s" x="528" y="462">二进制没法安全地当文本改，所以只给这三个操作。</text>
-  <text class="fnt s" x="528" y="484">大字段还没取完整值时，点「查看」才去服务器取。</text>
-  <g class="hot" data-hot="16"><circle cx="566" cy="432" r="11"/><text x="566" y="432">16</text></g>
-  <g class="hot" data-hot="17"><circle cx="682" cy="432" r="11"/><text x="682" y="432">17</text></g>
-  <g class="hot" data-hot="18"><circle cx="815" cy="432" r="11"/><text x="815" y="432">18</text></g>
+  <text class="mut s b" x="528" y="336">photo</text>
+  <text class="mono mut s r" x="928" y="336">mediumblob NULL</text>
+  <text class="c s" x="944" y="336">∅</text>
+  <text class="mut m" x="528" y="361">«BLOB 12.3 KB»</text>
+  <rect class="s-field ln2" x="836" y="349" width="44" height="20" rx="4"/>
+  <text class="c s" x="858" y="359">查看</text>
+  <rect class="s-field ln2" x="886" y="349" width="76" height="20" rx="4"/>
+  <text class="c s" x="924" y="359">从文件导入…</text>
+  <text class="fnt s" x="528" y="462">二进制没法安全地当文本改，所以只给查看 / 从文件导入 /</text>
+  <text class="fnt s" x="528" y="484">设为 NULL 三种操作；大字段没取完整值时点「查看」才去取。</text>
+  <g class="hot" data-hot="16"><circle cx="858" cy="381" r="11"/><text x="858" y="381">16</text></g>
+  <g class="hot" data-hot="17"><circle cx="924" cy="381" r="11"/><text x="924" y="381">17</text></g>
+  <g class="hot" data-hot="18"><circle cx="966" cy="381" r="11"/><text x="966" y="381">18</text></g>
 </svg>
 <figcaption><b>图 4-3</b>　ENUM、SET、布尔、BLOB 的值编辑器。</figcaption>
 </figure>
@@ -513,49 +493,44 @@
 
   <!-- ① 原值 -->
   <text class="b s" x="20" y="30">① 原来有值</text>
-  <text class="b" x="20" y="68">email</text>
-  <text class="mono mut s" x="90" y="68">varchar(255)</text>
-  <rect class="s-field ln2" x="20" y="86" width="190" height="30" rx="6"/>
-  <text class="s" x="32" y="101">zs@example.com</text>
-  <rect class="s-field ln2" x="218" y="86" width="32" height="30" rx="6"/>
-  <text class="c s" x="234" y="101">∅</text>
-  <text class="fnt s" x="20" y="158">∅ 没有按下。</text>
+  <text class="mut s b" x="20" y="68">email</text>
+  <text class="mono mut s r" x="216" y="68">varchar(255)</text>
+  <text class="c s" x="232" y="68">∅</text>
+  <text class="m" x="20" y="94">zs@example.com</text>
+  <text class="fnt s" x="20" y="158">∅ 在字段名行右端，没有按下。</text>
   <text class="fnt s" x="20" y="180">值还是服务器上的原值。</text>
 
-  <path class="ln2" d="M280 101 L365 101"/>
-  <path class="ln2" d="M357 96 L365 101 L357 106"/>
+  <path class="ln2" d="M280 81 L365 81"/>
+  <path class="ln2" d="M357 76 L365 81 L357 86"/>
 
   <!-- ② NULL -->
   <text class="b s" x="375" y="30">② 点一下 ∅</text>
-  <text class="b" x="375" y="68">email</text>
-  <text class="mono mut s" x="445" y="68">varchar(255)</text>
-  <rect class="s-field ln2" x="375" y="86" width="190" height="30" rx="6"/>
-  <text class="fnt" x="387" y="101">NULL</text>
-  <rect class="s-soft" x="573" y="86" width="32" height="30" rx="6"/>
-  <rect class="lnA" x="573" y="86" width="32" height="30" rx="6"/>
-  <text class="acc c s" x="589" y="101">∅</text>
+  <text class="mut s b" x="375" y="68">email</text>
+  <text class="mono mut s r" x="571" y="68">varchar(255)</text>
+  <rect class="s-soft" x="576" y="57" width="22" height="22" rx="5"/>
+  <rect class="lnA" x="576" y="57" width="22" height="22" rx="5"/>
+  <text class="acc c s" x="587" y="68">∅</text>
+  <text class="cmt m" x="375" y="94">NULL</text>
   <text class="fnt s" x="375" y="158">值变成 NULL，按钮呈按下状态。</text>
   <text class="fnt s" x="375" y="180">NULL 和空字符串不同：空字符串是一格空白。</text>
 
-  <path class="ln2" d="M635 101 L720 101"/>
-  <path class="ln2" d="M712 96 L720 101 L712 106"/>
+  <path class="ln2" d="M635 81 L720 81"/>
+  <path class="ln2" d="M712 76 L720 81 L712 86"/>
 
   <!-- ③ 恢复 -->
   <text class="b s" x="730" y="30">③ 再点一下 ∅</text>
-  <text class="b" x="730" y="68">email</text>
-  <text class="mono mut s" x="800" y="68">varchar(255)</text>
-  <rect class="s-field ln2" x="730" y="86" width="190" height="30" rx="6"/>
-  <text class="s" x="742" y="101">zs@example.com</text>
-  <rect class="s-field ln2" x="928" y="86" width="32" height="30" rx="6"/>
-  <text class="c s" x="944" y="101">∅</text>
+  <text class="mut s b" x="730" y="68">email</text>
+  <text class="mono mut s r" x="926" y="68">varchar(255)</text>
+  <text class="c s" x="942" y="68">∅</text>
+  <text class="m" x="730" y="94">zs@example.com</text>
   <text class="fnt s" x="730" y="158">恢复到刚才那个值。</text>
   <text class="fnt s" x="730" y="180">没有记录时，恢复成空文本。</text>
 
-  <g class="hot" data-hot="19"><circle cx="589" cy="130" r="11"/><text x="589" y="130">19</text></g>
-  <g class="hot" data-hot="20"><circle cx="944" cy="130" r="11"/><text x="944" y="130">20</text></g>
-  <g class="hot" data-hot="21"><circle cx="387" cy="130" r="11"/><text x="387" y="130">21</text></g>
+  <g class="hot" data-hot="19"><circle cx="612" cy="68" r="11"/><text x="612" y="68">19</text></g>
+  <g class="hot" data-hot="20"><circle cx="966" cy="68" r="11"/><text x="966" y="68">20</text></g>
+  <g class="hot" data-hot="21"><circle cx="387" cy="120" r="11"/><text x="387" y="120">21</text></g>
 </svg>
-<figcaption><b>图 4-4</b>　每个字段右侧的 ∅ 按钮：点一下设为 <code>NULL</code>，再点一下恢复原来的值。</figcaption>
+<figcaption><b>图 4-4</b>　每个字段名行右端的 ∅ 按钮：点一下设为 <code>NULL</code>，再点一下恢复原来的值。</figcaption>
 </figure>
 
 <table class="controls">
@@ -725,24 +700,25 @@
   <line class="ln" x1="20" y1="54" x2="330" y2="54"/>
   <text class="b s" x="56" y="37">新增行</text>
   <text class="fnt s r" x="314" y="37">Esc 取消这一行</text>
-  <text class="b" x="36" y="80">id</text>
-  <text class="mono mut s" x="96" y="80">int unsigned</text>
-  <rect class="s-field ln2" x="36" y="88" width="246" height="26" rx="6"/>
-  <text class="fnt s" x="46" y="101">留空，由数据库生成</text>
-  <rect class="s-field ln2" x="290" y="88" width="32" height="26" rx="6"/>
-  <text class="c s" x="306" y="101">∅</text>
-  <text class="b" x="36" y="140">name</text>
-  <text class="mono mut s" x="96" y="140">varchar(64)</text>
-  <rect class="s-field ln2" x="36" y="148" width="246" height="26" rx="6"/>
-  <text class="s" x="46" y="161">赵六</text>
-  <rect class="s-field ln2" x="290" y="148" width="32" height="26" rx="6"/>
-  <text class="c s" x="306" y="161">∅</text>
-  <text class="b" x="36" y="200">email</text>
-  <text class="mono mut s" x="96" y="200">varchar(255)</text>
-  <rect class="s-field ln2" x="36" y="208" width="246" height="26" rx="6"/>
-  <text class="s" x="46" y="221">zl@example.com</text>
-  <rect class="s-field ln2" x="290" y="208" width="32" height="26" rx="6"/>
-  <text class="c s" x="306" y="221">∅</text>
+
+  <text class="mut s b" x="36" y="80">id</text>
+  <text class="mono mut s r" x="280" y="80">int unsigned</text>
+  <text class="c s" x="296" y="80">∅</text>
+  <text class="fnt s" x="36" y="102">留空，由数据库生成</text>
+  <line class="ln" x1="36" y1="116" x2="314" y2="116"/>
+
+  <text class="mut s b" x="36" y="132">name</text>
+  <text class="mono mut s r" x="280" y="132">varchar(64)</text>
+  <text class="c s" x="296" y="132">∅</text>
+  <text class="m" x="36" y="154">赵六</text>
+  <line class="ln" x1="36" y1="168" x2="314" y2="168"/>
+
+  <text class="mut s b" x="36" y="184">email</text>
+  <text class="mono mut s r" x="280" y="184">varchar(255)</text>
+  <text class="c s" x="296" y="184">∅</text>
+  <text class="m" x="36" y="206">zl@example.com</text>
+  <line class="ln" x1="36" y1="220" x2="314" y2="220"/>
+
   <text class="fnt s" x="36" y="262">光标停在第一个可编辑字段上，</text>
   <text class="fnt s" x="36" y="282">Tab 往下依次填。</text>
   <g class="hot" data-hot="22"><circle cx="38" cy="37" r="11"/><text x="38" y="37">22</text></g>
@@ -755,24 +731,25 @@
   <text class="err s" x="361" y="37">这一行已标记删除</text>
   <rect class="s-field ln2" x="563" y="26" width="84" height="22" rx="6"/>
   <text class="c s" x="605" y="37">撤销删除</text>
-  <text class="b" x="361" y="80">id</text>
-  <text class="mono mut s" x="421" y="80">int unsigned</text>
-  <rect class="s-sunken ln" x="361" y="88" width="246" height="26" rx="6" opacity="0.5"/>
-  <text class="fnt s" x="371" y="101">42</text>
-  <rect class="s-sunken ln" x="615" y="88" width="32" height="26" rx="6" opacity="0.5"/>
-  <text class="fnt c s" x="631" y="101">∅</text>
-  <text class="b" x="361" y="140">name</text>
-  <text class="mono mut s" x="421" y="140">varchar(64)</text>
-  <rect class="s-sunken ln" x="361" y="148" width="246" height="26" rx="6" opacity="0.5"/>
-  <text class="fnt s" x="371" y="161">王五</text>
-  <rect class="s-sunken ln" x="615" y="148" width="32" height="26" rx="6" opacity="0.5"/>
-  <text class="fnt c s" x="631" y="161">∅</text>
-  <text class="b" x="361" y="200">email</text>
-  <text class="mono mut s" x="421" y="200">varchar(255)</text>
-  <rect class="s-sunken ln" x="361" y="208" width="246" height="26" rx="6" opacity="0.5"/>
-  <text class="fnt s" x="371" y="221">ww@example.com</text>
-  <rect class="s-sunken ln" x="615" y="208" width="32" height="26" rx="6" opacity="0.5"/>
-  <text class="fnt c s" x="631" y="221">∅</text>
+
+  <text class="mut s b" x="361" y="80">id</text>
+  <text class="mono mut s r" x="605" y="80">int unsigned</text>
+  <text class="fnt c s" x="621" y="80">∅</text>
+  <text class="fnt m" x="361" y="102">42</text>
+  <line class="ln" x1="361" y1="116" x2="639" y2="116"/>
+
+  <text class="mut s b" x="361" y="132">name</text>
+  <text class="mono mut s r" x="605" y="132">varchar(64)</text>
+  <text class="fnt c s" x="621" y="132">∅</text>
+  <text class="fnt m" x="361" y="154">王五</text>
+  <line class="ln" x1="361" y1="168" x2="639" y2="168"/>
+
+  <text class="mut s b" x="361" y="184">email</text>
+  <text class="mono mut s r" x="605" y="184">varchar(255)</text>
+  <text class="fnt c s" x="621" y="184">∅</text>
+  <text class="fnt m" x="361" y="206">ww@example.com</text>
+  <line class="ln" x1="361" y1="220" x2="639" y2="220"/>
+
   <text class="fnt s" x="361" y="262">字段全部只读并变灰。</text>
   <text class="fnt s" x="361" y="282">想改要先点「撤销删除」。</text>
   <g class="hot" data-hot="23"><circle cx="640" cy="37" r="11"/><text x="640" y="37">23</text></g>
@@ -783,24 +760,25 @@
   <rect class="s-sunken" x="670" y="40" width="310" height="14"/>
   <line class="ln" x1="670" y1="54" x2="980" y2="54"/>
   <text class="err s" x="706" y="37">该表没有主键，无法安全定位行</text>
-  <text class="b" x="686" y="80">id</text>
-  <text class="mono mut s" x="746" y="80">int unsigned</text>
-  <rect class="s-sunken ln" x="686" y="88" width="246" height="26" rx="6" opacity="0.55"/>
-  <text class="s" x="696" y="101">42</text>
-  <rect class="s-sunken ln" x="940" y="88" width="32" height="26" rx="6" opacity="0.55"/>
-  <text class="fnt c s" x="956" y="101">∅</text>
-  <text class="b" x="686" y="140">name</text>
-  <text class="mono mut s" x="746" y="140">varchar(64)</text>
-  <rect class="s-sunken ln" x="686" y="148" width="246" height="26" rx="6" opacity="0.55"/>
-  <text class="s" x="696" y="161">王五</text>
-  <rect class="s-sunken ln" x="940" y="148" width="32" height="26" rx="6" opacity="0.55"/>
-  <text class="fnt c s" x="956" y="161">∅</text>
-  <text class="b" x="686" y="200">email</text>
-  <text class="mono mut s" x="746" y="200">varchar(255)</text>
-  <rect class="s-sunken ln" x="686" y="208" width="246" height="26" rx="6" opacity="0.55"/>
-  <text class="s" x="696" y="221">ww@example.com</text>
-  <rect class="s-sunken ln" x="940" y="208" width="32" height="26" rx="6" opacity="0.55"/>
-  <text class="fnt c s" x="956" y="221">∅</text>
+
+  <text class="mut s b" x="686" y="80">id</text>
+  <text class="mono mut s r" x="930" y="80">int unsigned</text>
+  <text class="fnt c s" x="946" y="80">∅</text>
+  <text class="fnt m" x="686" y="102">42</text>
+  <line class="ln" x1="686" y1="116" x2="964" y2="116"/>
+
+  <text class="mut s b" x="686" y="132">name</text>
+  <text class="mono mut s r" x="930" y="132">varchar(64)</text>
+  <text class="fnt c s" x="946" y="132">∅</text>
+  <text class="fnt m" x="686" y="154">王五</text>
+  <line class="ln" x1="686" y1="168" x2="964" y2="168"/>
+
+  <text class="mut s b" x="686" y="184">email</text>
+  <text class="mono mut s r" x="930" y="184">varchar(255)</text>
+  <text class="fnt c s" x="946" y="184">∅</text>
+  <text class="fnt m" x="686" y="206">ww@example.com</text>
+  <line class="ln" x1="686" y1="220" x2="964" y2="220"/>
+
   <text class="fnt s" x="686" y="262">字段和值照常显示，</text>
   <text class="fnt s" x="686" y="282">但编辑器全部禁用。</text>
   <g class="hot" data-hot="24"><circle cx="688" cy="37" r="11"/><text x="688" y="37">24</text></g>

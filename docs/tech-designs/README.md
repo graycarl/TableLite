@@ -86,6 +86,7 @@
 | 构建产物位置 | 唯一有效产物在 `.build`（所有 make 目标显式传 `-derivedDataPath`）；Xcode GUI / 手敲 `xcodebuild` 落在 `~/Library/Developer/Xcode/DerivedData/TableLite-*` 里的那份不可信，`make clean` 一并删、`make doctor` 报告 | [12](12-build-and-deps.md) §4.3 |
 | 分发 | `make run` 日常验证、`make dist` 出 Release zip；产物不依赖目标机 Homebrew（老认证插件除外，见 L41） | [12](12-build-and-deps.md) §4.1 |
 | App 图标 | 脚本矢量生成、不引入外部素材；尺寸对齐苹果图标网格；小尺寸参数化简化 | [12](12-build-and-deps.md) §7 |
+| 字段栏字段行 | 字段名（小字次要色）在上、值（13pt 主色）在下、两者左缘对齐；字段间 1pt 分隔线 + 悬停整条浅底（无圆角）；`∅` 固定字段名行右端，值行吃满整宽；所有值左对齐（数字等宽） | [14](14-row-inspector.md) §9 |
 
 「无主键表置为只读」这类**用户可感知的行为**由 `specs/` 定义（见 [`../../specs/04-data-editing.md`](../../specs/04-data-editing.md) §2），
 实现侧的判定规则与文案见 [08-pending-changes.md](08-pending-changes.md) §7，不在这里重复。

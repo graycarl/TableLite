@@ -328,80 +328,81 @@
   <text class="fnt s r" x="964" y="75">18 个字段</text>
   <line class="ln" x1="610" y1="96" x2="980" y2="96"/>
 
+  <!-- 每个字段两层：字段名行（小字、次要色，右端是类型与 ∅）+ 值行（13pt、主色、统一左缘）
+       字段之间用 1pt 分隔线断开，左右各留 16pt 边距 -->
+
   <!-- 字段 1：🔑 id -->
-  <text class="b" x="626" y="112">🔑 id</text>
-  <text class="fnt s r" x="964" y="112">int unsigned</text>
-  <rect class="s-field ln2" x="626" y="122" width="290" height="26" rx="6"/>
-  <text class="s" x="638" y="135">1</text>
-  <rect class="s-field ln2" x="924" y="122" width="40" height="26" rx="6"/>
-  <text class="c s" x="944" y="135">∅</text>
-  <line class="ln" x1="610" y1="156" x2="980" y2="156"/>
+  <text class="mut s b" x="626" y="112">🔑 id</text>
+  <text class="fnt s r" x="930" y="112">int unsigned</text>
+  <text class="c s" x="946" y="112">∅</text>
+  <text class="mono m" x="626" y="134">1</text>
+  <line class="ln" x1="626" y1="148" x2="964" y2="148"/>
 
   <!-- 字段 2：name -->
-  <text x="626" y="172">name</text>
-  <text class="fnt s r" x="964" y="172">varchar(255)</text>
-  <rect class="s-field ln2" x="626" y="182" width="290" height="26" rx="6"/>
-  <text class="s" x="638" y="195">张三</text>
-  <rect class="s-field ln2" x="924" y="182" width="40" height="26" rx="6"/>
-  <text class="c s" x="944" y="195">∅</text>
-  <line class="ln" x1="610" y1="216" x2="980" y2="216"/>
+  <text class="mut s b" x="626" y="164">name</text>
+  <text class="fnt s r" x="930" y="164">varchar(255)</text>
+  <text class="c s" x="946" y="164">∅</text>
+  <text class="m" x="626" y="186">张三</text>
+  <line class="ln" x1="626" y1="200" x2="964" y2="200"/>
 
   <!-- 字段 3：email -->
-  <text x="626" y="232">email</text>
-  <text class="fnt s r" x="964" y="232">varchar(255)</text>
-  <rect class="s-field ln2" x="626" y="242" width="290" height="26" rx="6"/>
-  <text class="s" x="638" y="255">zs@example.com</text>
-  <rect class="s-field ln2" x="924" y="242" width="40" height="26" rx="6"/>
-  <text class="c s" x="944" y="255">∅</text>
-  <line class="ln" x1="610" y1="276" x2="980" y2="276"/>
+  <text class="mut s b" x="626" y="216">email</text>
+  <text class="fnt s r" x="930" y="216">varchar(255)</text>
+  <text class="c s" x="946" y="216">∅</text>
+  <text class="m" x="626" y="238">zs@example.com</text>
+  <line class="ln" x1="626" y1="252" x2="964" y2="252"/>
 
-  <!-- 字段 4：content（已修改 + 大字段） -->
-  <text x="626" y="292">content</text>
-  <text class="fnt s r" x="964" y="292">longtext</text>
-  <rect class="s-edit ln2" x="626" y="302" width="290" height="26" rx="6"/>
-  <path class="lnO sw2" d="M630 304 l9 0 l-9 9 z"/>
-  <text class="s" x="638" y="315">这是一篇很长的文…</text>
-  <rect class="s-field ln2" x="924" y="302" width="40" height="26" rx="6"/>
-  <text class="c s" x="944" y="315">∅</text>
-  <rect class="s-field ln2" x="626" y="334" width="150" height="24" rx="6"/>
-  <text class="c s" x="701" y="346">加载完整内容…</text>
-  <text class="fnt s" x="786" y="346">该行大字段合计 12.4 MB</text>
-  <line class="ln" x1="610" y1="372" x2="980" y2="372"/>
+  <!-- 字段 4：content（已修改 + 大字段）
+       整条字段行浅橙底（无圆角），左上角一个橙色小三角 -->
+  <rect class="s-edit" x="610" y="252" width="370" height="120"/>
+  <path class="lnO sw2" d="M622 256 l9 0 l-9 9 z"/>
+  <text class="mut s b" x="626" y="268">content</text>
+  <text class="fnt s r" x="930" y="268">longtext</text>
+  <text class="c s" x="946" y="268">∅</text>
+  <text class="m" x="626" y="290">这是一篇很长的文章，正文占两行以上。</text>
+  <text class="m" x="626" y="306">第二段：编辑框限高，超出部分「展开」才看得到。</text>
+  <rect class="s-field ln2" x="626" y="320" width="52" height="20" rx="4"/>
+  <text class="c s" x="652" y="330">展开</text>
+  <text class="fnt s" x="688" y="330">⇧↩ 换行 · ⌘↩ 提交</text>
+  <rect class="s-field ln2" x="626" y="342" width="118" height="22" rx="5"/>
+  <text class="c s" x="685" y="353">加载完整内容…</text>
+  <text class="fnt s" x="754" y="353">该行大字段合计 12.4 MB</text>
+  <line class="ln" x1="626" y1="372" x2="964" y2="372"/>
 
   <!-- 字段 5：photo -->
-  <text x="626" y="388">photo</text>
-  <text class="fnt s r" x="964" y="388">blob</text>
-  <rect class="s-field ln2" x="626" y="398" width="290" height="26" rx="6"/>
-  <text class="mut s" x="638" y="411">«图片 PNG 45.2 KB»</text>
-  <rect class="s-field ln2" x="924" y="398" width="40" height="26" rx="6"/>
-  <text class="c s" x="944" y="411">∅</text>
-  <line class="ln" x1="610" y1="432" x2="980" y2="432"/>
+  <text class="mut s b" x="626" y="388">photo</text>
+  <text class="fnt s r" x="930" y="388">blob</text>
+  <text class="c s" x="946" y="388">∅</text>
+  <text class="mut m" x="626" y="410">«图片 PNG 45.2 KB»</text>
+  <rect class="s-field ln2" x="776" y="399" width="44" height="20" rx="4"/>
+  <text class="c s" x="798" y="410">查看</text>
+  <rect class="s-field ln2" x="826" y="399" width="100" height="20" rx="4"/>
+  <text class="c s" x="876" y="410">从文件导入…</text>
+  <line class="ln" x1="626" y1="424" x2="964" y2="424"/>
 
   <!-- 字段 6：created_at -->
-  <text x="626" y="448">created_at</text>
-  <text class="fnt s r" x="964" y="448">datetime</text>
-  <rect class="s-field ln2" x="626" y="458" width="290" height="26" rx="6"/>
-  <text class="mut s" x="638" y="471">2025-01-01 10:00:00</text>
-  <rect class="s-field ln2" x="924" y="458" width="40" height="26" rx="6"/>
-  <text class="c s" x="944" y="471">∅</text>
-  <line class="ln" x1="610" y1="492" x2="980" y2="492"/>
+  <text class="mut s b" x="626" y="440">created_at</text>
+  <text class="fnt s r" x="930" y="440">datetime</text>
+  <text class="c s" x="946" y="440">∅</text>
+  <text class="mono m" x="626" y="462">2025-01-01 10:00:00</text>
+  <line class="ln" x1="626" y1="476" x2="964" y2="476"/>
 
-  <text class="fnt s" x="626" y="510">字段按表定义列顺序排列，不受网格列显隐影响</text>
-  <text class="fnt s" x="626" y="528">宽度可拖拽（260–560pt），全局记住</text>
+  <text class="fnt s" x="626" y="496">字段按表定义列顺序排列，不受网格列显隐影响</text>
+  <text class="fnt s" x="626" y="514">宽度可拖拽（260–560pt），全局记住</text>
 
   <!-- 热点 -->
   <g class="hot" data-hot="1"><circle cx="624" cy="60" r="11"/><text x="624" y="60">1</text></g>
   <g class="hot" data-hot="2"><circle cx="938" cy="58" r="11"/><text x="938" y="58">2</text></g>
-  <g class="hot" data-hot="3"><circle cx="624" cy="112" r="11"/><text x="624" y="112">3</text></g>
-  <g class="hot" data-hot="4"><circle cx="624" cy="135" r="11"/><text x="624" y="135">4</text></g>
-  <g class="hot" data-hot="5"><circle cx="972" cy="135" r="11"/><text x="972" y="135">5</text></g>
-  <g class="hot" data-hot="6"><circle cx="896" cy="292" r="11"/><text x="896" y="292">6</text></g>
-  <path class="leader" d="M885 292 L648 302"/>
-  <g class="hot" data-hot="7"><circle cx="624" cy="346" r="11"/><text x="624" y="346">7</text></g>
+  <g class="hot" data-hot="3"><circle cx="620" cy="112" r="11"/><text x="620" y="112">3</text></g>
+  <g class="hot" data-hot="4"><circle cx="620" cy="186" r="11"/><text x="620" y="186">4</text></g>
+  <g class="hot" data-hot="5"><circle cx="968" cy="112" r="11"/><text x="968" y="112">5</text></g>
+  <g class="hot" data-hot="6"><circle cx="596" cy="300" r="11"/><text x="596" y="300">6</text></g>
+  <path class="leader" d="M604 292 L620 266"/>
+  <g class="hot" data-hot="7"><circle cx="616" cy="353" r="11"/><text x="616" y="353">7</text></g>
   <g class="hot" data-hot="8"><circle cx="24" cy="95" r="11"/><text x="24" y="95">8</text></g>
   <g class="hot" data-hot="9"><circle cx="610" cy="500" r="11"/><text x="610" y="500">9</text></g>
 </svg>
-<figcaption><b>图 3-2</b>　右侧字段栏。网格负责看，字段栏负责改；改过的字段橙色带小三角，网格里同步标记。</figcaption>
+<figcaption><b>图 3-2</b>　右侧字段栏。字段名（小字、次要色）在上，值（13pt、主色）在下，两者左缘对齐；字段之间用分隔线断开；改过的字段整条橙色带小三角，网格里同步标记。</figcaption>
 </figure>
 
 <table class="controls">
@@ -411,12 +412,12 @@
   <td>按列名过滤字段。输入时只显示命中的字段。</td></tr>
 <tr data-hot="2"><td class="num">2</td><td class="wide">字段计数</td>
   <td>没有过滤时显示总数，例如 <code>18 个字段</code>；过滤后显示 <code>显示 3 / 18</code>。</td></tr>
-<tr data-hot="3"><td class="num">3</td><td class="wide">列名 + 类型</td>
-  <td>列名按表定义的顺序排列。主键列带 <code>🔑</code> 并加粗；类型用灰色小字写在右侧，例如 <code>varchar(255)</code>，只读。</td></tr>
-<tr data-hot="4"><td class="num">4</td><td class="wide">值编辑框</td>
-  <td>字段栏里唯一能改数据的地方。点进去就能编辑；失焦或按 <kbd>↩</kbd> 写入暂存区，<kbd>Esc</kbd> 放弃。</td></tr>
+<tr data-hot="3"><td class="num">3</td><td class="wide">字段名 + 类型</td>
+  <td>字段名按表定义的顺序排列，用小字 + 次要色压在值上方；主键列带 <code>🔑</code> 并加粗。类型写在同一行右侧，字更淡，例如 <code>varchar(255)</code>，只读。</td></tr>
+<tr data-hot="4"><td class="num">4</td><td class="wide">值</td>
+  <td>字段栏里唯一能改数据的地方：点进去就能编辑，失焦或按 <kbd>↩</kbd> 写入暂存区，<kbd>Esc</kbd> 放弃。所有值统一左对齐，数字 / 日期时间 / 二进制用等宽字体。</td></tr>
 <tr data-hot="5"><td class="num">5</td><td class="wide">∅ 设为 NULL</td>
-  <td>在 <code>NULL</code> 与上一个非 NULL 值之间切换。字段本来就是 <code>NULL</code> 时按钮呈按下状态。</td></tr>
+  <td>在 <code>NULL</code> 与上一个非 NULL 值之间切换。它在<b>字段名行</b>的最右端，所以值那一行能吃满整宽、左右边缘都齐。字段本来就是 <code>NULL</code> 时按钮呈按下状态。</td></tr>
 <tr data-hot="6"><td class="num">6</td><td class="wide">已修改标记</td>
   <td>改过的字段橙色底色 + 左上角小三角；网格里对应的单元格与行号列同时出现相同标记，直到提交或放弃。</td></tr>
 <tr data-hot="7"><td class="num">7</td><td class="wide">加载完整内容…</td>
@@ -432,8 +433,11 @@
 
 <ul>
   <li>字段按<b>表定义的列顺序</b>排列，<b>不受网格列显隐与列顺序影响</b>：被列过滤器隐藏的列，在这里照样显示。</li>
-  <li>列名旁边是完整类型（<code>varchar(255)</code>、<code>int unsigned</code>、<code>decimal(10,2)</code>），类型<b>只读</b>，不做类型转换。</li>
-  <li>主键字段的列名前带 <code>🔑</code>，列名加粗。</li>
+  <li>每个字段分两层：上面一行是<b>字段名</b>（小字、次要色），下面一行是<b>值</b>（13pt、主色）。两层的左缘对齐（字段名的文字与值的文字同一起点；主键行的 <code>🔑</code> 占在字段名前），一眼能分清哪个是名字、哪个是值。</li>
+  <li>字段之间用一条细<b>分隔线</b>断开（左右留边距，最后一个字段下面不画）；鼠标悬停时整条字段行浅底高亮。</li>
+  <li>所有值<b>统一左对齐</b>，不管它是文本、数字、日期还是二进制占位；数字 / 日期时间 / 二进制用等宽字体。</li>
+  <li>字段名行右侧是完整类型（<code>varchar(255)</code>、<code>int unsigned</code>、<code>decimal(10,2)</code>），类型<b>只读</b>，不做类型转换。</li>
+  <li>主键字段的字段名前带 <code>🔑</code>，字段名加粗。</li>
   <li>值按上一节的规则呈现（<code>NULL</code>、<code>«BLOB 12.3 KB»</code>、图片、JSON 等）。</li>
   <li>字段超过 10 个时顶部才出现搜索框；过滤时计数显示成 <code>显示 3 / 18</code>。</li>
 </ul>
@@ -447,7 +451,8 @@
   <li>校验失败时输入框抖动并保持编辑状态，值不写入暂存区。</li>
   <li>改动过的字段橙色底色 + 左上角小三角；网格里对应的单元格与行号列同时出现相同标记。</li>
   <li>同一行改了多个字段，提交时合为一条 <code>UPDATE</code>。</li>
-  <li>每个字段右侧的 <code>∅</code> 按钮在悬停 / 聚焦时出现，字段本身是 <code>NULL</code> 时始终显示；点一下在 <code>NULL</code> 与上一个非 NULL 值之间切换。值本身是 <code>NULL</code> 时，编辑器里显示灰色斜体 <code>NULL</code> 占位，与空字符串区分。</li>
+  <li>每个字段的 <code>∅</code> 按钮在<b>字段名行右侧</b>，悬停 / 聚焦时出现，字段本身是 <code>NULL</code> 时始终显示；点一下在 <code>NULL</code> 与上一个非 NULL 值之间切换。值本身是 <code>NULL</code> 时，编辑器里显示灰色斜体 <code>NULL</code> 占位，与空字符串区分。</li>
+  <li>值平时不描边、不填底色，看起来就是一段文字；点进去（悬停 / 聚焦）才显出输入框的底色和描边，多行字段也一样。</li>
 </ul>
 
 <h3>大字段</h3>
