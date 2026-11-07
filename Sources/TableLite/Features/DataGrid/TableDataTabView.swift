@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 表数据标签的内容视图。
 ///
-/// 组合：生效过滤 chips → 数据网格（AppKit）→ 插入行脚 → 上下文变更条 → 底部「概况 + 操作」条。
+/// 组合：生效过滤 chips → 数据网格（AppKit）→ 上下文变更条 → 底部「概况 + 操作」条。
 /// 右侧字段栏由 `WorkspaceView` 渲染，读的是 `tab.content` 里的同一个 ViewModel。
 /// T9 在这里挂上预览 / 提交失败 / 放弃确认 / 快速查看的呈现。
 struct TableDataTabView: View {
@@ -92,15 +92,11 @@ struct TableDataTabView: View {
                 }
             }
 
-            if viewModel.isMetadataLoaded, viewModel.isEditable {
-                InsertRowFooterView(isEmptyTable: viewModel.rows.isEmpty) {
-                    viewModel.beginInsert()
-                }
-            }
-
             PendingChangesBar(viewModel: viewModel)
 
             GridStatusBarView(viewModel: viewModel) {
+                viewModel.beginInsert()
+            } onExport: {
                 exportCenter.present(viewModel.exportSource)
             }
         }
@@ -201,7 +197,7 @@ struct TableDataTabView: View {
                         Text("这张表里还没有数据")
                             .foregroundStyle(.secondary)
                         if viewModel.isEditable {
-                            Text("点「＋ 插入行」或按 ⌘I")
+                            Text("点底部「＋ 插入第一行」或按 ⌘I")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }

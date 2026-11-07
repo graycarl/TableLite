@@ -9,6 +9,8 @@ import SwiftUI
 struct GridStatusBarView: View {
 
     let viewModel: TableDataViewModel
+    /// 新建一行（等于 `⌘I`，`specs/04-data-editing.md` §4）。
+    var onInsertRow: () -> Void
     /// 导出当前过滤条件下的全部数据（`specs/08-import-export.md`）。
     var onExport: () -> Void
 
@@ -28,6 +30,16 @@ struct GridStatusBarView: View {
     private var controls: some View {
         HStack(spacing: 8) {
             countMenu
+
+            if viewModel.isMetadataLoaded && viewModel.isEditable {
+                Button(action: onInsertRow) {
+                    Label(insertRowTitle, systemImage: "plus")
+                }
+                .buttonStyle(.subtle)
+                .controlSize(.small)
+                .help("新建一行（⌘I）")
+                .accessibilityIdentifier("grid.statusbar.insert-row")
+            }
 
             if viewModel.isCountingExact {
                 ProgressView()
@@ -89,6 +101,15 @@ struct GridStatusBarView: View {
         .padding(.horizontal, 10)
         .frame(height: 30)
         .background(AppColor.bar)
+    }
+
+    /// 只有真正的空表才写「插入第一行」；被过滤掉或已经有新增行时仍叫「插入行」。
+    private var insertRowTitle: String {
+        viewModel.rows.isEmpty
+            && viewModel.insertionRows.isEmpty
+            && !viewModel.hasActiveFilter
+            ? "插入第一行"
+            : "插入行"
     }
 
     private var filterBinding: Binding<Bool> {
