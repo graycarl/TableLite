@@ -73,7 +73,21 @@ struct TabContainerView: View {
 }
 
 /// 侧栏 / 字段栏的拖拽手柄。
+///
+/// 命中区不能是透明的：透出来的窗口白底会在浅灰侧栏与白色内容之间形成
+/// 2.5pt 白色细边（深色下是反向的亮缝）。这里让 6pt 命中区填满**贴近它的
+/// 那一侧**表面色，1pt 分隔线画在另一侧（`06-ui-layer.md` §10「区域分隔条」）。
 struct ResizeHandle: View {
+
+    /// 1pt 分隔线画在手柄的哪一侧。侧栏手柄的线在右（贴内容区），字段栏手柄的线在左。
+    enum LineEdge {
+        case leading
+        case trailing
+    }
+
+    /// 命中区填充色：用相邻区域的表面色，保证与那一侧连续。
+    var fill: Color
+    var lineEdge: LineEdge = .trailing
 
     /// 拖动回调，参数是本帧的水平位移增量（pt）。
     var onDrag: (CGFloat) -> Void
@@ -81,26 +95,30 @@ struct ResizeHandle: View {
     @State private var lastTranslation: CGFloat = 0
 
     var body: some View {
-        Rectangle()
-            .fill(Color.clear)
-            .frame(width: 6)
-            .overlay(Divider())
-            .contentShape(Rectangle())
-            .onHover { hovering in
-                if hovering {
-                    NSCursor.resizeLeftRight.push()
-                } else {
-                    NSCursor.pop()
-                }
+        ZStack(alignment: lineEdge == .trailing ? .trailing : .leading) {
+            Rectangle()
+                .fill(fill)
+            Rectangle()
+                .fill(AppColor.rowSeparator)
+                .frame(width: 1)
+        }
+        .frame(width: AppSpacing.xs)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            if hovering {
+                NSCursor.resizeLeftRight.push()
+            } else {
+                NSCursor.pop()
             }
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        let delta = value.translation.width - lastTranslation
-                        lastTranslation = value.translation.width
-                        onDrag(delta)
-                    }
-                    .onEnded { _ in lastTranslation = 0 }
-            )
+        }
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    let delta = value.translation.width - lastTranslation
+                    lastTranslation = value.translation.width
+                    onDrag(delta)
+                }
+                .onEnded { _ in lastTranslation = 0 }
+        )
     }
 }
