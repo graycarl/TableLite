@@ -137,9 +137,17 @@ struct RowInspectorView: View {
 
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    ForEach(filteredColumns) { column in
+                    ForEach(Array(filteredColumns.enumerated()), id: \.element.id) { index, column in
                         InspectorFieldRow(viewModel: viewModel, row: row, column: column)
                             .id("\(row.id)#\(column.name)")
+
+                        // 字段之间的分隔线（`14-row-inspector.md` §9）：最后一个字段下面不画。
+                        if index < filteredColumns.count - 1 {
+                            Rectangle()
+                                .fill(AppColor.rowSeparator)
+                                .frame(height: 1)
+                                .padding(.horizontal, 10)
+                        }
                     }
                 }
             }
@@ -217,7 +225,8 @@ struct RowInspectorView: View {
 
 // MARK: - 字段行
 
-/// 一个字段行：列名（主键加粗 + 🔑）、类型（灰小字）、按列类型选择的编辑器、`∅` 按钮。
+/// 一个字段行：上面是字段名行（字段名 + 右端的类型与 `∅`），下面是占满整宽的值行
+/// （`docs/tech-designs/14-row-inspector.md` §9）。
 struct InspectorFieldRow: View {
 
     let viewModel: TableDataViewModel
@@ -247,27 +256,11 @@ struct InspectorFieldRow: View {
     private var isEdited: Bool { viewModel.isCellEdited(rowID: row.id, column: column.name) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                if column.isPrimaryKey {
-                    Image(systemName: "key.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Text(column.name)
-                    .fontWeight(column.isPrimaryKey ? .semibold : .regular)
-                    .lineLimit(1)
-                Spacer(minLength: 6)
-                Text(column.typeDisplayText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+        VStack(alignment: .leading, spacing: 2) {
+            labelLine
 
-            HStack(alignment: .top, spacing: 6) {
-                editor
-                nullButton
-            }
+            editor
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             if let errorMessage {
                 Text(errorMessage)
@@ -275,14 +268,10 @@ struct InspectorFieldRow: View {
                     .foregroundStyle(.red)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(
-            isEdited
-                ? Color.orange.opacity(0.14)
-                : (isHovering && isEditable ? Color.primary.opacity(0.05) : Color.clear)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: AppRadius.s))
+        .padding(.horizontal, 10)
+        .padding(.top, 5)
+        .padding(.bottom, 7)
+        .background(rowBackground)
         .onHover { isHovering = $0 }
         .onDisappear { isHovering = false }
         .overlay(alignment: .topLeading) {
@@ -290,7 +279,7 @@ struct InspectorFieldRow: View {
                 Image(systemName: "arrowtriangle.up.left.fill")
                     .font(.system(size: 7))
                     .foregroundStyle(.orange)
-                    .offset(x: 2, y: 2)
+                    .offset(x: 1, y: 1)
             }
         }
         .onAppear(perform: syncDraft)
@@ -307,6 +296,36 @@ struct InspectorFieldRow: View {
         .sheet(isPresented: $isExpanded) {
             expandedEditor
         }
+    }
+
+    /// 字段名行：小字、次要色的字段名 + 右端的类型与 `∅`。
+    private var labelLine: some View {
+        HStack(spacing: 4) {
+            if column.isPrimaryKey {
+                Image(systemName: "key.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+            Text(column.name)
+                .font(.system(size: 11, weight: column.isPrimaryKey ? .bold : .semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .layoutPriority(1)
+            Spacer(minLength: 6)
+            Text(column.typeDisplayText)
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            nullButton
+        }
+    }
+
+    /// 悬停 / 已改的高亮是**分隔线之间的整条底色**，不做圆角卡片。
+    private var rowBackground: Color {
+        if isEdited { return Color.orange.opacity(0.14) }
+        if isHovering && isEditable { return Color.primary.opacity(0.04) }
+        return .clear
     }
 
     // MARK: 编辑器
@@ -354,8 +373,7 @@ struct InspectorFieldRow: View {
     private var singleLineEditor: some View {
         TextField("", text: $draft)
             .textFieldStyle(.plain)
-            .font(.system(size: 12, design: editorKind == .number ? .monospaced : .default))
-            .multilineTextAlignment(editorKind == .number ? .trailing : .leading)
+            .font(.system(size: 13, design: editorKind == .number ? .monospaced : .default))
             .padding(.horizontal, AppSpacing.xs)
             .padding(.vertical, AppSpacing.xxs)
             .background(fieldBackground, in: RoundedRectangle(cornerRadius: AppRadius.s))
@@ -367,7 +385,7 @@ struct InspectorFieldRow: View {
             .overlay(alignment: .leading) {
                 if isNullValue && draft.isEmpty {
                     Text("NULL")
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(.system(size: 13, design: .monospaced))
                         .italic()
                         .foregroundStyle(.tertiary)
                         .padding(.horizontal, AppSpacing.xs)
@@ -407,7 +425,7 @@ struct InspectorFieldRow: View {
                 text: $draft,
                 isEditable: isEditable,
                 isMultiline: true,
-                fontSize: 12,
+                fontSize: 13,
                 onCommit: commitDraft,
                 onCancel: cancelEdit
             )
@@ -421,6 +439,17 @@ struct InspectorFieldRow: View {
                     .stroke((isHovering || isFocused) ? Color(nsColor: .separatorColor) : Color.clear)
                     .allowsHitTesting(false)
             )
+            .overlay(alignment: .topLeading) {
+                if isNullValue && draft.isEmpty {
+                    Text("NULL")
+                        .font(.system(size: 13, design: .monospaced))
+                        .italic()
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 4)
+                        .allowsHitTesting(false)
+                }
+            }
             .disabled(!isEditable)
 
             HStack(spacing: 6) {
@@ -458,46 +487,42 @@ struct InspectorFieldRow: View {
     }
 
     private var binaryEditor: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        HStack(spacing: 6) {
             Text(binaryDisplayText)
-                .font(.system(size: 12))
+                .font(.system(size: 13))
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 4)
-                .background(
-                    (isHovering || isFocused) ? Color(nsColor: .textBackgroundColor) : Color.clear,
-                    in: RoundedRectangle(cornerRadius: AppRadius.s)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppRadius.s)
-                        .stroke((isHovering || isFocused) ? Color(nsColor: .separatorColor) : Color.clear)
-                        .allowsHitTesting(false)
-                )
-
-            HStack(spacing: 6) {
-                Button("查看") { viewModel.requestQuickLook(rowID: row.id, column: column.name) }
-                    .controlSize(.small)
-                Button("从文件导入…", action: importBinaryFile)
-                    .controlSize(.small)
-                    .disabled(!isEditable)
-                Spacer()
-            }
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 6)
+            Button("查看") { viewModel.requestQuickLook(rowID: row.id, column: column.name) }
+                .controlSize(.small)
+            Button("从文件导入…", action: importBinaryFile)
+                .controlSize(.small)
+                .disabled(!isEditable)
         }
     }
 
     private var nullButton: some View {
-        Button {
-            toggleNull()
-        } label: {
-            Text("∅").frame(width: 18)
+        Button(action: toggleNull) {
+            Text("∅")
+                .font(.system(size: 10, weight: .medium))
+                .frame(width: 16, height: 14)
+                .background(
+                    isNullValue ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: 3)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(isNullValue ? Color.accentColor.opacity(0.55) : Color.clear, lineWidth: 1)
+                )
+                .foregroundStyle(isNullValue ? Color.accentColor : Color.secondary)
+                .contentShape(Rectangle())
         }
-        .buttonStyle(.bordered)
-        .tint(isNullValue ? Color.accentColor : Color.secondary)
-        .controlSize(.small)
+        .buttonStyle(.plain)
         .opacity(isHovering || isFocused || isNullValue ? 1 : 0)
         .allowsHitTesting(isHovering || isFocused || isNullValue)
         .accessibilityHidden(!(isHovering || isFocused || isNullValue))
+        .accessibilityLabel(isNullValue ? "恢复为上一个非 NULL 值" : "设为 NULL")
         .disabled(!isEditable)
         .help(isNullValue ? "恢复为上一个非 NULL 值" : "设为 NULL")
     }

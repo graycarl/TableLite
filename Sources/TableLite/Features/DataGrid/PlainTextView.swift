@@ -29,6 +29,8 @@ struct PlainTextView: NSViewRepresentable {
         textView.isSelectable = true
         textView.allowsUndo = true
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        // 背景由外层 SwiftUI 管（字段栏里平时透明，悬停 / 聚焦才出底色）。
+        textView.drawsBackground = false
         textView.textContainerInset = NSSize(width: 4, height: 4)
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
