@@ -16,9 +16,11 @@ struct PlainTextView: NSViewRepresentable {
     var onCommit: () -> Void
     /// `Esc` 取消时调用。
     var onCancel: () -> Void
+    /// 进入 / 离开编辑时回调：外层靠它画聚焦态（`NSTextView` 没有 SwiftUI 的 `@FocusState`）。
+    var onFocusChange: (Bool) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, onCommit: onCommit, onCancel: onCancel)
+        Coordinator(text: $text, onCommit: onCommit, onCancel: onCancel, onFocusChange: onFocusChange)
     }
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -81,16 +83,24 @@ struct PlainTextView: NSViewRepresentable {
         private let text: Binding<String>
         private let onCommit: () -> Void
         private let onCancel: () -> Void
+        private let onFocusChange: (Bool) -> Void
         weak var textView: EditableTextView?
 
-        init(text: Binding<String>, onCommit: @escaping () -> Void, onCancel: @escaping () -> Void) {
+        init(
+            text: Binding<String>,
+            onCommit: @escaping () -> Void,
+            onCancel: @escaping () -> Void,
+            onFocusChange: @escaping (Bool) -> Void
+        ) {
             self.text = text
             self.onCommit = onCommit
             self.onCancel = onCancel
+            self.onFocusChange = onFocusChange
         }
 
         func textDidBeginEditing(_ notification: Notification) {
             textView?.isEditing = true
+            onFocusChange(true)
         }
 
         func textDidChange(_ notification: Notification) {
@@ -100,6 +110,7 @@ struct PlainTextView: NSViewRepresentable {
 
         func textDidEndEditing(_ notification: Notification) {
             textView?.isEditing = false
+            onFocusChange(false)
             onCommit()
         }
     }

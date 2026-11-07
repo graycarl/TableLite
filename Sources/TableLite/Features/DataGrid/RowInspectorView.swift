@@ -124,7 +124,10 @@ struct RowInspectorView: View {
     }
 
     private func fieldList(for row: GridRow) -> some View {
-        VStack(spacing: 0) {
+        // 只用一次派生结果：循环里不再重复求值 `filteredColumns`（搜过词时它是 O(列数) 的过滤）。
+        let columns = filteredColumns
+
+        return VStack(spacing: 0) {
             rowBanner(for: row)
 
             if viewModel.isLoadingFullRow {
@@ -137,16 +140,17 @@ struct RowInspectorView: View {
 
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    ForEach(Array(filteredColumns.enumerated()), id: \.element.id) { index, column in
+                    ForEach(columns.indices, id: \.self) { index in
+                        let column = columns[index]
                         InspectorFieldRow(viewModel: viewModel, row: row, column: column)
                             .id("\(row.id)#\(column.name)")
 
                         // 字段之间的分隔线（`14-row-inspector.md` §9）：最后一个字段下面不画。
-                        if index < filteredColumns.count - 1 {
+                        if index < columns.count - 1 {
                             Rectangle()
                                 .fill(AppColor.rowSeparator)
                                 .frame(height: 1)
-                                .padding(.horizontal, 10)
+                                .padding(.horizontal, AppSpacing.m)
                         }
                     }
                 }
@@ -237,6 +241,8 @@ struct InspectorFieldRow: View {
     @State private var errorMessage: String?
     @State private var previousNonNull: SQLValue?
     @State private var isExpanded = false
+    /// `NSTextView` 没有 `@FocusState`，多行编辑器的焦点由它自己回调（见 `PlainTextView`）。
+    @State private var isMultilineActive = false
     /// L29：大窗口里的查找请求计数。
     @State private var findToken = 0
     @State private var isHovering = false
@@ -244,6 +250,14 @@ struct InspectorFieldRow: View {
 
     private var editorKind: FieldEditorKind {
         FieldEditorResolver.kind(for: column, tinyintAsCheckbox: viewModel.cellDisplayContext.tinyintAsCheckbox)
+    }
+
+    /// 值里数字与日期时间都用等宽字体（`specs/03-data-browsing.md` §7）。
+    private var usesMonospacedValue: Bool {
+        switch editorKind {
+        case .number, .temporal: return true
+        default: return false
+        }
     }
 
     private var currentValue: SQLValue {
@@ -254,6 +268,8 @@ struct InspectorFieldRow: View {
     private var isDeleted: Bool { viewModel.isRowDeleted(rowID: row.id) }
     private var isEditable: Bool { viewModel.isEditingEnabled && !isDeleted }
     private var isEdited: Bool { viewModel.isCellEdited(rowID: row.id, column: column.name) }
+    /// 本字段是否有焦点（单行靠 `@FocusState`，多行靠 `NSTextView` 回调）。
+    private var isFocusedOrEditing: Bool { isFocused || isMultilineActive }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -268,9 +284,9 @@ struct InspectorFieldRow: View {
                     .foregroundStyle(.red)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.top, 5)
-        .padding(.bottom, 7)
+        .padding(.horizontal, AppSpacing.m)
+        .padding(.top, AppSpacing.xs)
+        .padding(.bottom, AppSpacing.s)
         .background(rowBackground)
         .onHover { isHovering = $0 }
         .onDisappear { isHovering = false }
@@ -285,7 +301,7 @@ struct InspectorFieldRow: View {
         .onAppear(perform: syncDraft)
         .onChange(of: currentValue) { _, newValue in
             if !newValue.isNull { previousNonNull = newValue }
-            if !isFocused { draft = FieldEditValidator.text(from: currentValue) }
+            if !isFocusedOrEditing { draft = FieldEditValidator.text(from: currentValue) }
         }
         .onChange(of: viewModel.focusRequestToken) { _, _ in
             if viewModel.focusRequestColumn == column.name, isEditable {
@@ -299,8 +315,9 @@ struct InspectorFieldRow: View {
     }
 
     /// 字段名行：小字、次要色的字段名 + 右端的类型与 `∅`。
+    /// 左侧留出与值编辑器内边距相同的 6pt，让字段名与值的**文字**左缘对齐。
     private var labelLine: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: AppSpacing.xxs) {
             if column.isPrimaryKey {
                 Image(systemName: "key.fill")
                     .font(.system(size: 10))
@@ -311,7 +328,7 @@ struct InspectorFieldRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .layoutPriority(1)
-            Spacer(minLength: 6)
+            Spacer(minLength: AppSpacing.xs)
             Text(column.typeDisplayText)
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
@@ -319,9 +336,11 @@ struct InspectorFieldRow: View {
                 .truncationMode(.middle)
             nullButton
         }
+        .padding(.leading, AppSpacing.xs)
     }
 
     /// 悬停 / 已改的高亮是**分隔线之间的整条底色**，不做圆角卡片。
+    /// 聚焦不复制一份整条高亮，交给值编辑器自己的底色与描边。
     private var rowBackground: Color {
         if isEdited { return Color.orange.opacity(0.14) }
         if isHovering && isEditable { return Color.primary.opacity(0.04) }
@@ -373,7 +392,8 @@ struct InspectorFieldRow: View {
     private var singleLineEditor: some View {
         TextField("", text: $draft)
             .textFieldStyle(.plain)
-            .font(.system(size: 13, design: editorKind == .number ? .monospaced : .default))
+            // 数字 / 日期时间用等宽字体（`specs/03-data-browsing.md` §7）。
+            .font(.system(size: 13, design: usesMonospacedValue ? .monospaced : .default))
             .padding(.horizontal, AppSpacing.xs)
             .padding(.vertical, AppSpacing.xxs)
             .background(fieldBackground, in: RoundedRectangle(cornerRadius: AppRadius.s))
@@ -427,16 +447,17 @@ struct InspectorFieldRow: View {
                 isMultiline: true,
                 fontSize: 13,
                 onCommit: commitDraft,
-                onCancel: cancelEdit
+                onCancel: cancelEdit,
+                onFocusChange: { isMultilineActive = $0 }
             )
             .frame(minHeight: 52, maxHeight: 120)
             .background(
-                (isHovering || isFocused) ? Color(nsColor: .textBackgroundColor) : Color.clear,
+                (isHovering || isFocusedOrEditing) ? Color(nsColor: .textBackgroundColor) : Color.clear,
                 in: RoundedRectangle(cornerRadius: AppRadius.s)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: AppRadius.s)
-                    .stroke((isHovering || isFocused) ? Color(nsColor: .separatorColor) : Color.clear)
+                    .stroke((isHovering || isFocusedOrEditing) ? Color(nsColor: .separatorColor) : Color.clear)
                     .allowsHitTesting(false)
             )
             .overlay(alignment: .topLeading) {
@@ -479,7 +500,7 @@ struct InspectorFieldRow: View {
             }
         } label: {
             Text(draft.isEmpty ? "（空）" : draft)
-                .font(.system(size: 12))
+                .font(.system(size: 13))
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .menuStyle(.borderlessButton)
@@ -487,9 +508,9 @@ struct InspectorFieldRow: View {
     }
 
     private var binaryEditor: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: AppSpacing.xs) {
             Text(binaryDisplayText)
-                .font(.system(size: 13))
+                .font(.system(size: 13, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -509,22 +530,30 @@ struct InspectorFieldRow: View {
                 .frame(width: 16, height: 14)
                 .background(
                     isNullValue ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.06),
-                    in: RoundedRectangle(cornerRadius: 3)
+                    in: RoundedRectangle(cornerRadius: AppRadius.s)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 3)
+                    RoundedRectangle(cornerRadius: AppRadius.s)
                         .stroke(isNullValue ? Color.accentColor.opacity(0.55) : Color.clear, lineWidth: 1)
                 )
                 .foregroundStyle(isNullValue ? Color.accentColor : Color.secondary)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .opacity(isHovering || isFocused || isNullValue ? 1 : 0)
-        .allowsHitTesting(isHovering || isFocused || isNullValue)
-        .accessibilityHidden(!(isHovering || isFocused || isNullValue))
-        .accessibilityLabel(isNullValue ? "恢复为上一个非 NULL 值" : "设为 NULL")
+        // `.plain` 不会自动变灰：只读行里不能看起来还能点。
+        .opacity(nullButtonOpacity)
+        .allowsHitTesting(nullButtonOpacity > 0)
+        // 不参与键盘焦点环：它只在悬停 / 聚焦时现身，否则按 Tab 会落在看不见的按钮上。
+        .focusable(false)
         .disabled(!isEditable)
+        .accessibilityLabel(isNullValue ? "恢复为上一个非 NULL 值" : "设为 NULL")
         .help(isNullValue ? "恢复为上一个非 NULL 值" : "设为 NULL")
+    }
+
+    /// 悬停 / 聚焦 / 本身是 `NULL` 才现身；只读行里现身也不该看起来可点。
+    private var nullButtonOpacity: Double {
+        guard isHovering || isFocusedOrEditing || isNullValue else { return 0 }
+        return isEditable ? 1 : 0.35
     }
 
     // MARK: 提交 / 取消
